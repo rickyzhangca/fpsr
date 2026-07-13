@@ -1,0 +1,41 @@
+{
+  "blueprint": {
+    "item": "blueprint",
+    "label": "Tiles + snap",
+    "version": 562954248978432,
+    "snap-to-grid": {
+      "x": 0.5,
+      "y": 0.5
+    },
+    "tiles": [
+      {
+        "name": "stone-path",
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "name": "stone-path",
+        "position": {
+          "x": 1,
+          "y": 0
+        }
+      },
+      {
+        "name": "stone-path",
+        "position": {
+          "x": 0,
+          "y": 1
+        }
+      },
+      {
+        "name": "stone-path",
+        "position": {
+          "x": 1,
+          "y": 1
+        }
+      }
+    ]
+  }
+}

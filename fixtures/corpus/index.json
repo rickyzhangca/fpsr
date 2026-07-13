@@ -1,0 +1,289 @@
+{
+  "groups": [
+    {
+      "id": "assembler",
+      "file": "assembler.bp.txt",
+      "entityCount": 12,
+      "entities": [
+        "assembling-machine-1",
+        "assembling-machine-2",
+        "assembling-machine-3",
+        "biochamber",
+        "captive-biter-spawner",
+        "centrifuge",
+        "chemical-plant",
+        "crusher",
+        "cryogenic-plant",
+        "electromagnetic-plant",
+        "foundry",
+        "oil-refinery"
+      ]
+    },
+    {
+      "id": "belt",
+      "file": "belt.bp.txt",
+      "entityCount": 4,
+      "entities": [
+        "express-transport-belt",
+        "fast-transport-belt",
+        "transport-belt",
+        "turbo-transport-belt"
+      ]
+    },
+    {
+      "id": "chest",
+      "file": "chest.bp.txt",
+      "entityCount": 12,
+      "entities": [
+        "active-provider-chest",
+        "bottomless-chest",
+        "buffer-chest",
+        "infinity-chest",
+        "iron-chest",
+        "linked-chest",
+        "passive-provider-chest",
+        "proxy-container",
+        "requester-chest",
+        "steel-chest",
+        "storage-chest",
+        "wooden-chest"
+      ]
+    },
+    {
+      "id": "circuit",
+      "file": "circuit.bp.txt",
+      "entityCount": 8,
+      "entities": [
+        "arithmetic-combinator",
+        "constant-combinator",
+        "decider-combinator",
+        "display-panel",
+        "power-switch",
+        "programmable-speaker",
+        "selector-combinator",
+        "small-lamp"
+      ]
+    },
+    {
+      "id": "fluid-machine",
+      "file": "fluid-machine.bp.txt",
+      "entityCount": 11,
+      "entities": [
+        "boiler",
+        "heat-exchanger",
+        "offshore-pump",
+        "one-way-valve",
+        "overflow-valve",
+        "pipe-to-ground",
+        "pump",
+        "steam-engine",
+        "steam-turbine",
+        "storage-tank",
+        "top-up-valve"
+      ]
+    },
+    {
+      "id": "gate",
+      "file": "gate.bp.txt",
+      "entityCount": 1,
+      "entities": ["gate"]
+    },
+    {
+      "id": "heat-pipe",
+      "file": "heat-pipe.bp.txt",
+      "entityCount": 1,
+      "entities": ["heat-pipe"]
+    },
+    {
+      "id": "inserter",
+      "file": "inserter.bp.txt",
+      "entityCount": 6,
+      "entities": [
+        "bulk-inserter",
+        "burner-inserter",
+        "fast-inserter",
+        "inserter",
+        "long-handed-inserter",
+        "stack-inserter"
+      ]
+    },
+    {
+      "id": "loader",
+      "file": "loader.bp.txt",
+      "entityCount": 5,
+      "entities": ["express-loader", "fast-loader", "linked-belt", "loader", "turbo-loader"]
+    },
+    {
+      "id": "machine",
+      "file": "machine.bp.txt",
+      "entityCount": 24,
+      "entities": [
+        "agricultural-tower",
+        "asteroid-collector",
+        "beacon",
+        "big-mining-drill",
+        "biolab",
+        "burner-mining-drill",
+        "cargo-bay",
+        "cargo-landing-pad",
+        "electric-furnace",
+        "electric-mining-drill",
+        "fusion-generator",
+        "fusion-reactor",
+        "heating-tower",
+        "lab",
+        "landing-pad-unloading-bay",
+        "nuclear-reactor",
+        "pumpjack",
+        "recycler",
+        "roboport",
+        "rocket-silo",
+        "space-platform-hub",
+        "steel-furnace",
+        "stone-furnace",
+        "thruster"
+      ]
+    },
+    {
+      "id": "pipe",
+      "file": "pipe.bp.txt",
+      "entityCount": 2,
+      "entities": ["infinity-pipe", "pipe"]
+    },
+    {
+      "id": "power",
+      "file": "power.bp.txt",
+      "entityCount": 8,
+      "entities": [
+        "accumulator",
+        "big-electric-pole",
+        "lightning-collector",
+        "lightning-rod",
+        "medium-electric-pole",
+        "small-electric-pole",
+        "solar-panel",
+        "substation"
+      ]
+    },
+    {
+      "id": "rail",
+      "file": "rail.bp.txt",
+      "entityCount": 9,
+      "entities": [
+        "curved-rail-a",
+        "curved-rail-b",
+        "elevated-curved-rail-a",
+        "elevated-curved-rail-b",
+        "elevated-half-diagonal-rail",
+        "elevated-straight-rail",
+        "half-diagonal-rail",
+        "rail-ramp",
+        "straight-rail"
+      ]
+    },
+    {
+      "id": "rail-signal",
+      "file": "rail-signal.bp.txt",
+      "entityCount": 2,
+      "entities": ["rail-chain-signal", "rail-signal"]
+    },
+    {
+      "id": "simple",
+      "file": "simple.bp.txt",
+      "entityCount": 9,
+      "entities": [
+        "burner-generator",
+        "electric-energy-interface",
+        "heat-interface",
+        "land-mine",
+        "radar",
+        "rail-support",
+        "simple-entity-with-force",
+        "simple-entity-with-owner",
+        "train-stop"
+      ]
+    },
+    {
+      "id": "splitter",
+      "file": "splitter.bp.txt",
+      "entityCount": 5,
+      "entities": [
+        "express-splitter",
+        "fast-splitter",
+        "lane-splitter",
+        "splitter",
+        "turbo-splitter"
+      ]
+    },
+    {
+      "id": "train",
+      "file": "train.bp.txt",
+      "entityCount": 5,
+      "entities": [
+        "artillery-wagon",
+        "cargo-wagon",
+        "fluid-wagon",
+        "infinity-cargo-wagon",
+        "locomotive"
+      ]
+    },
+    {
+      "id": "turret",
+      "file": "turret.bp.txt",
+      "entityCount": 7,
+      "entities": [
+        "artillery-turret",
+        "flamethrower-turret",
+        "gun-turret",
+        "laser-turret",
+        "railgun-turret",
+        "rocket-turret",
+        "tesla-turret"
+      ]
+    },
+    {
+      "id": "underground-belt",
+      "file": "underground-belt.bp.txt",
+      "entityCount": 4,
+      "entities": [
+        "express-underground-belt",
+        "fast-underground-belt",
+        "turbo-underground-belt",
+        "underground-belt"
+      ]
+    },
+    {
+      "id": "vehicle",
+      "file": "vehicle.bp.txt",
+      "entityCount": 5,
+      "entities": ["car", "construction-robot", "logistic-robot", "spidertron", "tank"]
+    },
+    {
+      "id": "wall",
+      "file": "wall.bp.txt",
+      "entityCount": 1,
+      "entities": ["stone-wall"]
+    }
+  ],
+  "tiles": {
+    "file": "tiles.bp.txt",
+    "tileCount": 15,
+    "tiles": [
+      "artificial-jellynut-soil",
+      "artificial-yumako-soil",
+      "concrete",
+      "foundation",
+      "hazard-concrete-left",
+      "hazard-concrete-right",
+      "ice-platform",
+      "landfill",
+      "overgrowth-jellynut-soil",
+      "overgrowth-yumako-soil",
+      "refined-concrete",
+      "refined-hazard-concrete-left",
+      "refined-hazard-concrete-right",
+      "space-platform-foundation",
+      "stone-path"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+node_modules/
+dist/
+assets-out/
+fixtures/ground-truth/
+fixtures/golden/__diff__/
+fixtures/golden/*.png
+script-output/
+.DS_Store
+*.tsbuildinfo
+data-raw-dump.json
+.cursor
+.cursor-tmp
+
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+credentials.json
+secrets.*
+
+# Build and test artifacts
+coverage/
+build/
+
+# Dev scratch scripts
+**/tmp-*.ts
+
+# Cursor-specific (not needed for public consumers)
+.agents/
+skills-lock.json

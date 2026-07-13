@@ -1,0 +1,9 @@
+{
+  "name": "fpsr-rig",
+  "version": "0.0.1",
+  "title": "FPSR Ground Truth Rig",
+  "author": "fpsr",
+  "description": "Dev-only scenario that imports a blueprint and takes a screenshot for fpsr golden-image review.",
+  "factorio_version": "2.1",
+  "dependencies": ["base"]
+}

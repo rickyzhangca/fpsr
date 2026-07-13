@@ -1,0 +1,68 @@
+{
+  "name": "fpsr",
+  "version": "0.0.0",
+  "description": "Headless Factorio 2.1.9 blueprint string renderer for browser and Node.js",
+  "keywords": [
+    "blueprint",
+    "canvas",
+    "factorio",
+    "renderer",
+    "typescript"
+  ],
+  "homepage": "https://github.com/rickyzhangca/fpsr#readme",
+  "bugs": {
+    "url": "https://github.com/rickyzhangca/fpsr/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rickyzhangca/fpsr.git",
+    "directory": "packages/renderer"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "test": "vp test run",
+    "lint": "vp lint",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "format": "vp fmt",
+    "fixtures": "tsx scripts/make-fixtures.ts"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "skia-canvas": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "skia-canvas": {
+      "optional": true
+    }
+  }
+}

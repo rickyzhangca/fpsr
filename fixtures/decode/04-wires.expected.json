@@ -1,0 +1,39 @@
+{
+  "blueprint": {
+    "item": "blueprint",
+    "label": "Wires",
+    "version": 562954248978432,
+    "entities": [
+      {
+        "entity_number": 1,
+        "name": "small-electric-pole",
+        "position": {
+          "x": 1.5,
+          "y": 1.5
+        }
+      },
+      {
+        "entity_number": 2,
+        "name": "small-electric-pole",
+        "position": {
+          "x": 5.5,
+          "y": 1.5
+        }
+      }
+    ],
+    "wires": [
+      [
+        1,
+        5,
+        2,
+        5
+      ],
+      [
+        1,
+        1,
+        2,
+        1
+      ]
+    ]
+  }
+}

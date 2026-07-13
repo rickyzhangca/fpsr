@@ -1,0 +1,28 @@
+{
+  "blueprint": {
+    "item": "blueprint",
+    "label": "Direction + quality",
+    "version": 562954248978432,
+    "entities": [
+      {
+        "entity_number": 1,
+        "name": "inserter",
+        "position": {
+          "x": 1.5,
+          "y": 1.5
+        },
+        "direction": 4,
+        "quality": "rare"
+      },
+      {
+        "entity_number": 2,
+        "name": "assembling-machine-2",
+        "position": {
+          "x": 3.5,
+          "y": 1.5
+        },
+        "recipe": "iron-gear-wheel"
+      }
+    ]
+  }
+}

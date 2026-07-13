@@ -1,0 +1,26 @@
+{
+  "name": "@fpsr/render-cli",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "fpsr-render": "./src/cli.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "render": "tsx src/cli.ts",
+    "build": "echo 'no build step'",
+    "test": "echo 'no tests yet'",
+    "lint": "vp lint",
+    "typecheck": "tsc --noEmit",
+    "format": "vp fmt"
+  },
+  "dependencies": {
+    "fpsr": "workspace:*",
+    "skia-canvas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@fpsr/golden-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx scripts/seed-blueprints.ts",
+    "update": "tsx src/update.ts",
+    "test": "vp test run",
+    "build": "echo 'no build step'",
+    "lint": "vp lint",
+    "typecheck": "tsc --noEmit",
+    "format": "vp fmt"
+  },
+  "dependencies": {
+    "fpsr": "workspace:*",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "skia-canvas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
+    "vite-plus": "catalog:",
+    "vitest": "4.1.10"
+  }
+}

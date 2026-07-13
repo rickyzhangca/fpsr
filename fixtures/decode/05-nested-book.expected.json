@@ -1,0 +1,75 @@
+{
+  "blueprint_book": {
+    "item": "blueprint-book",
+    "label": "Main book",
+    "version": 562954248978432,
+    "active_index": 1,
+    "blueprints": [
+      {
+        "index": 0,
+        "blueprint": {
+          "item": "blueprint",
+          "label": "First",
+          "version": 562954248978432,
+          "entities": [
+            {
+              "entity_number": 1,
+              "name": "wooden-chest",
+              "position": {
+                "x": 0.5,
+                "y": 0.5
+              }
+            }
+          ]
+        }
+      },
+      {
+        "index": 1,
+        "blueprint": {
+          "item": "blueprint",
+          "label": "Second (active)",
+          "version": 562954248978432,
+          "entities": [
+            {
+              "entity_number": 1,
+              "name": "iron-chest",
+              "position": {
+                "x": 1.5,
+                "y": 1.5
+              }
+            }
+          ]
+        }
+      },
+      {
+        "index": 2,
+        "blueprint_book": {
+          "item": "blueprint-book",
+          "label": "Nested book",
+          "version": 562954248978432,
+          "active_index": 0,
+          "blueprints": [
+            {
+              "index": 0,
+              "blueprint": {
+                "item": "blueprint",
+                "label": "Nested blueprint",
+                "version": 562954248978432,
+                "entities": [
+                  {
+                    "entity_number": 1,
+                    "name": "steel-chest",
+                    "position": {
+                      "x": 2.5,
+                      "y": 2.5
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "blueprint": {
+    "item": "blueprint",
+    "label": "Minimal chest",
+    "version": 562954248978432,
+    "entities": [
+      {
+        "entity_number": 1,
+        "name": "wooden-chest",
+        "position": {
+          "x": 0.5,
+          "y": 0.5
+        }
+      }
+    ]
+  }
+}
