@@ -39,14 +39,14 @@ import { addCustom, clearCustoms, listCustoms } from "./customBlueprintsDb";
 import { PerformancePane } from "./PerformancePane";
 import type { PerfReport } from "./perfReport";
 import { PreviewPane } from "./PreviewPane";
-import { ProcessPane } from "./ProcessPane";
-import { type SidebarSource, SidebarTree } from "./SidebarTree";
 import type { PreviewRenderProgress } from "./previewRenderer";
+import { ProcessPane } from "./ProcessPane";
 import {
   type ActiveRenderProgress,
   sameRenderPath,
   updateActiveRenderProgress,
 } from "./renderProgressState";
+import { type SidebarSource, SidebarTree } from "./SidebarTree";
 
 type Tab = "preview" | "process" | "performance" | "compare";
 
@@ -440,7 +440,7 @@ export function App() {
           onValueChange={(value) => setTab(value as Tab)}
           className="flex min-h-0 flex-1 flex-col border-t"
         >
-          <TabsList variant="line" className="mt-1 mx-2">
+          <TabsList variant="line" className="mx-1">
             <TabsTrigger value="preview">Preview</TabsTrigger>
             <TabsTrigger value="process">Process</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>

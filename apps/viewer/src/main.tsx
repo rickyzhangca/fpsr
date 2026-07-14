@@ -11,7 +11,11 @@ if (root) {
     <StrictMode>
       <TooltipProvider>
         <App />
-        <Toaster />
+        <Toaster
+          position="bottom-center"
+          className="flex justify-center"
+          toastOptions={{ style: { width: "fit-content" } }}
+        />
       </TooltipProvider>
     </StrictMode>,
   );
