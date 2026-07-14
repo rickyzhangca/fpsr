@@ -7,7 +7,11 @@ import {
   type Renderer,
   type RenderResult,
 } from "fpsr";
-import type { RenderWorkerRequest, RenderWorkerResponse } from "./renderWorkerProtocol";
+import {
+  toPreviewRenderProgress,
+  type RenderWorkerRequest,
+  type RenderWorkerResponse,
+} from "./renderWorkerProtocol";
 
 const ASSETS_BASE = "/assets/2.1.9";
 const assetEvents: AssetEvent[] = [];
@@ -67,6 +71,12 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
   const detailStart = assetEvents.length;
 
   try {
+    workerScope.postMessage({
+      type: "progress",
+      requestId: request.requestId,
+      surfaceId: request.surfaceId,
+      progress: { value: 5, label: "Preparing renderer" },
+    });
     const renderer = await getRenderer();
     if (controller.signal.aborted) return;
     const wallStart = nowMs();
@@ -74,6 +84,16 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
       ...request.options,
       canvas: surface.canvas as unknown as CanvasLike,
       signal: controller.signal,
+      onProgress(progress) {
+        if (!controller.signal.aborted && surface.active?.requestId === request.requestId) {
+          workerScope.postMessage({
+            type: "progress",
+            requestId: request.requestId,
+            surfaceId: request.surfaceId,
+            progress: toPreviewRenderProgress(progress),
+          });
+        }
+      },
     });
     const wallMs = nowMs() - wallStart;
     if (controller.signal.aborted || surface.active?.requestId !== request.requestId) return;

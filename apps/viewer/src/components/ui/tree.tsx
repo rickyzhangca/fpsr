@@ -34,7 +34,7 @@ function TreeItemButton({
       type="button"
       style={{ paddingLeft: indent }}
       className={cn(
-        "flex h-12 w-full items-center gap-1 rounded px-2 text-left text-xs font-normal outline-none select-none",
+        "flex h-12 w-full items-center gap-1 rounded px-2 text-left text-sm font-normal outline-none select-none",
         "hover:bg-muted hover:text-foreground",
         "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground",
         "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",

@@ -41,6 +41,12 @@ import type { PerfReport } from "./perfReport";
 import { PreviewPane } from "./PreviewPane";
 import { ProcessPane } from "./ProcessPane";
 import { type SidebarSource, SidebarTree } from "./SidebarTree";
+import type { PreviewRenderProgress } from "./previewRenderer";
+import {
+  type ActiveRenderProgress,
+  sameRenderPath,
+  updateActiveRenderProgress,
+} from "./renderProgressState";
 
 type Tab = "preview" | "process" | "performance" | "compare";
 
@@ -134,6 +140,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("preview");
   const [tileSize, setTileSize] = useState("—");
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
+  const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
 
   const sampleSources: SidebarSource[] = useMemo(
     () =>
@@ -291,9 +298,30 @@ export function App() {
   }, [customSources, selectedSourceId]);
 
   const onTreeSelect = (sourceId: string, path: number[]) => {
+    const normalizedPath = path.length === 0 ? null : path;
+    if (sourceId !== selectedSourceId || !sameRenderPath(normalizedPath, selectedPath)) {
+      setRenderProgress({
+        sourceId,
+        path: normalizedPath,
+        value: 1,
+        label: "Queued",
+      });
+    }
     setSelectedSourceId(sourceId);
-    setSelectedPath(path.length === 0 ? null : path);
+    setSelectedPath(normalizedPath);
   };
+
+  const onRenderProgress = useCallback(
+    (progress: PreviewRenderProgress | null) => {
+      setRenderProgress((previous) =>
+        updateActiveRenderProgress(previous, progress, {
+          sourceId: selectedSourceId,
+          path: selectedPath,
+        }),
+      );
+    },
+    [selectedSourceId, selectedPath],
+  );
 
   const isCustomSelected = customSources.some((s) => s.id === selectedSourceId);
 
@@ -310,6 +338,7 @@ export function App() {
                 sources={sampleSources}
                 selectedSourceId={selectedSourceId}
                 selectedPath={selectedPath}
+                renderProgress={renderProgress}
                 onSelect={onTreeSelect}
               />
             </section>
@@ -356,6 +385,7 @@ export function App() {
                 sources={customSources}
                 selectedSourceId={selectedSourceId}
                 selectedPath={selectedPath}
+                renderProgress={renderProgress}
                 onSelect={onTreeSelect}
               />
             </section>
@@ -425,6 +455,7 @@ export function App() {
               decodeStats={activeDecodeStats}
               onTileSizeChange={setTileSize}
               onPerfReport={setPerfReport}
+              onRenderProgress={onRenderProgress}
             />
           </TabsContent>
 

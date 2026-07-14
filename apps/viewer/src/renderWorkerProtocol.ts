@@ -1,6 +1,41 @@
-import type { AssetEvent, BlueprintDocument, RenderOptions, RenderProfile, TileFrame } from "fpsr";
+import type {
+  AssetEvent,
+  BlueprintDocument,
+  RenderOptions,
+  RenderProfile,
+  RenderProgressEvent,
+  TileFrame,
+} from "fpsr";
 
-export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal">;
+export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
+
+export interface PreviewRenderProgress {
+  value: number;
+  label: string;
+  /** Final render wall time; present only after the render completes. */
+  durationMs?: number;
+}
+
+export function toPreviewRenderProgress(event: RenderProgressEvent): PreviewRenderProgress {
+  switch (event.stage) {
+    case "planning":
+      return { value: 12, label: "Planning" };
+    case "loading-assets": {
+      const ratio = event.total === 0 ? 1 : event.completed / event.total;
+      return {
+        value: 15 + Math.round(65 * ratio),
+        label:
+          event.total === 0 ? "Assets ready" : `Loading assets ${event.completed}/${event.total}`,
+      };
+    }
+    case "baking-icons":
+      return { value: 84, label: "Preparing icons" };
+    case "painting":
+      return { value: 92, label: "Painting" };
+    case "complete":
+      return { value: 100, label: "Complete" };
+  }
+}
 
 export type RenderWorkerRequest =
   | {
@@ -34,6 +69,12 @@ export type RenderWorkerRequest =
 export type RenderWorkerResponse =
   | {
       type: "ready";
+    }
+  | {
+      type: "progress";
+      requestId: number;
+      surfaceId: string;
+      progress: PreviewRenderProgress;
     }
   | {
       type: "rendered";

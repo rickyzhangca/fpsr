@@ -40,6 +40,7 @@ vi.mock("./PreviewCanvasFrame", () => ({
 }));
 
 import { PreviewPane } from "./PreviewPane";
+import type { PreviewRenderProgress } from "./previewRenderer";
 
 function result(altMode: boolean): RenderResult {
   return {
@@ -101,13 +102,26 @@ describe("PreviewPane alt-mode toggle", () => {
     };
     const doc: BlueprintDocument = { blueprint };
     const root = createRoot(host);
+    const onRenderProgress = vi.fn<(progress: PreviewRenderProgress | null) => void>();
     act(() => {
-      root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
+      root.render(
+        <PreviewPane
+          doc={doc}
+          blueprint={blueprint}
+          blueprintPath={null}
+          onRenderProgress={onRenderProgress}
+        />,
+      );
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
     expect(mocks.render).toHaveBeenCalledTimes(1);
+    expect(onRenderProgress).toHaveBeenLastCalledWith({
+      value: 100,
+      label: "Complete",
+      durationMs: expect.any(Number),
+    });
     expect(mocks.render.mock.calls[0]?.[1]).toMatchObject({
       altMode: true,
       padTiles: 1,

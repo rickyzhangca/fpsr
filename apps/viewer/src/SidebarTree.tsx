@@ -1,3 +1,4 @@
+import { Progress } from "@/components/ui/progress";
 import {
   Tree,
   TreeExpandIcon,
@@ -39,6 +40,14 @@ export interface SidebarSource {
   id: SidebarSourceId;
   label: string;
   doc: BlueprintDocument;
+}
+
+export interface SidebarRenderProgress {
+  sourceId: SidebarSourceId;
+  path: number[] | null;
+  value: number;
+  label: string;
+  durationMs?: number;
 }
 
 function selectionId(sourceId: SidebarSourceId, path: number[] | null): string {
@@ -153,19 +162,33 @@ function TreeItemKindIcon({ kind, icons }: { kind: BookTreeItemKind; icons?: Ico
   );
 }
 
+function formatRenderDuration(durationMs: number): string {
+  if (durationMs < 1_000) return `${Math.max(0, Math.round(durationMs))} ms`;
+  if (durationMs < 60_000) return `${(durationMs / 1_000).toFixed(1)} s`;
+  const totalSeconds = Math.round(durationMs / 1_000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
 export function SidebarTree({
   sources,
   selectedSourceId,
   selectedPath,
+  renderProgress,
   onSelect,
 }: {
   sources: SidebarSource[];
   selectedSourceId: SidebarSourceId;
   selectedPath: number[] | null;
+  renderProgress?: SidebarRenderProgress | null;
   onSelect: (sourceId: SidebarSourceId, path: number[]) => void;
 }) {
   const items = useMemo(() => buildSidebarItems(sources), [sources]);
   const selectedItemId = selectionId(selectedSourceId, selectedPath);
+  const progressItemId = renderProgress
+    ? selectionId(renderProgress.sourceId, renderProgress.path)
+    : null;
 
   const [expandedItems, setExpandedItems] = useState<string[]>(() =>
     ancestorIdsForSelection(selectedSourceId, selectedPath),
@@ -246,6 +269,9 @@ export function SidebarTree({
         if (!data) return null;
 
         const isFolder = item.isFolder();
+        const progress = id === progressItemId ? renderProgress : null;
+        const renderedDuration =
+          progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
         const isPlanner = data.kind === "upgrade_planner" || data.kind === "deconstruction_planner";
         // Subtract 1 so top-level sources sit flush under the section title.
         const level = Math.max(0, item.getItemMeta().level - 1);
@@ -269,8 +295,28 @@ export function SidebarTree({
               <TreeItemIconSlot className="size-9">
                 <TreeItemKindIcon kind={data.kind} icons={data.icons} />
               </TreeItemIconSlot>
-              <span className="min-w-0 truncate pl-1">
-                <FactorioRichText text={item.getItemName()} size="sm" />
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5 pl-1.5">
+                <span className="min-w-0 truncate">
+                  <FactorioRichText text={item.getItemName()} size="sm" />
+                </span>
+                {progress && (
+                  <span data-slot="tree-item-status" className="flex h-3 w-full items-center">
+                    {progress.durationMs == null ? (
+                      <Progress
+                        value={progress.value}
+                        aria-label={`${item.getItemName()}: ${progress.label}`}
+                        className="w-full gap-0"
+                      />
+                    ) : (
+                      <span
+                        className="text-xs leading-none tabular-nums text-muted-foreground"
+                        aria-label={`${item.getItemName()} rendered in ${renderedDuration}`}
+                      >
+                        {renderedDuration}
+                      </span>
+                    )}
+                  </span>
+                )}
               </span>
             </TreeItemButton>
           </TreeItem>

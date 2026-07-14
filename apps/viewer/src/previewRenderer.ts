@@ -7,7 +7,12 @@ import {
   type RenderProfile,
   type TileFrame,
 } from "fpsr";
-import type { RenderWorkerRequest, RenderWorkerResponse } from "./renderWorkerProtocol";
+import {
+  toPreviewRenderProgress,
+  type PreviewRenderProgress,
+  type RenderWorkerRequest,
+  type RenderWorkerResponse,
+} from "./renderWorkerProtocol";
 import {
   getAssetEventCursor,
   getAssetEventsSince,
@@ -28,12 +33,19 @@ export interface PreviewRenderResult {
   toPngBlob(): Promise<Blob>;
 }
 
+export type { PreviewRenderProgress } from "./renderWorkerProtocol";
+
+export type PreviewRenderOptions = Omit<RenderOptions, "canvas" | "onProgress"> & {
+  onProgress?: (progress: PreviewRenderProgress) => void;
+};
+
 interface PendingRender {
   kind: "render";
   surfaceId: string;
   resolve(result: PreviewRenderResult): void;
   reject(error: Error): void;
   cleanup(): void;
+  onProgress?: (progress: PreviewRenderProgress) => void;
 }
 
 interface PendingExport {
@@ -81,8 +93,9 @@ export class PreviewRenderWorkerClient {
   async render(
     canvas: HTMLCanvasElement,
     doc: BlueprintDocument,
-    options: Omit<RenderOptions, "canvas">,
+    options: PreviewRenderOptions,
   ): Promise<PreviewRenderResult> {
+    options.onProgress?.({ value: 2, label: "Starting worker" });
     await this.waitUntilReady(options.signal);
 
     let surfaceId = this.surfaces.get(canvas);
@@ -116,8 +129,9 @@ export class PreviewRenderWorkerClient {
         resolve,
         reject,
         cleanup: () => signal?.removeEventListener("abort", onAbort),
+        onProgress: options.onProgress,
       });
-      const { signal: _signal, ...workerOptions } = options;
+      const { signal: _signal, onProgress: _onProgress, ...workerOptions } = options;
       const request: RenderWorkerRequest = {
         type: "render",
         requestId,
@@ -163,6 +177,10 @@ export class PreviewRenderWorkerClient {
     }
     const pending = this.pending.get(response.requestId);
     if (!pending) return;
+    if (response.type === "progress") {
+      if (pending.kind === "render") pending.onProgress?.(response.progress);
+      return;
+    }
     this.pending.delete(response.requestId);
     if (response.type === "error") {
       if (pending.kind === "render") pending.cleanup();
@@ -252,10 +270,7 @@ function getWorkerClient(): PreviewRenderWorkerClient {
 
 function isAbortError(error: unknown): boolean {
   return (
-    typeof error === "object" &&
-    error !== null &&
-    "name" in error &&
-    error.name === "AbortError"
+    typeof error === "object" && error !== null && "name" in error && error.name === "AbortError"
   );
 }
 
@@ -270,7 +285,7 @@ function disableWorkerRendering(client?: PreviewRenderWorkerClient): void {
 export async function renderPreview(
   canvas: HTMLCanvasElement,
   doc: BlueprintDocument,
-  options: Omit<RenderOptions, "canvas">,
+  options: PreviewRenderOptions,
 ): Promise<PreviewRenderResult> {
   if (supportsWorkerRendering(canvas)) {
     let client: PreviewRenderWorkerClient | undefined;
@@ -289,7 +304,13 @@ export async function renderPreview(
   const detailStart = getAssetEventCursor();
   const renderer = await getViewerRenderer();
   const wallStart = nowMs();
-  const result = await renderer.render(doc, { ...options, canvas });
+  const { onProgress, ...renderOptions } = options;
+  onProgress?.({ value: 5, label: "Rendering on main thread" });
+  const result = await renderer.render(doc, {
+    ...renderOptions,
+    canvas,
+    onProgress: (progress) => onProgress?.(toPreviewRenderProgress(progress)),
+  });
   return {
     backend: "main",
     canvas: result.canvas,

@@ -48,8 +48,14 @@ describe("PreviewRenderWorkerClient", () => {
     const worker = new FakeWorker();
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
     const { canvas, offscreen, transfer } = fakeCanvas();
-    const pending = client.render(canvas, doc, { pixelsPerTile: 64, profile: true });
+    const onProgress = vi.fn<(progress: { value: number; label: string }) => void>();
+    const pending = client.render(canvas, doc, {
+      pixelsPerTile: 64,
+      profile: true,
+      onProgress,
+    });
 
+    expect(onProgress).toHaveBeenLastCalledWith({ value: 2, label: "Starting worker" });
     expect(transfer).not.toHaveBeenCalled();
     expect(worker.posts).toHaveLength(0);
     await flushReady(worker);
@@ -59,6 +65,14 @@ describe("PreviewRenderWorkerClient", () => {
     const renderRequest = worker.posts[1]?.message;
     expect(renderRequest?.type).toBe("render");
     if (renderRequest?.type !== "render") throw new Error("expected render request");
+    expect(renderRequest.options).not.toHaveProperty("onProgress");
+    worker.respond({
+      type: "progress",
+      requestId: renderRequest.requestId,
+      surfaceId: renderRequest.surfaceId,
+      progress: { value: 50, label: "Loading assets 1/2" },
+    });
+    expect(onProgress).toHaveBeenLastCalledWith({ value: 50, label: "Loading assets 1/2" });
     worker.respond({
       type: "rendered",
       requestId: renderRequest.requestId,

@@ -20,7 +20,12 @@ import { toast } from "sonner";
 import { countEntitiesByName, formatGameVersion } from "./blueprintMeta";
 import type { PerfReport } from "./perfReport";
 import { PreviewCanvasFrame } from "./PreviewCanvasFrame";
-import { clearPreview, renderPreview, type PreviewRenderResult } from "./previewRenderer";
+import {
+  clearPreview,
+  renderPreview,
+  type PreviewRenderProgress,
+  type PreviewRenderResult,
+} from "./previewRenderer";
 
 const NORMAL_PIXELS_PER_TILE = 32;
 const HD_PIXELS_PER_TILE = 64;
@@ -63,6 +68,7 @@ export function PreviewPane({
   decodeStats,
   onTileSizeChange,
   onPerfReport,
+  onRenderProgress,
 }: {
   doc: BlueprintDocument | null;
   blueprint: Blueprint | null;
@@ -70,6 +76,7 @@ export function PreviewPane({
   decodeStats?: DecodeStats | null;
   onTileSizeChange?: (tileSize: string) => void;
   onPerfReport?: (report: PerfReport | null) => void;
+  onRenderProgress?: (progress: PreviewRenderProgress | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
@@ -104,6 +111,7 @@ export function PreviewPane({
       setHoverTile(null);
       onTileSizeChange?.("—");
       onPerfReport?.(null);
+      onRenderProgress?.(null);
       const canvas = canvasRef.current;
       if (canvas) {
         clearPreview(canvas);
@@ -114,12 +122,14 @@ export function PreviewPane({
     const gen = ++renderGenRef.current;
     const controller = new AbortController();
     setLoading(true);
+    onRenderProgress?.({ value: 1, label: "Queued" });
     setError(null);
     setAssetsMissing(false);
     if (!showCoords) setHoverTile(null);
 
     const timer = window.setTimeout(() => {
       void (async () => {
+        let completed = false;
         try {
           const display = canvasRef.current;
           if (!display) return;
@@ -133,6 +143,7 @@ export function PreviewPane({
             showCoordinates: showCoords,
             signal: controller.signal,
             profile: true,
+            onProgress: onRenderProgress,
           });
           if (gen !== renderGenRef.current) return;
 
@@ -168,6 +179,12 @@ export function PreviewPane({
 
           setDimensions({ width: result.width, height: result.height });
           setLastResult(result);
+          completed = true;
+          onRenderProgress?.({
+            value: 100,
+            label: "Complete",
+            durationMs: result.wallMs + blitMs,
+          });
         } catch (e) {
           if (controller.signal.aborted) return;
           if (gen !== renderGenRef.current) return;
@@ -181,6 +198,7 @@ export function PreviewPane({
         } finally {
           if (gen === renderGenRef.current) {
             setLoading(false);
+            if (!completed) onRenderProgress?.(null);
           }
         }
       })();
@@ -201,6 +219,7 @@ export function PreviewPane({
     decodeStats,
     onTileSizeChange,
     onPerfReport,
+    onRenderProgress,
   ]);
 
   // Re-paint if the canvas mounts after the render promise resolves (fit/layout timing).
