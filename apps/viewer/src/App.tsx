@@ -422,7 +422,11 @@ export function App() {
 
       <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card border m-3 rounded-xl">
         {selectedBlueprint ? (
-          <BlueprintSummary blueprint={selectedBlueprint} tileSize={tileSize} />
+          <BlueprintSummary
+            blueprint={selectedBlueprint}
+            tileSize={tileSize}
+            sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
+          />
         ) : (
           <div className="shrink-0 px-4 pt-4 pb-4">
             <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
@@ -459,30 +463,20 @@ export function App() {
             />
           </TabsContent>
 
-          <TabsContent
-            value="compare"
-            keepMounted
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <ScrollArea className="min-h-0 flex-1">
-              <ComparePane caseName={isCustomSelected ? null : selectedSourceId} />
-            </ScrollArea>
+          <TabsContent value="compare" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {tab === "compare" && (
+              <ScrollArea className="min-h-0 flex-1">
+                <ComparePane caseName={isCustomSelected ? null : selectedSourceId} />
+              </ScrollArea>
+            )}
           </TabsContent>
 
-          <TabsContent
-            value="process"
-            keepMounted
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />
+          <TabsContent value="process" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {tab === "process" && <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />}
           </TabsContent>
 
-          <TabsContent
-            value="performance"
-            keepMounted
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <PerformancePane report={perfReport} />
+          <TabsContent value="performance" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {tab === "performance" && <PerformancePane report={perfReport} />}
           </TabsContent>
         </Tabs>
       </main>

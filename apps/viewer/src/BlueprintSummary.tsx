@@ -1,4 +1,5 @@
 import type { Blueprint } from "fpsr";
+import { memo, useMemo } from "react";
 import { BlueprintComponents } from "./BlueprintComponents";
 import { BlueprintIcons } from "./BlueprintIcons";
 import {
@@ -9,13 +10,21 @@ import {
 } from "./blueprintMeta";
 import { FactorioRichText } from "./FactorioRichText";
 
-export function BlueprintSummary({
+export const BlueprintSummary = memo(function BlueprintSummary({
   blueprint,
   tileSize,
+  sourceBytes,
 }: {
   blueprint: Blueprint;
   tileSize: string;
+  /** Exact encoded source size when this is a bare blueprint document. */
+  sourceBytes?: number;
 }) {
+  const byteSize = useMemo(
+    () => formatByteSize(sourceBytes ?? encodedByteSize(blueprint)),
+    [blueprint, sourceBytes],
+  );
+
   return (
     <div className="flex shrink-0 gap-4 p-4">
       <BlueprintIcons icons={blueprint.icons} />
@@ -45,9 +54,7 @@ export function BlueprintSummary({
           </div>
           <div>
             <dt className="text-muted-foreground">Byte size</dt>
-            <dd className="tabular-nums text-foreground">
-              {formatByteSize(encodedByteSize(blueprint))}
-            </dd>
+            <dd className="tabular-nums text-foreground">{byteSize}</dd>
           </div>
         </dl>
 
@@ -57,4 +64,4 @@ export function BlueprintSummary({
       </div>
     </div>
   );
-}
+});
