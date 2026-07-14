@@ -14,6 +14,9 @@ pnpm -F @fpsr/cdn-upload run upload -- [--dir assets-out/2.1.9] [--dry-run]
 3. Run `upload` — files are PUT to `https://{host}/{zone}/{gameVersion}/{filename}`,
    preserving the on-disk layout under the game version prefix.
 
+Content-addressed atlas and render-database files are uploaded first. The stable
+`manifest.json` is always uploaded last, so a release becomes visible atomically.
+
 `--dry-run` prints every file that would be uploaded (with sizes) and skips
 network I/O. Missing credentials are allowed in dry-run mode.
 

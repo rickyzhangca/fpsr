@@ -2,14 +2,17 @@
 
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const DEFAULT_DIR = path.join(REPO_ROOT, "assets-out/2.1.9");
 
 interface Manifest {
+  schema: 2;
   gameVersion: string;
+  renderDb: { file: string; sha256: string };
+  atlases: { file: string; sha256: string }[];
 }
 
 interface UploadFile {
@@ -120,13 +123,16 @@ async function readManifest(dir: string): Promise<Manifest> {
   }
 
   const manifest = JSON.parse(raw) as Manifest;
+  if (manifest.schema !== 2) {
+    throw new Error(`manifest.json in ${dir} is not schema 2`);
+  }
   if (!manifest.gameVersion || typeof manifest.gameVersion !== "string") {
     throw new Error(`manifest.json in ${dir} is missing gameVersion`);
   }
   return manifest;
 }
 
-async function collectFiles(dir: string): Promise<UploadFile[]> {
+export async function collectFiles(dir: string): Promise<UploadFile[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   const files: UploadFile[] = [];
 
@@ -141,7 +147,11 @@ async function collectFiles(dir: string): Promise<UploadFile[]> {
     });
   }
 
-  files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+  files.sort((a, b) => {
+    if (a.relativePath === "manifest.json") return 1;
+    if (b.relativePath === "manifest.json") return -1;
+    return a.relativePath.localeCompare(b.relativePath);
+  });
   return files;
 }
 
@@ -225,8 +235,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`\nError: ${message}`);
-  process.exit(1);
-});
+const entryUrl = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
+if (import.meta.url === entryUrl) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`\nError: ${message}`);
+    process.exit(1);
+  });
+}
