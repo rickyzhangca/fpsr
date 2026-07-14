@@ -19,14 +19,15 @@ function stubCtx(): Canvas2DContextLike {
     moveTo() {},
     lineTo() {},
     quadraticCurveTo() {},
+    arc() {},
     stroke() {},
     fill() {},
     rect() {},
     clip() {},
     drawImage() {},
     fillText() {},
-    set fillStyle(_v: string) {},
-    set strokeStyle(_v: string) {},
+    set fillStyle(_v: string | CanvasGradient | CanvasPattern) {},
+    set strokeStyle(_v: string | CanvasGradient | CanvasPattern) {},
     set lineWidth(_v: number) {},
     set lineCap(_v: CanvasLineCap) {},
     set globalAlpha(_v: number) {},
@@ -51,6 +52,27 @@ function stubCanvas(): CanvasLike {
     height: 0,
     getContext() {
       return stubCtx();
+    },
+  };
+}
+
+function imageDataCanvas(): CanvasLike {
+  const canvas = stubCanvas();
+  const base = canvas.getContext("2d")!;
+  return {
+    ...canvas,
+    getContext() {
+      return Object.assign(base, {
+        getImageData(_x: number, _y: number, width: number, height: number) {
+          return {
+            data: new Uint8ClampedArray(width * height * 4),
+            width,
+            height,
+            colorSpace: "srgb",
+          } as ImageData;
+        },
+        putImageData() {},
+      });
     },
   };
 }
@@ -191,6 +213,85 @@ describe("createRenderer", () => {
       expect.objectContaining({ showCheckerboard: true }),
     );
     spy.mockRestore();
+  });
+
+  it("renders directly into a supplied destination canvas", async () => {
+    const renderer = await createRenderer({ assets, renderDb: db, createCanvas: stubCanvas });
+    const destination = stubCanvas();
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+
+    const result = await renderer.render(bp, { canvas: destination, pixelsPerTile: 64 });
+    expect(result.canvas).toBe(destination);
+    expect(destination.width).toBe(result.width);
+    expect(destination.height).toBe(result.height);
+  });
+
+  it("aborts after asset loading without mutating the destination canvas", async () => {
+    let releaseAtlas: ((image: CanvasImageSource) => void) | undefined;
+    const delayedAssets: AssetSource = {
+      async loadRenderDb() {
+        return db;
+      },
+      loadAtlasImage() {
+        return new Promise((resolve) => {
+          releaseAtlas = resolve;
+        });
+      },
+    };
+    const renderer = await createRenderer({
+      assets: delayedAssets,
+      renderDb: db,
+      createCanvas: stubCanvas,
+    });
+    const destination = stubCanvas();
+    destination.width = 7;
+    destination.height = 9;
+    const controller = new AbortController();
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+
+    const pending = renderer.render(bp, { canvas: destination, signal: controller.signal });
+    controller.abort();
+    releaseAtlas?.(fakeImage);
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(destination.width).toBe(7);
+    expect(destination.height).toBe(9);
+  });
+
+  it("reuses icon crops and silhouettes on repeated renders", async () => {
+    const renderer = await createRenderer({
+      assets,
+      renderDb: db,
+      createCanvas: imageDataCanvas,
+    });
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [
+        {
+          entity_number: 1,
+          name: "assembling-machine-1",
+          position: { x: 0.5, y: 0.5 },
+          recipe: "iron-gear-wheel",
+        },
+      ],
+    };
+
+    const first = await renderer.render(bp, { altMode: true, profile: true });
+    const second = await renderer.render(bp, { altMode: true, profile: true });
+    expect(first.profile?.iconCacheMisses).toBeGreaterThan(0);
+    expect(first.profile?.silhouetteCacheMisses).toBeGreaterThan(0);
+    expect(second.profile?.iconCacheHits).toBeGreaterThan(0);
+    expect(second.profile?.silhouetteCacheHits).toBeGreaterThan(0);
+    expect(second.profile?.iconCacheMisses).toBe(0);
+    expect(second.profile?.silhouetteCacheMisses).toBe(0);
   });
 
   it("selects blueprint by path from a book document", async () => {

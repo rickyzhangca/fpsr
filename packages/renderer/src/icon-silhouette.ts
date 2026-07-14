@@ -27,22 +27,40 @@ export function blurAlphaBox(
   if (radius <= 0) return src;
 
   const r = Math.floor(radius);
+  if (r <= 0) return src;
   const out = new Uint8ClampedArray(src.length);
+  const stride = width + 1;
+  const integral = new Uint32Array((width + 1) * (height + 1));
+
+  // Integral alpha image makes every clipped box sum O(1). Keeping the
+  // division until the final pixel preserves the previous rounding exactly.
   for (let y = 0; y < height; y++) {
+    let rowSum = 0;
+    const srcRow = y * width;
+    const integralRow = (y + 1) * stride;
+    const previousRow = y * stride;
     for (let x = 0; x < width; x++) {
-      let sum = 0;
-      let count = 0;
-      for (let dy = -r; dy <= r; dy++) {
-        const sy = y + dy;
-        if (sy < 0 || sy >= height) continue;
-        const row = sy * width;
-        for (let dx = -r; dx <= r; dx++) {
-          const sx = x + dx;
-          if (sx < 0 || sx >= width) continue;
-          sum += src[(row + sx) * 4 + 3]!;
-          count++;
-        }
-      }
+      rowSum += src[(srcRow + x) * 4 + 3]!;
+      integral[integralRow + x + 1] = integral[previousRow + x + 1]! + rowSum;
+    }
+  }
+
+  for (let y = 0; y < height; y++) {
+    const yMin = Math.max(0, y - r);
+    const yMax = Math.min(height - 1, y + r);
+    for (let x = 0; x < width; x++) {
+      const xMin = Math.max(0, x - r);
+      const xMax = Math.min(width - 1, x + r);
+      const left = xMin;
+      const right = xMax + 1;
+      const top = yMin;
+      const bottom = yMax + 1;
+      const sum =
+        integral[bottom * stride + right]! -
+        integral[top * stride + right]! -
+        integral[bottom * stride + left]! +
+        integral[top * stride + left]!;
+      const count = (right - left) * (bottom - top);
       const i = (y * width + x) * 4;
       out[i] = 0;
       out[i + 1] = 0;
@@ -71,26 +89,59 @@ export function dilateAlphaBox(
     return out;
   }
 
-  const out = new Uint8ClampedArray(src.length);
+  const r = Math.floor(radius);
+  if (r <= 0) return dilateAlphaBox(src, width, height, 0);
+
+  const horizontal = new Uint8Array(width * height);
+  const deque = new Int32Array(Math.max(width, height));
+
+  // Horizontal sliding maximum.
   for (let y = 0; y < height; y++) {
-    const yMin = Math.max(0, y - radius);
-    const yMax = Math.min(height - 1, y + radius);
+    let head = 0;
+    let tail = 0;
+    let next = 0;
+    const row = y * width;
     for (let x = 0; x < width; x++) {
-      let maxA = 0;
-      const xMin = Math.max(0, x - radius);
-      const xMax = Math.min(width - 1, x + radius);
-      for (let sy = yMin; sy <= yMax; sy++) {
-        const row = sy * width;
-        for (let sx = xMin; sx <= xMax; sx++) {
-          const a = src[(row + sx) * 4 + 3]!;
-          if (a > maxA) maxA = a;
+      const addThrough = Math.min(width - 1, x + r);
+      while (next <= addThrough) {
+        const alpha = src[(row + next) * 4 + 3]!;
+        while (tail > head) {
+          const previous = deque[tail - 1]!;
+          if (src[(row + previous) * 4 + 3]! > alpha) break;
+          tail--;
         }
+        deque[tail++] = next++;
       }
+      const removeBefore = x - r;
+      while (tail > head && deque[head]! < removeBefore) head++;
+      horizontal[row + x] = src[(row + deque[head]!) * 4 + 3]!;
+    }
+  }
+
+  // Vertical sliding maximum, writing the final black RGBA image.
+  const out = new Uint8ClampedArray(src.length);
+  for (let x = 0; x < width; x++) {
+    let head = 0;
+    let tail = 0;
+    let next = 0;
+    for (let y = 0; y < height; y++) {
+      const addThrough = Math.min(height - 1, y + r);
+      while (next <= addThrough) {
+        const alpha = horizontal[next * width + x]!;
+        while (tail > head) {
+          const previous = deque[tail - 1]!;
+          if (horizontal[previous * width + x]! > alpha) break;
+          tail--;
+        }
+        deque[tail++] = next++;
+      }
+      const removeBefore = y - r;
+      while (tail > head && deque[head]! < removeBefore) head++;
       const i = (y * width + x) * 4;
       out[i] = 0;
       out[i + 1] = 0;
       out[i + 2] = 0;
-      out[i + 3] = maxA;
+      out[i + 3] = horizontal[deque[head]! * width + x]!;
     }
   }
   return out;

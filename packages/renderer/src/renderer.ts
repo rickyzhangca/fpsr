@@ -3,7 +3,12 @@ import { selectBlueprint } from "./book.js";
 import type { Canvas2DContextLike } from "./canvas2d.js";
 import * as canvas2d from "./canvas2d.js";
 import { computeTileFrame, type TileFrame } from "./frame.js";
-import { bakeEntityInfoSilhouette, type SilhouetteCanvasLike } from "./icon-silhouette.js";
+import {
+  bakeEntityInfoSilhouette,
+  ENTITY_INFO_SILHOUETTE_BLUR_PX,
+  ENTITY_INFO_SILHOUETTE_RADIUS_PX,
+  type SilhouetteCanvasLike,
+} from "./icon-silhouette.js";
 import { planDrawList } from "./plan.js";
 import {
   nowMs,
@@ -48,6 +53,8 @@ export interface RenderOptions {
   showCoordinates?: boolean;
   /** Reuse an existing canvas instead of creating one. */
   canvas?: CanvasLike;
+  /** Cancel before the destination canvas is resized or painted. */
+  signal?: AbortSignal;
   /**
    * When true, collect stage timings / draw-list stats onto `RenderResult.profile`.
    * Near-zero overhead when omitted/false.
@@ -144,6 +151,14 @@ function emptyPlanProfile(): PlanProfile {
   };
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  if (typeof signal.throwIfAborted === "function") signal.throwIfAborted();
+  const error = new Error("Render aborted");
+  error.name = "AbortError";
+  throw error;
+}
+
 /**
  * Create a renderer that loads the render-db once and lazily loads atlases
  * referenced by each draw list.
@@ -153,11 +168,16 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
   const createCanvas = options.createCanvas ?? defaultCreateCanvas;
   const db = options.renderDb ?? (await assets.loadRenderDb());
   const atlasCache = new Map<number, Promise<CanvasImageSource>>();
+  const iconImageCache = new Map<string, CanvasImageSource>();
+  const silhouetteImageCache = new Map<string, CanvasImageSource>();
 
   const loadAtlas = (index: number): Promise<CanvasImageSource> => {
     let pending = atlasCache.get(index);
     if (!pending) {
-      pending = assets.loadAtlasImage(index);
+      pending = assets.loadAtlasImage(index).catch((error) => {
+        atlasCache.delete(index);
+        throw error;
+      });
       atlasCache.set(index, pending);
     }
     return pending;
@@ -165,6 +185,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
 
   return {
     async render(docOrBlueprint, opts = {}): Promise<RenderResult> {
+      throwIfAborted(opts.signal);
       const wantProfile = opts.profile === true;
       const tTotal = wantProfile ? nowMs() : 0;
       if (wantProfile) perfMark("fpsr-render-start");
@@ -186,6 +207,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         background,
         profileOut: planProfile,
       });
+      throwIfAborted(opts.signal);
       if (wantProfile) {
         perfMark("fpsr-plan-end");
         perfMeasure("fpsr-plan", "fpsr-plan-start", "fpsr-plan-end");
@@ -202,10 +224,12 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
           const tAtlas = wantProfile ? nowMs() : 0;
           const img = await loadAtlas(i);
           if (wantProfile) {
+            const atlas = db.atlases[i];
             assetEvents.push({
               kind: "atlas",
               index: i,
               cached,
+              decodedPixels: atlas ? atlas.width * atlas.height : undefined,
               totalMs: nowMs() - tAtlas,
             });
           }
@@ -213,6 +237,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         }),
       );
       const assetsMs = wantProfile ? nowMs() - tAssets : 0;
+      throwIfAborted(opts.signal);
       if (wantProfile) {
         perfMark("fpsr-assets-end");
         perfMeasure("fpsr-assets", "fpsr-assets-start", "fpsr-assets-end");
@@ -230,6 +255,12 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       t = wantProfile ? nowMs() : 0;
       const iconImages = new Map<number, CanvasImageSource>();
       const silhouetteImages = new Map<number, CanvasImageSource>();
+      const seenIconKeys = new Set<string>();
+      const seenSilhouetteKeys = new Set<string>();
+      let iconCacheHits = 0;
+      let iconCacheMisses = 0;
+      let silhouetteCacheHits = 0;
+      let silhouetteCacheMisses = 0;
       for (const cmd of drawList.commands) {
         if (
           cmd.kind !== "icon" ||
@@ -241,7 +272,15 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         const atlasImage = frame ? images[frame.a] : undefined;
         if (!frame || !atlasImage || frame.w <= 0 || frame.h <= 0) continue;
 
-        if (!iconImages.has(cmd.frame)) {
+        const iconKey = `${cmd.frame}:${frame.w}x${frame.h}`;
+        const cachedIcon = iconImageCache.get(iconKey);
+        if (!seenIconKeys.has(iconKey)) {
+          seenIconKeys.add(iconKey);
+          if (cachedIcon) iconCacheHits++;
+        }
+        if (cachedIcon) {
+          iconImages.set(cmd.frame, cachedIcon);
+        } else if (!iconImages.has(cmd.frame)) {
           const iconCanvas = createCanvas(frame.w, frame.h);
           iconCanvas.width = frame.w;
           iconCanvas.height = frame.h;
@@ -258,10 +297,23 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
             frame.w,
             frame.h,
           );
-          iconImages.set(cmd.frame, iconCanvas as unknown as CanvasImageSource);
+          const image = iconCanvas as unknown as CanvasImageSource;
+          iconImages.set(cmd.frame, image);
+          iconImageCache.set(iconKey, image);
+          iconCacheMisses++;
         }
 
         if (cmd.backingStyle === "request-pin" || silhouetteImages.has(cmd.frame)) continue;
+        const silhouetteKey = `${iconKey}:${ENTITY_INFO_SILHOUETTE_RADIUS_PX}:${ENTITY_INFO_SILHOUETTE_BLUR_PX}`;
+        const cachedSilhouette = silhouetteImageCache.get(silhouetteKey);
+        if (!seenSilhouetteKeys.has(silhouetteKey)) {
+          seenSilhouetteKeys.add(silhouetteKey);
+          if (cachedSilhouette) silhouetteCacheHits++;
+        }
+        if (cachedSilhouette) {
+          silhouetteImages.set(cmd.frame, cachedSilhouette);
+          continue;
+        }
         const iconSource = iconImages.get(cmd.frame);
         if (!iconSource) continue;
         const silhouette = bakeEntityInfoSilhouette(
@@ -270,7 +322,11 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
           frame.h,
           createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
         );
-        if (silhouette) silhouetteImages.set(cmd.frame, silhouette);
+        if (silhouette) {
+          silhouetteImages.set(cmd.frame, silhouette);
+          silhouetteImageCache.set(silhouetteKey, silhouette);
+          silhouetteCacheMisses++;
+        }
       }
       const iconBakeMs = wantProfile ? nowMs() - t : 0;
 
@@ -279,6 +335,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const width = Math.max(1, (tileFrame.maxX - tileFrame.minX) * pixelsPerTile);
       const height = Math.max(1, (tileFrame.maxY - tileFrame.minY) * pixelsPerTile);
 
+      throwIfAborted(opts.signal);
       const canvas = opts.canvas ?? createCanvas(width, height);
       canvas.width = width;
       canvas.height = height;
@@ -319,6 +376,10 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
             iconBakeMs,
             iconBakeCount: iconImages.size,
             silhouetteBakeCount: silhouetteImages.size,
+            iconCacheHits,
+            iconCacheMisses,
+            silhouetteCacheHits,
+            silhouetteCacheMisses,
             frameMs,
             paintMs,
             totalMs: nowMs() - tTotal,

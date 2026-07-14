@@ -66,7 +66,11 @@ export interface AssetEvent {
   url?: string;
   cached: boolean;
   fetchMs?: number;
+  /** Time spent waiting for an available image decoder slot. */
+  queueMs?: number;
   decodeMs?: number;
+  /** Decoded atlas area, independent of compressed blob size. */
+  decodedPixels?: number;
   totalMs: number;
   bytes?: number;
 }
@@ -89,6 +93,10 @@ export interface RenderProfile {
   iconBakeMs: number;
   iconBakeCount: number;
   silhouetteBakeCount: number;
+  iconCacheHits: number;
+  iconCacheMisses: number;
+  silhouetteCacheHits: number;
+  silhouetteCacheMisses: number;
   frameMs: number;
   paintMs: number;
   totalMs: number;

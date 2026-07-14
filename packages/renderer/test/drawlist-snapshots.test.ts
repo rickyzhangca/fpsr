@@ -413,7 +413,8 @@ describe("drawlist snapshots (committed render-db)", () => {
     expect(displays.map((command) => command.entity)).toEqual([2, 3, 10, 11, 14, 15, 17, 20]);
 
     const chestConnector = list.commands.filter(
-      (command) => command.kind === "sprite" && command.entity === 7 && command.sub >= 100,
+      (command): command is Extract<(typeof list.commands)[number], { kind: "sprite" }> =>
+        command.kind === "sprite" && command.entity === 7 && command.sub >= 100,
     );
     expect(chestConnector).toHaveLength(2);
     expect(chestConnector.some((command) => command.shadow)).toBe(true);

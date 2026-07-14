@@ -96,7 +96,7 @@ describe("buildBookTree", () => {
     const doc = decode(readFileSync(join(FIXTURES_DIR, "06-book-with-planner.txt"), "utf8"));
     const tree = buildBookTree(doc);
     expect(tree).not.toBeNull();
-    expect(tree!.items.root.children).toEqual(["0", "1"]);
+    expect(tree!.items.root!.children).toEqual(["0", "1"]);
     expect(tree!.items["0"]).toMatchObject({ kind: "blueprint", label: "Only blueprint" });
     expect(tree!.items["1"]?.kind).toMatch(/planner/);
   });
@@ -138,13 +138,13 @@ describe("buildBookTree", () => {
     };
     const tree = buildBookTree(doc);
     expect(tree).not.toBeNull();
-    expect(tree!.items.root.icons).toEqual([
+    expect(tree!.items.root!.icons).toEqual([
       { index: 1, signal: { type: "item", name: "iron-plate" } },
     ]);
-    expect(tree!.items["0"].icons).toEqual([
+    expect(tree!.items["0"]!.icons).toEqual([
       { index: 1, signal: { type: "item", name: "copper-plate" } },
     ]);
-    expect(tree!.items["1"].icons).toEqual([
+    expect(tree!.items["1"]!.icons).toEqual([
       { index: 1, signal: { type: "item", name: "steel-plate" } },
     ]);
   });

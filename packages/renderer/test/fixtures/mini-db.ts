@@ -506,7 +506,7 @@ const flipEntity: EntityRenderDef = {
  */
 export function makeMiniDb(): RenderDb {
   return {
-    schema: 1,
+    schema: 2,
     gameVersion: "2.1.9",
     mods: ["base"],
     atlases: [{ file: "atlas-0.png", width: 64, height: 64 }],

@@ -17,7 +17,7 @@
 export type FrameId = number;
 
 export interface AtlasMeta {
-  /** e.g. "atlas-0.png", resolved relative to the asset base. */
+  /** Content-addressed PNG filename resolved relative to the asset base. */
   file: string;
   width: number;
   height: number;
@@ -312,7 +312,7 @@ export interface TileRenderDef {
 
 export interface RenderDb {
   /** Schema version of this IR; bump on breaking change. */
-  schema: 1;
+  schema: 2;
   gameVersion: string;
   mods: string[];
   atlases: AtlasMeta[];

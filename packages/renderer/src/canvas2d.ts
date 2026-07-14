@@ -30,6 +30,7 @@ export interface Canvas2DContextLike {
   roundRect?(x: number, y: number, w: number, h: number, radii: number | number[]): void;
   rect(x: number, y: number, w: number, h: number): void;
   clip(): void;
+  drawImage(image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void;
   drawImage(
     image: CanvasImageSource,
     sx: number,
@@ -42,8 +43,8 @@ export interface Canvas2DContextLike {
     dh: number,
   ): void;
   fillText(text: string, x: number, y: number): void;
-  set fillStyle(value: string);
-  set strokeStyle(value: string);
+  set fillStyle(value: string | CanvasGradient | CanvasPattern);
+  set strokeStyle(value: string | CanvasGradient | CanvasPattern);
   set lineWidth(value: number);
   set lineCap(value: CanvasLineCap);
   set globalAlpha(value: number);

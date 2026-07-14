@@ -23,7 +23,11 @@ export function drawTileCheckerboard(
 
 /** Paint an image on top of a tile-aligned checkerboard (for external reference PNGs). */
 export function blitWithTileCheckerboard(
-  canvas: { width: number; height: number; getContext(type: "2d"): Canvas2DContextLike | null },
+  canvas: {
+    width: number;
+    height: number;
+    getContext(type: "2d"): Canvas2DContextLike | null;
+  },
   image: CanvasImageSource,
   width: number,
   height: number,

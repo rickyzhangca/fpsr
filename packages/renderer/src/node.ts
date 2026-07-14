@@ -6,14 +6,8 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { AssetSource } from "./assets.js";
+import type { AssetManifest, AssetSource } from "./assets.js";
 import type { RenderDb } from "./types/render-db.js";
-
-export interface AssetManifest {
-  gameVersion: string;
-  atlases: { file: string; w: number; h: number; sha256?: string }[];
-  renderDbSha256?: string;
-}
 
 type SkiaLoadImage = (src: string | Buffer | Uint8Array) => Promise<CanvasImageSource>;
 
@@ -33,7 +27,7 @@ async function loadSkiaLoadImage(): Promise<SkiaLoadImage> {
 
 /**
  * Filesystem AssetSource for a pipeline output directory
- * (render-db.json + manifest.json + atlas-*.png).
+ * (manifest.json + content-addressed render-db/atlas files).
  */
 export function localAssets(dir: string): AssetSource {
   const root = path.resolve(dir);
@@ -56,7 +50,16 @@ export function localAssets(dir: string): AssetSource {
   return {
     loadRenderDb(): Promise<RenderDb> {
       if (!dbPromise) {
-        dbPromise = readJson<RenderDb>("render-db.json");
+        dbPromise = loadManifest().then(async (manifest) => {
+          if (manifest.schema !== 2) {
+            throw new Error(`Unsupported asset manifest schema: ${String(manifest.schema)}`);
+          }
+          const db = await readJson<RenderDb>(manifest.renderDb.file);
+          if (db.schema !== 2) {
+            throw new Error(`Unsupported render-db schema: ${String(db.schema)}`);
+          }
+          return db;
+        });
       }
       return dbPromise;
     },

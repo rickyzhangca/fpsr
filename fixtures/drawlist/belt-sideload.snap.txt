@@ -2,12 +2,12 @@
 "schema": 1,
 "bounds": {"maxX":3.3125,"maxY":2.3125,"minX":-0.3125,"minY":0.0938},
 "commands": [
-{"entity":1,"frame":2052,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":-0.5,"y":-0.5},
-{"entity":1,"frame":2056,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":-1.5,"y":-0.5},
-{"entity":2,"frame":2052,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":0.5,"y":-0.5},
-{"entity":3,"frame":2052,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":1.5,"y":-0.5},
-{"entity":3,"frame":2060,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":2.5,"y":-0.5},
-{"entity":4,"frame":2051,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":0.5,"y":0.5},
-{"entity":4,"frame":2055,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":0.5,"y":1.5}
+{"entity":1,"frame":4695,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":-0.5,"y":-0.5},
+{"entity":1,"frame":4701,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":-1.5,"y":-0.5},
+{"entity":2,"frame":4695,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":0.5,"y":-0.5},
+{"entity":3,"frame":4695,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":1.5,"y":-0.5},
+{"entity":3,"frame":4697,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":2.5,"y":-0.5},
+{"entity":4,"frame":4699,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":0.5,"y":0.5},
+{"entity":4,"frame":4703,"h":2,"kind":"sprite","layer":27,"sortX":0,"sortY":0,"sub":0,"w":2,"x":0.5,"y":1.5}
 ]
 }
