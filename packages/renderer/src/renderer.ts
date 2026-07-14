@@ -41,6 +41,13 @@ export interface CreateRendererOptions {
   createCanvas?: CreateCanvasFn;
 }
 
+export type RenderProgressEvent =
+  | { stage: "planning" }
+  | { stage: "loading-assets"; completed: number; total: number }
+  | { stage: "baking-icons" }
+  | { stage: "painting" }
+  | { stage: "complete" };
+
 export interface RenderOptions {
   blueprintPath?: number[];
   pixelsPerTile?: number;
@@ -55,6 +62,8 @@ export interface RenderOptions {
   canvas?: CanvasLike;
   /** Cancel before the destination canvas is resized or painted. */
   signal?: AbortSignal;
+  /** Coarse, host-neutral render stages suitable for progress UI. */
+  onProgress?: (event: RenderProgressEvent) => void;
   /**
    * When true, collect stage timings / draw-list stats onto `RenderResult.profile`.
    * Near-zero overhead when omitted/false.
@@ -159,6 +168,10 @@ function throwIfAborted(signal?: AbortSignal): void {
   throw error;
 }
 
+function reportProgress(opts: RenderOptions, event: RenderProgressEvent): void {
+  if (!opts.signal?.aborted) opts.onProgress?.(event);
+}
+
 /**
  * Create a renderer that loads the render-db once and lazily loads atlases
  * referenced by each draw list.
@@ -201,6 +214,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const background = opts.background ?? null;
 
       const planProfile = wantProfile ? emptyPlanProfile() : undefined;
+      reportProgress(opts, { stage: "planning" });
       if (wantProfile) perfMark("fpsr-plan-start");
       const drawList = planDrawList(bp, db, {
         altMode: opts.altMode,
@@ -215,6 +229,12 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
 
       const atlasIndices = collectAtlasIndices(drawList, db);
       const assetEvents: AssetEvent[] = [];
+      let loadedAtlasCount = 0;
+      reportProgress(opts, {
+        stage: "loading-assets",
+        completed: loadedAtlasCount,
+        total: atlasIndices.length,
+      });
 
       if (wantProfile) perfMark("fpsr-assets-start");
       const tAssets = wantProfile ? nowMs() : 0;
@@ -223,6 +243,12 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
           const cached = atlasCache.has(i);
           const tAtlas = wantProfile ? nowMs() : 0;
           const img = await loadAtlas(i);
+          loadedAtlasCount++;
+          reportProgress(opts, {
+            stage: "loading-assets",
+            completed: loadedAtlasCount,
+            total: atlasIndices.length,
+          });
           if (wantProfile) {
             const atlas = db.atlases[i];
             assetEvents.push({
@@ -253,6 +279,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       }
 
       t = wantProfile ? nowMs() : 0;
+      reportProgress(opts, { stage: "baking-icons" });
       const iconImages = new Map<number, CanvasImageSource>();
       const silhouetteImages = new Map<number, CanvasImageSource>();
       const seenIconKeys = new Set<string>();
@@ -346,6 +373,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const frameMs = wantProfile ? nowMs() - t : 0;
 
       if (wantProfile) perfMark("fpsr-paint-start");
+      reportProgress(opts, { stage: "painting" });
       t = wantProfile ? nowMs() : 0;
       const paintStats: ExecuteDrawListStats = {
         shadowRuns: 0,
@@ -413,6 +441,8 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
             },
           }
         : undefined;
+
+      reportProgress(opts, { stage: "complete" });
 
       return {
         canvas,

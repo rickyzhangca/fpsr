@@ -151,6 +151,7 @@ export type {
   CreateRendererOptions,
   Renderer,
   RenderOptions,
+  RenderProgressEvent,
   RenderResult,
 } from "./renderer.js";
 

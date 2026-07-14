@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import type { AssetSource } from "../src/assets.js";
 import type { Canvas2DContextLike } from "../src/canvas2d.js";
 import * as canvas2d from "../src/canvas2d.js";
-import type { CanvasLike } from "../src/renderer.js";
+import type { CanvasLike, RenderProgressEvent } from "../src/renderer.js";
 import { createRenderer } from "../src/renderer.js";
 import type { Blueprint, BlueprintDocument } from "../src/types/blueprint.js";
 import { makeMiniDb } from "./fixtures/mini-db.js";
@@ -155,6 +155,35 @@ describe("createRenderer", () => {
     const warm = await renderer.render(bp, { pixelsPerTile: 32, padTiles: 1, profile: true });
     expect(warm.profile?.cold).toBe(false);
     expect(warm.profile?.assets.every((a) => a.cached)).toBe(true);
+  });
+
+  it("reports coarse progress and completed atlas loads", async () => {
+    const renderer = await createRenderer({
+      assets,
+      renderDb: db,
+      createCanvas: () => stubCanvas(),
+    });
+    const progress: RenderProgressEvent[] = [];
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [
+        {
+          entity_number: 1,
+          name: "wooden-chest",
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    };
+
+    await renderer.render(bp, { onProgress: (event) => progress.push(event) });
+
+    expect(progress[0]).toEqual({ stage: "planning" });
+    expect(progress).toContainEqual({ stage: "loading-assets", completed: 0, total: 1 });
+    expect(progress).toContainEqual({ stage: "loading-assets", completed: 1, total: 1 });
+    expect(progress.map((event) => event.stage)).toContain("baking-icons");
+    expect(progress.map((event) => event.stage)).toContain("painting");
+    expect(progress.at(-1)).toEqual({ stage: "complete" });
   });
 
   it("forwards showCoordinates to executeDrawList", async () => {
