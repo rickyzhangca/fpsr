@@ -16,12 +16,14 @@ function ProcessPanel({
   index,
   maxIndex,
   headerRight,
+  scrollContent = true,
   children,
 }: {
   title: string;
   index: number;
   maxIndex: number;
   headerRight?: ReactNode;
+  scrollContent?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -37,7 +39,11 @@ function ProcessPanel({
         <span className="text-xs font-medium text-muted-foreground">{title}</span>
         {headerRight}
       </div>
-      <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
+      {scrollContent ? (
+        <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      )}
     </div>
   );
 }
@@ -73,13 +79,13 @@ export function ProcessPane({
   const [drawList, setDrawList] = useState<DrawList | null>(null);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [drawLoading, setDrawLoading] = useState(false);
-  const [formatDrawCommands, setFormatDrawCommands] = useState(true);
+  const [organizeDrawCommands, setOrganizeDrawCommands] = useState(true);
 
   const decodedValue = blueprint ?? doc;
   const drawValue = useMemo(() => {
     if (drawError || !drawList) return null;
-    return formatDrawCommands ? formatDrawList(drawList) : drawList;
-  }, [drawError, drawList, formatDrawCommands]);
+    return organizeDrawCommands ? formatDrawList(drawList) : drawList;
+  }, [drawError, drawList, organizeDrawCommands]);
 
   useEffect(() => {
     if (!blueprint) {
@@ -119,7 +125,7 @@ export function ProcessPane({
   return (
     <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 gap-0.5">
       <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
-        <ProcessPanel title="Decoded JSON" index={0} maxIndex={2}>
+        <ProcessPanel title="Decoded JSON" index={0} maxIndex={2} scrollContent={false}>
           <JsonViewer value={decodedValue} />
         </ProcessPanel>
       </ResizablePanel>
@@ -131,18 +137,19 @@ export function ProcessPane({
           title="Draw commands"
           index={1}
           maxIndex={2}
+          scrollContent={false}
           headerRight={
             <div className="flex items-center gap-1.5">
               <Checkbox
-                id="format-draw-commands"
-                checked={formatDrawCommands}
-                onCheckedChange={(checked) => setFormatDrawCommands(checked)}
+                id="organize-draw-commands"
+                checked={organizeDrawCommands}
+                onCheckedChange={(checked) => setOrganizeDrawCommands(checked)}
               />
               <Label
-                htmlFor="format-draw-commands"
+                htmlFor="organize-draw-commands"
                 className="text-xs font-normal text-muted-foreground"
               >
-                Format
+                Organize
               </Label>
             </div>
           }

@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("./VirtualizedJsonViewer", () => ({
+  VirtualizedJsonViewer: ({ code }: { code: string }) => (
+    <div data-testid="virtual-json" data-code-length={code.length} />
+  ),
+}));
+
 import { JsonViewer } from "./JsonViewer";
 
 describe("JsonViewer large values", () => {
@@ -17,7 +24,7 @@ describe("JsonViewer large values", () => {
     host.remove();
   });
 
-  it("skips the highlighted DOM and truncates initial output", async () => {
+  it("routes the complete large document to the virtualized viewer", async () => {
     const value = { payload: "x".repeat(510_000) };
     const root = createRoot(host);
     act(() => root.render(<JsonViewer value={value} />));
@@ -26,16 +33,10 @@ describe("JsonViewer large values", () => {
       await Promise.resolve();
     });
 
-    expect(host.textContent).toContain("Showing 500K/510K chars");
+    await vi.waitFor(() => expect(host.querySelector('[data-testid="virtual-json"]')).toBeTruthy());
     expect(host.querySelector(".shiki")).toBeNull();
-    const preview = host.querySelector("pre");
-    expect(preview?.textContent?.length).toBeLessThan(501_000);
-
-    const showFull = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Show full",
-    );
-    act(() => showFull?.click());
-    expect(host.querySelector("pre")?.textContent?.length).toBeGreaterThan(510_000);
+    const virtual = host.querySelector('[data-testid="virtual-json"]');
+    expect(Number(virtual?.getAttribute("data-code-length"))).toBeGreaterThan(510_000);
 
     act(() => root.unmount());
   });
