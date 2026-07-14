@@ -2,22 +2,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  type Blueprint,
-  type BlueprintDocument,
-  cdnAssets,
-  type DrawList,
-  planDrawList,
-  type RenderDb,
-} from "fpsr";
+import { type Blueprint, type BlueprintDocument, type DrawList, planDrawList } from "fpsr";
 import { CircleCheck, CircleSlash } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapterChecks";
 import { formatDrawList } from "./formatDrawList";
 import { JsonViewer } from "./JsonViewer";
 import { cn } from "./lib/utils";
-
-const ASSETS_BASE = "/assets/2.1.9";
+import { viewerAssets } from "./viewerAssets";
 
 function ProcessPanel({
   title,
@@ -76,7 +68,6 @@ export function ProcessPane({
   doc: BlueprintDocument | null;
   blueprint: Blueprint | null;
 }) {
-  const dbPromiseRef = useRef<Promise<RenderDb> | null>(null);
   const planGenRef = useRef(0);
 
   const [drawList, setDrawList] = useState<DrawList | null>(null);
@@ -105,10 +96,7 @@ export function ProcessPane({
 
     void (async () => {
       try {
-        if (!dbPromiseRef.current) {
-          dbPromiseRef.current = cdnAssets(ASSETS_BASE).loadRenderDb();
-        }
-        const db = await dbPromiseRef.current;
+        const db = await viewerAssets.loadRenderDb();
         if (gen !== planGenRef.current) return;
 
         const list = planDrawList(blueprint, db, { altMode: true });

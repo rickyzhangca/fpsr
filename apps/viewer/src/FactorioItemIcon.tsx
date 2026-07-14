@@ -1,15 +1,12 @@
 import { cn } from "@/lib/utils";
 import {
   bakeEntityInfoSilhouette,
-  cdnAssets,
   entityInfoSilhouettePadPx,
   type FrameMeta,
   type RenderDb,
 } from "fpsr";
 import { useEffect, useState, type CSSProperties } from "react";
-
-const ASSETS_BASE = "/assets/2.1.9";
-const assets = cdnAssets(ASSETS_BASE);
+import { viewerAssets as assets } from "./viewerAssets";
 
 /** Alt-mode entity-info silhouette defaults (see `icon-silhouette.ts`). */
 const ALT_MODE_SILHOUETTE_DILATE_RADIUS = 12;

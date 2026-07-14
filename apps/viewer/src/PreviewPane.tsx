@@ -3,15 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  cdnAssets,
-  createRenderer,
   nowMs,
   stripRichText,
-  type AssetEvent,
   type Blueprint,
   type BlueprintDocument,
   type DecodeStats,
-  type Renderer,
   type RenderResult,
 } from "fpsr";
 import {
@@ -25,11 +21,16 @@ import { toast } from "sonner";
 import { countEntitiesByName, formatGameVersion } from "./blueprintMeta";
 import type { PerfReport } from "./perfReport";
 import { PreviewCanvasFrame } from "./PreviewCanvasFrame";
+import {
+  getAssetEventCursor,
+  getAssetEventsSince,
+  getSessionBlobBytes,
+  getViewerRenderer,
+} from "./viewerAssets";
 
-const ASSETS_BASE = "/assets/2.1.9";
 const NORMAL_PIXELS_PER_TILE = 32;
 const HD_PIXELS_PER_TILE = 64;
-const ASSETS_HINT = "Assets not found — run: pnpm -F @fpsr/pipeline run pipeline all";
+const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
 
 function isAssetsError(message: string): boolean {
   return (
@@ -45,7 +46,8 @@ function resultPixelsPerTile(result: RenderResult): number {
   return tilesX > 0 ? result.width / tilesX : 32;
 }
 
-function paintDisplay(canvas: HTMLCanvasElement, result: RenderResult): void {
+function paintDisplayFallback(canvas: HTMLCanvasElement, result: RenderResult): void {
+  if (result.canvas === canvas) return;
   canvas.width = result.width;
   canvas.height = result.height;
   const ctx = canvas.getContext("2d");
@@ -76,10 +78,7 @@ export function PreviewPane({
   onPerfReport?: (report: PerfReport | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rendererPromiseRef = useRef<Promise<Renderer> | null>(null);
   const renderGenRef = useRef(0);
-  const assetDetailBufRef = useRef<AssetEvent[]>([]);
-  const sessionBytesRef = useRef(0);
 
   const [hd, setHd] = useState(true);
   const pixelsPerTile = hd ? HD_PIXELS_PER_TILE : NORMAL_PIXELS_PER_TILE;
@@ -97,24 +96,6 @@ export function PreviewPane({
     tx: number;
     ty: number;
   } | null>(null);
-
-  const getRenderer = useCallback((): Promise<Renderer> => {
-    if (!rendererPromiseRef.current) {
-      rendererPromiseRef.current = createRenderer({
-        assets: cdnAssets(ASSETS_BASE, {
-          onAssetEvent: (event) => {
-            if (!event.cached) {
-              assetDetailBufRef.current.push(event);
-              if (event.bytes != null) {
-                sessionBytesRef.current += event.bytes;
-              }
-            }
-          },
-        }),
-      });
-    }
-    return rendererPromiseRef.current;
-  }, []);
 
   useEffect(() => {
     onTileSizeChange?.(formatTileSize(lastResult));
@@ -141,6 +122,7 @@ export function PreviewPane({
     }
 
     const gen = ++renderGenRef.current;
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
     setAssetsMissing(false);
@@ -149,11 +131,10 @@ export function PreviewPane({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const renderer = await getRenderer();
+          const detailStart = getAssetEventCursor();
+          const renderer = await getViewerRenderer();
           if (gen !== renderGenRef.current) return;
 
-          // Snapshot buffer index so we can collect events for this render only.
-          const detailStart = assetDetailBufRef.current.length;
           const wallStart = nowMs();
 
           const result = await renderer.render(doc, {
@@ -164,20 +145,22 @@ export function PreviewPane({
             background: null,
             showCheckerboard,
             showCoordinates: showCoords,
+            canvas: canvasRef.current ?? undefined,
+            signal: controller.signal,
             profile: true,
           });
           if (gen !== renderGenRef.current) return;
 
           let blitMs = 0;
           const display = canvasRef.current;
-          if (display) {
+          if (display && result.canvas !== display) {
             const tBlit = nowMs();
-            paintDisplay(display, result);
+            paintDisplayFallback(display, result);
             blitMs = nowMs() - tBlit;
           }
 
           const wallMs = nowMs() - wallStart;
-          const assetDetails = assetDetailBufRef.current.slice(detailStart);
+          const assetDetails = getAssetEventsSince(detailStart);
           const profile = result.profile;
           if (profile) {
             const report: PerfReport = {
@@ -195,7 +178,7 @@ export function PreviewPane({
                 topEntities: countEntitiesByName(blueprint.entities).slice(0, 5),
               },
               assetDetails,
-              sessionBytes: sessionBytesRef.current,
+              sessionBytes: getSessionBlobBytes(),
             };
             onPerfReport?.(report);
           }
@@ -203,6 +186,7 @@ export function PreviewPane({
           setDimensions({ width: result.width, height: result.height });
           setLastResult(result);
         } catch (e) {
+          if (controller.signal.aborted) return;
           if (gen !== renderGenRef.current) return;
           const message = e instanceof Error ? e.message : "Render failed";
           setAssetsMissing(isAssetsError(message));
@@ -221,6 +205,7 @@ export function PreviewPane({
 
     return () => {
       window.clearTimeout(timer);
+      controller.abort();
     };
   }, [
     doc,
@@ -231,7 +216,6 @@ export function PreviewPane({
     showCoords,
     showCheckerboard,
     decodeStats,
-    getRenderer,
     onTileSizeChange,
     onPerfReport,
   ]);
@@ -240,7 +224,7 @@ export function PreviewPane({
   useEffect(() => {
     if (!lastResult) return;
     const canvas = canvasRef.current;
-    if (canvas) paintDisplay(canvas, lastResult);
+    if (canvas) paintDisplayFallback(canvas, lastResult);
   }, [lastResult]);
 
   const handleDownload = useCallback(async () => {

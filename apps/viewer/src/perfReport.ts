@@ -23,6 +23,6 @@ export interface PerfReport {
   blueprint: PerfReportBlueprint;
   /** Detailed CDN events captured during this render window (bytes, fetch/decode). */
   assetDetails: AssetEvent[];
-  /** Cumulative non-cached bytes fetched this session. */
+  /** Cumulative non-cached response body bytes processed this session. */
   sessionBytes: number;
 }

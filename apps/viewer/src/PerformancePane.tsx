@@ -165,6 +165,20 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push(
     `  render-db         ${profile.db.entityDefs} entities · ${profile.db.tileDefs} tiles · ${profile.db.frameCount} frames · ${profile.db.atlasCount} atlases`,
   );
+  for (const kind of ["manifest", "render-db"] as const) {
+    const events = assetDetails.filter((event) => event.kind === kind);
+    if (events.length === 0) continue;
+    const detail = events.find((event) => !event.cached) ?? events[0]!;
+    const label = kind === "manifest" ? "manifest" : "render-db file";
+    const tag = detail.cached ? "cache" : "fetch";
+    const cacheHits = events.filter((event) => event.cached).length;
+    const extra = detail.cached
+      ? cacheHits > 1
+        ? `  ${cacheHits} hits`
+        : ""
+      : `  fetch ${fmtMs(detail.fetchMs ?? 0)}  ${fmtBytes(detail.bytes ?? 0)}${cacheHits > 0 ? `  ${cacheHits} cache hits` : ""}`;
+    lines.push(`  ${label.padEnd(17)} [${tag}]  ${fmtMs(detail.totalMs)}${extra}`);
+  }
   if (profile.assets.length === 0) {
     lines.push("  (no atlases referenced)");
   } else {
@@ -175,20 +189,53 @@ export function formatPerfReport(report: PerfReport): string {
       const tag = ev.cached ? "cache" : "fetch";
       const extra =
         detail && !ev.cached
-          ? `  fetch ${fmtMs(detail.fetchMs ?? 0)}  decode ${fmtMs(detail.decodeMs ?? 0)}  ${fmtBytes(detail.bytes ?? 0)}`
+          ? `  fetch ${fmtMs(detail.fetchMs ?? 0)}  queue ${fmtMs(detail.queueMs ?? 0)}  decode ${fmtMs(detail.decodeMs ?? 0)}  ${((detail.decodedPixels ?? 0) / 1_000_000).toFixed(2)} MP  ${fmtBytes(detail.bytes ?? 0)}`
           : "";
       lines.push(`  atlas ${String(ev.index).padStart(2)}  [${tag}]  ${fmtMs(ev.totalMs)}${extra}`);
     }
   }
-  const detailBytes = assetDetails
-    .filter((e) => !e.cached && e.bytes != null)
-    .reduce((s, e) => s + (e.bytes ?? 0), 0);
+  const referencedAtlases = new Set(profile.drawList.atlasIndices);
+  const referencedDetails = assetDetails.filter(
+    (event) =>
+      event.kind === "atlas" &&
+      event.index != null &&
+      referencedAtlases.has(event.index) &&
+      !event.cached,
+  );
+  const detailBytes = referencedDetails.reduce((s, e) => s + (e.bytes ?? 0), 0);
   if (detailBytes > 0) {
-    lines.push(`  this render        ${fmtBytes(detailBytes)} downloaded`);
+    lines.push(`  atlas blobs        ${fmtBytes(detailBytes)} processed during render`);
   }
-  lines.push(`  session total      ${fmtBytes(report.sessionBytes)} downloaded`);
+  const referencedPixels = profile.assets.reduce(
+    (sum, event) => sum + (event.decodedPixels ?? 0),
+    0,
+  );
+  if (referencedPixels > 0) {
+    lines.push(`  referenced pixels ${(referencedPixels / 1_000_000).toFixed(2)} MP`);
+  }
+  const overlapping = assetDetails.filter(
+    (event) =>
+      event.kind === "atlas" &&
+      event.index != null &&
+      !referencedAtlases.has(event.index) &&
+      !event.cached,
+  );
+  const overlappingPixels = overlapping.reduce((sum, event) => sum + (event.decodedPixels ?? 0), 0);
+  if (overlapping.length > 0) {
+    const overlappingBytes = overlapping.reduce((sum, event) => sum + (event.bytes ?? 0), 0);
+    lines.push(
+      `  overlapping loads  ${overlapping.length} atlases · ${(overlappingPixels / 1_000_000).toFixed(2)} MP · ${fmtBytes(overlappingBytes)}`,
+    );
+  }
+  lines.push(`  session total      ${fmtBytes(report.sessionBytes)} blob bytes processed`);
   lines.push(
     `  icon bake          ${profile.iconBakeCount} icons · ${profile.silhouetteBakeCount} silhouettes · ${fmtMs(profile.iconBakeMs)}`,
+  );
+  lines.push(
+    `  icon cache         ${profile.iconCacheHits} hits · ${profile.iconCacheMisses} misses`,
+  );
+  lines.push(
+    `  silhouette cache   ${profile.silhouetteCacheHits} hits · ${profile.silhouetteCacheMisses} misses`,
   );
   lines.push("");
 

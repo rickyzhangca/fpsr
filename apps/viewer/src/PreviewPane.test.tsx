@@ -112,6 +112,8 @@ describe("PreviewPane alt-mode toggle", () => {
       altMode: true,
       padTiles: 1,
       showCheckerboard: true,
+      canvas: expect.any(HTMLCanvasElement),
+      signal: expect.any(AbortSignal),
     });
 
     const toggle = host.querySelector<HTMLButtonElement>("#alt-mode");

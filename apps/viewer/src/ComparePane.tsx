@@ -7,17 +7,14 @@ import { cn } from "@/lib/utils";
 import {
   BlueprintDecodeError,
   blitWithTileCheckerboard,
-  cdnAssets,
-  createRenderer,
   decode,
   type BlueprintDocument,
-  type Renderer,
 } from "fpsr";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PreviewCanvasFrame } from "./PreviewCanvasFrame";
+import { getViewerRenderer } from "./viewerAssets";
 
-const ASSETS_BASE = "/assets/2.1.9";
-const ASSETS_HINT = "Assets not found — run: pnpm -F @fpsr/pipeline run pipeline all";
+const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
 
 interface GoldenCase {
   name: string;
@@ -41,7 +38,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
   const groundTruthCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayGoldenRef = useRef<HTMLCanvasElement>(null);
   const overlayLiveRef = useRef<HTMLCanvasElement>(null);
-  const rendererPromiseRef = useRef<Promise<Renderer> | null>(null);
   const renderGenRef = useRef(0);
 
   const [cases, setCases] = useState<GoldenCase[]>([]);
@@ -58,15 +54,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
   const [blueprintString, setBlueprintString] = useState<string | null>(null);
 
   const selectedCase = caseName ? (cases.find((c) => c.name === caseName) ?? null) : null;
-
-  const getRenderer = useCallback((): Promise<Renderer> => {
-    if (!rendererPromiseRef.current) {
-      rendererPromiseRef.current = createRenderer({
-        assets: cdnAssets(ASSETS_BASE),
-      });
-    }
-    return rendererPromiseRef.current;
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +137,7 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
           throw new Error(`Decode error: ${reason}`);
         }
 
-        const renderer = await getRenderer();
+        const renderer = await getViewerRenderer();
         if (gen !== renderGenRef.current) return;
 
         const result = await renderer.render(doc, {
@@ -187,7 +174,7 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
         }
       }
     })();
-  }, [selectedCase, getRenderer]);
+  }, [selectedCase]);
 
   useEffect(() => {
     if (!goldenUrl || !selectedCase) return;

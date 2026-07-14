@@ -27,7 +27,7 @@ describe("blueprintMeta", () => {
   });
 
   it("formats snapping as none when unset", () => {
-    expect(formatSnapping({ item: "blueprint", version: 0 })).toBe("none");
+    expect(formatSnapping({ item: "blueprint", version: 0 })).toBe("None");
   });
 
   it("formats absolute snapping with grid and offset", () => {
@@ -80,6 +80,6 @@ describe("blueprintMeta", () => {
       ]),
     ).toBe("wooden-chest ×2");
     expect(encodedByteSize({ item: "blueprint", version: 0 })).toBe(100);
-    expect(formatByteSize(1234)).toBe("1,234 B");
+    expect(formatByteSize(1234)).toBe("1.21 KB");
   });
 });
