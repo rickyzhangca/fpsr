@@ -29,7 +29,8 @@ pnpm ground-truth:refresh
 ```
 
 Camera size/position is planned by **fpsr** (`planDrawList` → `computeTileFrame`) so each
-shot matches the golden/renderer canvas. Requires `assets-out/2.1.9/render-db.json`.
+shot matches the golden/renderer canvas. Requires a generated `assets-out/2.1.9/`
+schema-2 bundle.
 Fallback (no fpsr view fields in the job) uses entity collision/selection boxes.
 
 | Flag     | Default         | Meaning                                                            |

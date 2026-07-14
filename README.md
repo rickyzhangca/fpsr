@@ -23,11 +23,11 @@ See [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for cross-package interfaces.
 ## End-to-end workflow
 
 ```
-Factorio 2.1.9 install
+Supported Factorio install (version detected from game metadata)
         │
         ▼
-  @fpsr/pipeline  ──►  assets-out/2.1.9/
-  (dump → distill → pack)     render-db.json, atlas-*.png, manifest.json
+  @fpsr/pipeline  ──►  assets-out/<detected-version>/
+  (dump → distill → pack)     render-db.<hash>.json, atlas.<hash>.png, manifest.json
         │                              │
         │                              ├──► @fpsr/cdn-upload  ──► private CDN
         │                              │
@@ -66,7 +66,9 @@ vp install
 | `pnpm check` / `vp check`                          | Format, lint, and typecheck (Oxlint/Oxfmt via Vite+) |
 | `pnpm lint` / `vp lint`                            | Lint only                                            |
 | `pnpm format` / `vp fmt`                           | Format only                                          |
-| `pnpm -F @fpsr/pipeline run pipeline all`          | Generate `assets-out/2.1.9/` from local Factorio     |
+| `pnpm assets:build`                                | Generate and verify assets from local Factorio       |
+| `pnpm assets:verify`                               | Verify hashes, dimensions, and frame references      |
+| `pnpm assets:bench -- temp.txt`                    | Report atlas working set for a blueprint             |
 | `pnpm -F @fpsr/cdn-upload run upload -- --dry-run` | Preview CDN upload manifest                          |
 | `pnpm goldens:update`                              | Regenerate golden PNGs (requires local assets)       |
 | `pnpm goldens:test`                                | Run golden PNG pixel-diff tests                      |
@@ -106,5 +108,5 @@ Generate full assets locally from your own Factorio installation via
 **private and non-redistributive** — the same stance as Factorio Blueprint
 Editor (FBE).
 
-*Factorio is a trademark of Wube Software Ltd. This project is not affiliated
-with or endorsed by Wube Software.*
+_Factorio is a trademark of Wube Software Ltd. This project is not affiliated
+with or endorsed by Wube Software._

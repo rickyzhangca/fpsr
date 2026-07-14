@@ -151,12 +151,14 @@ Amendments ratified during M1 (binding):
 
 Written to `assets-out/<game-version>/` (gitignored — Wube assets must never be committed):
 
-- `render-db.json` — conforms to `RenderDb` in `render-db.ts`
-- `atlas-<n>.png` — packed atlases, max 4096x4096
-- `manifest.json` — `{ gameVersion, atlases: [{file, w, h, sha256}], renderDbSha256 }`
+- `render-db.<sha256>.json` — schema-2 `RenderDb` referenced by the manifest
+- `atlas.<sha256>.png` — deterministic usage-aware pages, normally at most 1024×1024
+- `manifest.json` — stable schema-2 entry point with the game/mod set, dimensions,
+  hashes, byte sizes, and render-database descriptor
 
 The same directory layout is what gets uploaded to the CDN under `/<game-version>/…`,
-so `cdnAssets(base + "/2.1.9")` and `localAssets("assets-out/2.1.9")` are interchangeable.
+so `cdnAssets(base + "/<version>")` and `localAssets("assets-out/<version>")` are
+interchangeable.
 
 ## Testing tiers
 
@@ -183,5 +185,5 @@ reproducibility. Golden PNG renders are gitignored and generated locally by deve
 who own Factorio. The pipeline exists so any user can regenerate full assets from
 their own game installation.
 
-*Factorio is a trademark of Wube Software Ltd. This project is not affiliated with or
-endorsed by Wube Software.*
+_Factorio is a trademark of Wube Software Ltd. This project is not affiliated with or
+endorsed by Wube Software._

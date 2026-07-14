@@ -58,8 +58,8 @@ const { toPngBuffer } = await renderer.render(doc);
 await Bun.write("out.png", toPngBuffer());
 ```
 
-`localAssets` reads `render-db.json`, `manifest.json`, and `atlas-*.png` from a
-pipeline output directory on disk.
+`localAssets` reads schema-2 `manifest.json` and its content-addressed render DB
+and atlas files from a pipeline output directory on disk.
 
 ## Blueprint books
 
@@ -77,7 +77,8 @@ const bp = selectBlueprint(doc, [0, 2]); // third child of first entry
 ## Pure planning (no assets)
 
 For tests, diff tooling, or custom backends, call the pure pipeline stages
-directly — no images or network required beyond loading `render-db.json`:
+directly — no images or network required beyond loading the render DB named by
+`manifest.json`:
 
 ```ts
 import {
@@ -237,8 +238,8 @@ order for reviewable text diffs.
 
 ## Asset hosting
 
-Rendering requires a **render database** (`render-db.json`) and packed **sprite
-atlases** (`atlas-*.png`) for Factorio 2.1.9. These are generated from **your
+Rendering requires a content-addressed **render database** and packed **sprite
+atlases** described by a schema-2 `manifest.json`. These are generated from **your
 own game files** using the offline pipeline in this repository
 ([`@fpsr/pipeline`](https://github.com/rickyzhangca/fpsr/tree/main/tools/pipeline)).
 
@@ -248,7 +249,7 @@ them on private infrastructure (`cdnAssets`) or load from disk (`localAssets`).
 ## Versioning
 
 - **npm package**: semver via Changesets.
-- **Render database schema**: version `1` (see `RenderDb` in source).
+- **Render database schema**: version `2` (see `RenderDb` in source).
 - **Game target**: Factorio **2.1.9** exactly (vanilla + Space Age + Elevated
   Rails + Quality).
 
@@ -265,5 +266,5 @@ redistributed. Generate assets locally from a licensed Factorio installation via
 `@fpsr/pipeline`. The monorepo commits a metadata-only render-db test fixture (no
 pixel data); golden PNG test renders are not redistributed.
 
-*Factorio is a trademark of Wube Software Ltd. This project is not affiliated
-with or endorsed by Wube Software.*
+_Factorio is a trademark of Wube Software Ltd. This project is not affiliated
+with or endorsed by Wube Software._
