@@ -407,22 +407,21 @@ export function PreviewCanvasFrame({
         )}
         onWheel={onWheel}
       >
-        {contentKey != null && width != null && height != null && (
-          <div
-            className="absolute top-1/2 left-1/2 will-change-transform"
-            style={{
-              width,
-              height,
-              // Hide until fit is known so the first visible frame is already correct.
-              visibility: ready ? "visible" : "hidden",
-              transform: `translate(calc(-50% + ${view.panX}px), calc(-50% + ${view.panY}px)) scale(${view.zoom})`,
-              transformOrigin: "center center",
-              transition,
-            }}
-          >
-            {children}
-          </div>
-        )}
+        <div
+          className="absolute top-1/2 left-1/2 will-change-transform"
+          style={{
+            width: width ?? 1,
+            height: height ?? 1,
+            // Mount the render surface immediately, but hide it until the first
+            // result supplies dimensions and the fitted transform is known.
+            visibility: ready ? "visible" : "hidden",
+            transform: `translate(calc(-50% + ${view.panX}px), calc(-50% + ${view.panY}px)) scale(${view.zoom})`,
+            transformOrigin: "center center",
+            transition,
+          }}
+        >
+          {children}
+        </div>
       </div>
 
       {ready && (

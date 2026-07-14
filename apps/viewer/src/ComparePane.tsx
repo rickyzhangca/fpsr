@@ -11,8 +11,8 @@ import {
   type BlueprintDocument,
 } from "fpsr";
 import { useEffect, useRef, useState } from "react";
+import { renderPreview } from "./previewRenderer";
 import { PreviewCanvasFrame } from "./PreviewCanvasFrame";
-import { getViewerRenderer } from "./viewerAssets";
 
 const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
 
@@ -112,6 +112,7 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
     if (!selectedCase) return;
 
     const gen = ++renderGenRef.current;
+    const controller = new AbortController();
     setLoadingRender(true);
     setError(null);
     setAssetsMissing(false);
@@ -137,32 +138,24 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
           throw new Error(`Decode error: ${reason}`);
         }
 
-        const renderer = await getViewerRenderer();
-        if (gen !== renderGenRef.current) return;
-
-        const result = await renderer.render(doc, {
+        const liveCanvas = liveCanvasRef.current;
+        const overlayCanvas = overlayLiveRef.current;
+        if (!liveCanvas || !overlayCanvas) return;
+        const renderOptions = {
           pixelsPerTile: selectedCase.ppt,
           altMode: selectedCase.alt ?? true,
           background: null,
           showCheckerboard: true,
-        });
-        if (gen !== renderGenRef.current) return;
-
-        const paint = (canvas: HTMLCanvasElement | null) => {
-          if (!canvas) return;
-          blitWithTileCheckerboard(
-            canvas,
-            result.canvas as CanvasImageSource,
-            result.width,
-            result.height,
-            selectedCase.ppt,
-          );
+          signal: controller.signal,
         };
-
-        paint(liveCanvasRef.current);
-        paint(overlayLiveRef.current);
+        const [result] = await Promise.all([
+          renderPreview(liveCanvas, doc, renderOptions),
+          renderPreview(overlayCanvas, doc, renderOptions),
+        ]);
+        if (gen !== renderGenRef.current) return;
         setDimensions({ width: result.width, height: result.height });
       } catch (e) {
+        if (controller.signal.aborted) return;
         if (gen !== renderGenRef.current) return;
         const message = e instanceof Error ? e.message : "Render failed";
         setAssetsMissing(isAssetsError(message));
@@ -174,6 +167,7 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
         }
       }
     })();
+    return () => controller.abort();
   }, [selectedCase]);
 
   useEffect(() => {

@@ -15,6 +15,7 @@ export interface PerfReportBlueprint {
 export interface PerfReport {
   at: number;
   cold: boolean;
+  backend: "worker" | "main";
   blitMs: number;
   /** Wall-clock for render() + display blit. */
   wallMs: number;

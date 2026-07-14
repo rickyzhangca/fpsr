@@ -60,7 +60,7 @@ export function formatPerfReport(report: PerfReport): string {
 
   lines.push("═══════════════════════════════════════════════════════════");
   lines.push(
-    ` FPSR PERFORMANCE  ·  ${report.cold ? "COLD" : "WARM"}  ·  ${new Date(report.at).toLocaleTimeString()}`,
+    ` FPSR PERFORMANCE  ·  ${report.cold ? "COLD" : "WARM"}  ·  ${report.backend.toUpperCase()}  ·  ${new Date(report.at).toLocaleTimeString()}`,
   );
   lines.push("═══════════════════════════════════════════════════════════");
   lines.push("");
@@ -250,6 +250,13 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push(`  pixels/tile       ${out.pixelsPerTile}`);
   lines.push(`  tile frame        ${tilesW} × ${tilesH} tiles`);
   lines.push(`  vs 4K screen      ${screens4k.toFixed(2)}×`);
+  lines.push(`  render backend    ${report.backend}`);
+  lines.push(
+    `  shadow scratch   ${(profile.shadow.peakScratchPixels / 1_000_000).toFixed(2)} MP peak`,
+  );
+  lines.push(
+    `  shadow work      ${profile.shadow.runs} runs · ${profile.shadow.tiles} tiles · ${(profile.shadow.compositedPixels / 1_000_000).toFixed(2)} MP composited`,
+  );
   lines.push("");
 
   const spriteCount = dl.byKind.sprite ?? 0;

@@ -8,7 +8,6 @@ import {
   type Blueprint,
   type BlueprintDocument,
   type DecodeStats,
-  type RenderResult,
 } from "fpsr";
 import {
   useCallback,
@@ -21,12 +20,7 @@ import { toast } from "sonner";
 import { countEntitiesByName, formatGameVersion } from "./blueprintMeta";
 import type { PerfReport } from "./perfReport";
 import { PreviewCanvasFrame } from "./PreviewCanvasFrame";
-import {
-  getAssetEventCursor,
-  getAssetEventsSince,
-  getSessionBlobBytes,
-  getViewerRenderer,
-} from "./viewerAssets";
+import { clearPreview, renderPreview, type PreviewRenderResult } from "./previewRenderer";
 
 const NORMAL_PIXELS_PER_TILE = 32;
 const HD_PIXELS_PER_TILE = 64;
@@ -41,13 +35,13 @@ function isAssetsError(message: string): boolean {
   );
 }
 
-function resultPixelsPerTile(result: RenderResult): number {
+function resultPixelsPerTile(result: PreviewRenderResult): number {
   const tilesX = result.tileFrame.maxX - result.tileFrame.minX;
   return tilesX > 0 ? result.width / tilesX : 32;
 }
 
-function paintDisplayFallback(canvas: HTMLCanvasElement, result: RenderResult): void {
-  if (result.canvas === canvas) return;
+function paintDisplayFallback(canvas: HTMLCanvasElement, result: PreviewRenderResult): void {
+  if (!result.canvas || result.canvas === canvas) return;
   canvas.width = result.width;
   canvas.height = result.height;
   const ctx = canvas.getContext("2d");
@@ -56,7 +50,7 @@ function paintDisplayFallback(canvas: HTMLCanvasElement, result: RenderResult): 
   ctx.drawImage(result.canvas as CanvasImageSource, 0, 0, result.width, result.height);
 }
 
-function formatTileSize(result: RenderResult | null): string {
+function formatTileSize(result: PreviewRenderResult | null): string {
   if (!result) return "—";
   const { tileFrame } = result;
   return `${tileFrame.maxX - tileFrame.minX}×${tileFrame.maxY - tileFrame.minY} tiles`;
@@ -89,7 +83,7 @@ export function PreviewPane({
   const [error, setError] = useState<string | null>(null);
   const [assetsMissing, setAssetsMissing] = useState(false);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [lastResult, setLastResult] = useState<RenderResult | null>(null);
+  const [lastResult, setLastResult] = useState<PreviewRenderResult | null>(null);
   const [_hoverTile, setHoverTile] = useState<{
     cellX: number;
     cellY: number;
@@ -112,11 +106,7 @@ export function PreviewPane({
       onPerfReport?.(null);
       const canvas = canvasRef.current;
       if (canvas) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          canvas.width = 0;
-          canvas.height = 0;
-        }
+        clearPreview(canvas);
       }
       return;
     }
@@ -131,13 +121,9 @@ export function PreviewPane({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const detailStart = getAssetEventCursor();
-          const renderer = await getViewerRenderer();
-          if (gen !== renderGenRef.current) return;
-
-          const wallStart = nowMs();
-
-          const result = await renderer.render(doc, {
+          const display = canvasRef.current;
+          if (!display) return;
+          const result = await renderPreview(display, doc, {
             blueprintPath: blueprintPath ?? undefined,
             pixelsPerTile,
             padTiles: 1,
@@ -145,29 +131,26 @@ export function PreviewPane({
             background: null,
             showCheckerboard,
             showCoordinates: showCoords,
-            canvas: canvasRef.current ?? undefined,
             signal: controller.signal,
             profile: true,
           });
           if (gen !== renderGenRef.current) return;
 
           let blitMs = 0;
-          const display = canvasRef.current;
           if (display && result.canvas !== display) {
             const tBlit = nowMs();
             paintDisplayFallback(display, result);
             blitMs = nowMs() - tBlit;
           }
 
-          const wallMs = nowMs() - wallStart;
-          const assetDetails = getAssetEventsSince(detailStart);
           const profile = result.profile;
           if (profile) {
             const report: PerfReport = {
               at: Date.now(),
               cold: profile.cold,
+              backend: result.backend,
               blitMs,
-              wallMs,
+              wallMs: result.wallMs + blitMs,
               profile,
               decode: decodeStats ?? undefined,
               blueprint: {
@@ -177,8 +160,8 @@ export function PreviewPane({
                 version: formatGameVersion(blueprint.version ?? 0),
                 topEntities: countEntitiesByName(blueprint.entities).slice(0, 5),
               },
-              assetDetails,
-              sessionBytes: getSessionBlobBytes(),
+              assetDetails: result.assetDetails,
+              sessionBytes: result.sessionBytes,
             };
             onPerfReport?.(report);
           }
