@@ -86,9 +86,10 @@ Draw order = stable sort by `(layer, sortY, sortX, entityNumber, sub)`:
 - `sortX`: entity `position.x` for object layers (west→east when `sortY` ties); 0 otherwise.
 - `sub`: intra-entity layer index (order of `LayerGroup`s in the entity's render def).
 
-Shadows are ordinary draw commands on the fpsr `shadow` layer with `drawAsShadow: true`
-(backend renders them with multiply-ish alpha, per Factorio convention: alpha blend at
-~50% is acceptable for MVP).
+Shadows are ordinary draw commands on the fpsr `shadow` layer with `drawAsShadow: true`.
+The Canvas2D backend flattens overlapping shadows at full opacity in reusable 1024 px
+scratch tiles, then composites each occupied tile at 50% opacity. Peak shadow scratch
+memory is therefore bounded independently of final output dimensions.
 
 ## Public API (packages/renderer)
 

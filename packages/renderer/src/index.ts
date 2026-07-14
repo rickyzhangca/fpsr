@@ -124,7 +124,11 @@ export { cdnAssets } from "./assets.js";
 export type { AssetManifest, AssetSource, CdnAssetsOptions } from "./assets.js";
 
 export { executeDrawList } from "./canvas2d.js";
-export type { Canvas2DContextLike, ExecuteDrawListOptions } from "./canvas2d.js";
+export type {
+  Canvas2DContextLike,
+  ExecuteDrawListOptions,
+  ExecuteDrawListStats,
+} from "./canvas2d.js";
 
 export {
   bakeEntityInfoSilhouette,

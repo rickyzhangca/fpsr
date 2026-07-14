@@ -29,6 +29,9 @@ function mockCtx(): Canvas2DContextLike & { calls: Call[]; _alpha: number } {
     fillRect(x: number, y: number, w: number, h: number) {
       calls.push({ method: "fillRect", args: [x, y, w, h] });
     },
+    clearRect(x: number, y: number, w: number, h: number) {
+      calls.push({ method: "clearRect", args: [x, y, w, h] });
+    },
     beginPath() {
       calls.push({ method: "beginPath", args: [] });
     },
@@ -272,6 +275,59 @@ describe("executeDrawList", () => {
     // restored after
     const alphaSets = ctx.calls.filter((c) => c.method === "set globalAlpha");
     expect(alphaSets.at(-1)?.args[0]).toBe(1);
+  });
+
+  it("uses one bounded scratch canvas for distant shadow tiles", () => {
+    const shadow = (x: number, entity: number) => ({
+      kind: "sprite" as const,
+      layer: 60,
+      sortY: 0,
+      sortX: x,
+      entity,
+      sub: 0,
+      frame: 0,
+      x,
+      y: 0,
+      w: 0.5,
+      h: 0.5,
+      shadow: true,
+    });
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 4, maxY: 1 },
+      commands: [shadow(0, 1), shadow(3.5, 2)],
+    };
+    const ctx = mockCtx();
+    const scratchCtx = mockCtx();
+    let created = 0;
+    const stats = {
+      shadowRuns: 0,
+      shadowTiles: 0,
+      shadowCompositedPixels: 0,
+      shadowPeakScratchPixels: 0,
+    };
+
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 16,
+      frames: db.frames,
+      shadowTileSize: 16,
+      stats,
+      createCanvas(width, height) {
+        created++;
+        return {
+          width,
+          height,
+          getContext: () => scratchCtx,
+        };
+      },
+    });
+
+    expect(created).toBe(1);
+    expect(stats.shadowRuns).toBe(1);
+    expect(stats.shadowTiles).toBe(2);
+    expect(stats.shadowPeakScratchPixels).toBe(16 * 16);
+    expect(scratchCtx.calls.filter((call) => call.method === "clearRect")).toHaveLength(2);
+    expect(ctx.calls.filter((call) => call.method === "drawImage")).toHaveLength(2);
   });
 
   it("draws atlas-backed icon backing and rotates the foreground", () => {

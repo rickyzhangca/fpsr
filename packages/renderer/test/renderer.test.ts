@@ -15,6 +15,7 @@ function stubCtx(): Canvas2DContextLike {
     rotate() {},
     translate() {},
     fillRect() {},
+    clearRect() {},
     beginPath() {},
     moveTo() {},
     lineTo() {},
@@ -146,6 +147,7 @@ describe("createRenderer", () => {
     expect(p.paintMs).toBeGreaterThanOrEqual(0);
     expect(p.assetsMs).toBeGreaterThanOrEqual(0);
     expect(p.totalMs).toBeGreaterThanOrEqual(p.paintMs);
+    expect(p.shadow.peakScratchPixels).toBeGreaterThanOrEqual(0);
     expect(p.output.width).toBe(cold.width);
     expect(p.cold).toBe(true);
     expect(p.assets.some((a) => a.kind === "atlas" && !a.cached)).toBe(true);

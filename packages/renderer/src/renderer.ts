@@ -1,6 +1,6 @@
 import type { AssetSource } from "./assets.js";
 import { selectBlueprint } from "./book.js";
-import type { Canvas2DContextLike } from "./canvas2d.js";
+import type { Canvas2DContextLike, ExecuteDrawListStats } from "./canvas2d.js";
 import * as canvas2d from "./canvas2d.js";
 import { computeTileFrame, type TileFrame } from "./frame.js";
 import {
@@ -347,6 +347,12 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
 
       if (wantProfile) perfMark("fpsr-paint-start");
       t = wantProfile ? nowMs() : 0;
+      const paintStats: ExecuteDrawListStats = {
+        shadowRuns: 0,
+        shadowTiles: 0,
+        shadowCompositedPixels: 0,
+        shadowPeakScratchPixels: 0,
+      };
       canvas2d.executeDrawList(ctx, drawList, images, {
         pixelsPerTile,
         padTiles,
@@ -358,6 +364,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         iconImages,
         silhouetteImages,
         createCanvas,
+        stats: paintStats,
       });
       const paintMs = wantProfile ? nowMs() - t : 0;
       if (wantProfile) {
@@ -382,6 +389,12 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
             silhouetteCacheMisses,
             frameMs,
             paintMs,
+            shadow: {
+              runs: paintStats.shadowRuns,
+              tiles: paintStats.shadowTiles,
+              compositedPixels: paintStats.shadowCompositedPixels,
+              peakScratchPixels: paintStats.shadowPeakScratchPixels,
+            },
             totalMs: nowMs() - tTotal,
             cold: assetEvents.some((e) => !e.cached),
             drawList: summarizeDrawList(drawList, atlasIndices),

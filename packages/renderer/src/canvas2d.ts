@@ -20,6 +20,7 @@ export interface Canvas2DContextLike {
   rotate(angle: number): void;
   translate(x: number, y: number): void;
   fillRect(x: number, y: number, w: number, h: number): void;
+  clearRect(x: number, y: number, w: number, h: number): void;
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
@@ -87,6 +88,17 @@ export interface ExecuteDrawListOptions {
     height: number;
     getContext(type: "2d"): Canvas2DContextLike | null;
   };
+  /** Shadow scratch-tile edge length. Defaults to 1024 px. */
+  shadowTileSize?: number;
+  /** Optional mutable performance counters populated during painting. */
+  stats?: ExecuteDrawListStats;
+}
+
+export interface ExecuteDrawListStats {
+  shadowRuns: number;
+  shadowTiles: number;
+  shadowCompositedPixels: number;
+  shadowPeakScratchPixels: number;
 }
 
 // FBE-aligned muted wire colors (game uses textured strips; we approximate with
@@ -261,6 +273,86 @@ function drawSprite(
   if (cmd.shadow) {
     ctx.globalAlpha = prevAlpha;
   }
+}
+
+interface PixelBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function shadowSpriteBounds(
+  cmd: SpriteCmd,
+  frame: FrameMeta,
+  ox: number,
+  oy: number,
+  ppt: number,
+  outputWidth: number,
+  outputHeight: number,
+): PixelBounds | null {
+  const dx = (cmd.x + ox) * ppt;
+  const dy = (cmd.y + oy) * ppt;
+  const dw = cmd.w * ppt;
+  const dh = cmd.h * ppt;
+  const scaleX = frame.sw === 0 ? 0 : dw / frame.sw;
+  const scaleY = frame.sh === 0 ? 0 : dh / frame.sh;
+  const left = dx + frame.ox * scaleX;
+  const top = dy + frame.oy * scaleY;
+  const right = left + frame.w * scaleX;
+  const bottom = top + frame.h * scaleY;
+  const centerX = dx + dw / 2;
+  const centerY = dy + dh / 2;
+  const radians = ((cmd.rotation ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const flipX = cmd.flipX === true ? -1 : 1;
+  const flipY = cmd.flipY === true ? -1 : 1;
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const [x, y] of [
+    [left, top],
+    [right, top],
+    [right, bottom],
+    [left, bottom],
+  ] as const) {
+    const localX = (x - centerX) * flipX;
+    const localY = (y - centerY) * flipY;
+    const transformedX = centerX + localX * cos - localY * sin;
+    const transformedY = centerY + localX * sin + localY * cos;
+    minX = Math.min(minX, transformedX);
+    minY = Math.min(minY, transformedY);
+    maxX = Math.max(maxX, transformedX);
+    maxY = Math.max(maxY, transformedY);
+  }
+
+  // Preserve transformed edge pixels at tile boundaries. The gutter is only
+  // used for conservative command-to-tile assignment; the tile canvas itself
+  // provides the exact output clip.
+  minX = Math.floor(minX) - 1;
+  minY = Math.floor(minY) - 1;
+  maxX = Math.ceil(maxX) + 1;
+  maxY = Math.ceil(maxY) + 1;
+
+  if (cmd.clip) {
+    const clipLeft = (cmd.clip.x + ox) * ppt;
+    const clipTop = (cmd.clip.y + oy) * ppt;
+    const clipRight = clipLeft + cmd.clip.w * ppt;
+    const clipBottom = clipTop + cmd.clip.h * ppt;
+    minX = Math.max(minX, clipLeft);
+    minY = Math.max(minY, clipTop);
+    maxX = Math.min(maxX, clipRight);
+    maxY = Math.min(maxY, clipBottom);
+  }
+
+  minX = Math.max(0, minX);
+  minY = Math.max(0, minY);
+  maxX = Math.min(outputWidth, maxX);
+  maxY = Math.min(outputHeight, maxY);
+  return maxX > minX && maxY > minY ? { minX, minY, maxX, maxY } : null;
 }
 
 function drawWire(
@@ -495,6 +587,14 @@ export function executeDrawList(
   const oy = -frame.minY;
   const width = Math.max(0, (frame.maxX - frame.minX) * ppt);
   const height = Math.max(0, (frame.maxY - frame.minY) * ppt);
+  const shadowTileSize = Math.max(1, Math.floor(opts.shadowTileSize ?? 1024));
+  const stats = opts.stats;
+  if (stats) {
+    stats.shadowRuns = 0;
+    stats.shadowTiles = 0;
+    stats.shadowCompositedPixels = 0;
+    stats.shadowPeakScratchPixels = 0;
+  }
 
   // Nearest-neighbor: Factorio sprites are pixel art; bilinear filtering turns
   // rotated/foreshortened hands into a soft "motion blur" smear.
@@ -507,84 +607,140 @@ export function executeDrawList(
     ctx.fillRect(0, 0, width, height);
   }
 
-  // Accumulate every shadow sprite into one offscreen pass, then blit once at
-  // 50% alpha. Stacking each shadow at 0.5 on the main canvas (old behavior)
-  // double-darkens overlaps — e.g. the black blob between coupled wagons.
+  // Flatten shadow overlap at full opacity, then apply the combined result at
+  // 50%. A single reusable tile bounds scratch memory independently of output
+  // dimensions while retaining the old overlap semantics.
+  let shadowCanvas:
+    | {
+        width: number;
+        height: number;
+        getContext(type: "2d"): Canvas2DContextLike | null;
+      }
+    | undefined;
   let shadowCtx: Canvas2DContextLike | null = null;
-  let shadowCanvas: { width: number; height: number } | null = null;
-  const flushShadows = (): void => {
+  const renderShadowRun = (commands: SpriteCmd[]): void => {
+    if (!opts.createCanvas || commands.length === 0 || width <= 0 || height <= 0) return;
+    const tileWidth = Math.min(shadowTileSize, Math.ceil(width));
+    const tileHeight = Math.min(shadowTileSize, Math.ceil(height));
+    if (!shadowCanvas) {
+      shadowCanvas = opts.createCanvas(tileWidth, tileHeight);
+      shadowCanvas.width = tileWidth;
+      shadowCanvas.height = tileHeight;
+      shadowCtx = shadowCanvas.getContext("2d");
+      if (shadowCtx) shadowCtx.imageSmoothingEnabled = false;
+    }
     if (!shadowCtx || !shadowCanvas) return;
+
+    const columns = Math.ceil(width / shadowTileSize);
+    const bins = new Map<number, SpriteCmd[]>();
+    for (const command of commands) {
+      const spriteFrame = frames[command.frame];
+      const image = spriteFrame ? images[spriteFrame.a] : undefined;
+      if (!spriteFrame || !image) continue;
+      const bounds = shadowSpriteBounds(command, spriteFrame, ox, oy, ppt, width, height);
+      if (!bounds) continue;
+      const minTileX = Math.floor(bounds.minX / shadowTileSize);
+      const minTileY = Math.floor(bounds.minY / shadowTileSize);
+      const maxTileX = Math.floor((bounds.maxX - 1) / shadowTileSize);
+      const maxTileY = Math.floor((bounds.maxY - 1) / shadowTileSize);
+      for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
+        for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+          const key = tileY * columns + tileX;
+          const bin = bins.get(key);
+          if (bin) bin.push(command);
+          else bins.set(key, [command]);
+        }
+      }
+    }
+
+    if (stats) {
+      stats.shadowRuns++;
+      stats.shadowPeakScratchPixels = Math.max(
+        stats.shadowPeakScratchPixels,
+        shadowCanvas.width * shadowCanvas.height,
+      );
+    }
     const prevAlpha = ctx.globalAlpha;
-    ctx.globalAlpha = prevAlpha * 0.5;
-    ctx.drawImage(
-      shadowCanvas as unknown as CanvasImageSource,
-      0,
-      0,
-      shadowCanvas.width,
-      shadowCanvas.height,
-      0,
-      0,
-      width,
-      height,
-    );
+    for (const [key, tileCommands] of [...bins].sort((a, b) => a[0] - b[0])) {
+      const tileX = key % columns;
+      const tileY = Math.floor(key / columns);
+      const outputX = tileX * shadowTileSize;
+      const outputY = tileY * shadowTileSize;
+      const outputTileWidth = Math.min(shadowTileSize, width - outputX);
+      const outputTileHeight = Math.min(shadowTileSize, height - outputY);
+
+      shadowCtx.clearRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+      shadowCtx.save();
+      shadowCtx.translate(-outputX, -outputY);
+      for (const command of tileCommands) {
+        const spriteFrame = frames[command.frame];
+        const image = spriteFrame ? images[spriteFrame.a] : undefined;
+        if (!spriteFrame || !image) continue;
+        drawSprite(
+          shadowCtx,
+          { ...command, shadow: false },
+          spriteFrame,
+          image,
+          ox,
+          oy,
+          ppt,
+          opts.createCanvas,
+        );
+      }
+      shadowCtx.restore();
+
+      ctx.globalAlpha = prevAlpha * 0.5;
+      ctx.drawImage(
+        shadowCanvas as unknown as CanvasImageSource,
+        0,
+        0,
+        outputTileWidth,
+        outputTileHeight,
+        outputX,
+        outputY,
+        outputTileWidth,
+        outputTileHeight,
+      );
+      if (stats) {
+        stats.shadowTiles++;
+        stats.shadowCompositedPixels += outputTileWidth * outputTileHeight;
+      }
+    }
     ctx.globalAlpha = prevAlpha;
-    shadowCtx = null;
-    shadowCanvas = null;
   };
 
-  for (const cmd of list.commands) {
+  for (let commandIndex = 0; commandIndex < list.commands.length; commandIndex++) {
+    const cmd = list.commands[commandIndex]!;
+    if (cmd.kind === "sprite" && cmd.shadow && opts.createCanvas) {
+      const shadowRun: SpriteCmd[] = [];
+      while (commandIndex < list.commands.length) {
+        const candidate = list.commands[commandIndex];
+        if (candidate?.kind !== "sprite" || !candidate.shadow) break;
+        shadowRun.push(candidate);
+        commandIndex++;
+      }
+      commandIndex--;
+      renderShadowRun(shadowRun);
+      continue;
+    }
     switch (cmd.kind) {
       case "rect":
-        flushShadows();
         drawRect(ctx, cmd, ox, oy, ppt);
         break;
       case "sprite": {
         const frame = frames[cmd.frame];
         const image = frame ? images[frame.a] : undefined;
         if (!frame || !image) break;
-        if (cmd.shadow && opts.createCanvas) {
-          if (!shadowCtx) {
-            const sc = opts.createCanvas(
-              Math.max(1, Math.ceil(width)),
-              Math.max(1, Math.ceil(height)),
-            );
-            sc.width = Math.max(1, Math.ceil(width));
-            sc.height = Math.max(1, Math.ceil(height));
-            shadowCanvas = sc;
-            shadowCtx = sc.getContext("2d");
-            if (shadowCtx) shadowCtx.imageSmoothingEnabled = false;
-          }
-          if (shadowCtx) {
-            // Full opacity into the buffer; flush applies the 0.5 alpha once.
-            drawSprite(
-              shadowCtx,
-              { ...cmd, shadow: false },
-              frame,
-              image,
-              ox,
-              oy,
-              ppt,
-              opts.createCanvas,
-            );
-          } else {
-            drawSprite(ctx, cmd, frame, image, ox, oy, ppt, opts.createCanvas);
-          }
-          break;
-        }
-        flushShadows();
         drawSprite(ctx, cmd, frame, image, ox, oy, ppt, opts.createCanvas);
         break;
       }
       case "wire":
-        flushShadows();
         drawWire(ctx, cmd, ox, oy, ppt);
         break;
       case "train-chain":
-        flushShadows();
         drawTrainChain(ctx, cmd, ox, oy, ppt);
         break;
       case "icon": {
-        flushShadows();
         const frame = frames[cmd.frame];
         const image = frame ? images[frame.a] : undefined;
         if (!frame || !image) break;
@@ -605,7 +761,6 @@ export function executeDrawList(
       }
     }
   }
-  flushShadows();
 
   if (opts.showCoordinates) {
     drawCoordinateOverlay(ctx, frame, ppt, width, height);

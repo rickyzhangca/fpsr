@@ -182,6 +182,7 @@ order for reviewable text diffs.
 | `createRenderer`           | function | High-level async renderer (plan + load + paint)                                             |
 | `Canvas2DContextLike`      | type     | Minimal Canvas2D context interface                                                          |
 | `ExecuteDrawListOptions`   | type     | Frame metadata and scale options                                                            |
+| `ExecuteDrawListStats`     | type     | Shadow run, tile, composited-pixel, and peak-scratch counters                               |
 | `CreateRendererOptions`    | type     | `assets`, optional `renderDb`, `createCanvas`                                               |
 | `CreateCanvasFn`           | type     | `(width, height)` → canvas                                                                  |
 | `CanvasLike`               | type     | Canvas / OffscreenCanvas / skia-canvas surface                                              |

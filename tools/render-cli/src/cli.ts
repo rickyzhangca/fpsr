@@ -191,6 +191,9 @@ function formatProfileText(report: ProfileReport): string {
     lines.push(
       `  commands=${p.drawList.commandCount}  frames=${p.drawList.uniqueFrames}  atlases=${p.drawList.atlasIndices.length}/${p.db.atlasCount}  canvas=${p.output.width}x${p.output.height} (${p.output.megapixels.toFixed(3)}MP)`,
     );
+    lines.push(
+      `  shadows: runs=${p.shadow.runs} tiles=${p.shadow.tiles} composited=${(p.shadow.compositedPixels / 1_000_000).toFixed(2)}MP scratch=${(p.shadow.peakScratchPixels / 1_000_000).toFixed(2)}MP`,
+    );
     const kinds = Object.entries(p.drawList.byKind)
       .sort((a, b) => b[1] - a[1])
       .map(([k, n]) => `${k}=${n}`)

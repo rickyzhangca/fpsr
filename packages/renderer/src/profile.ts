@@ -99,6 +99,12 @@ export interface RenderProfile {
   silhouetteCacheMisses: number;
   frameMs: number;
   paintMs: number;
+  shadow: {
+    runs: number;
+    tiles: number;
+    compositedPixels: number;
+    peakScratchPixels: number;
+  };
   totalMs: number;
   /** True when any atlas referenced by this render was not already cached. */
   cold: boolean;
