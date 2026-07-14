@@ -60,7 +60,7 @@ export function formatPerfReport(report: PerfReport): string {
 
   lines.push("═══════════════════════════════════════════════════════════");
   lines.push(
-    ` FPSR PERFORMANCE  ·  ${report.cold ? "COLD" : "WARM"}  ·  ${report.backend.toUpperCase()}  ·  ${new Date(report.at).toLocaleTimeString()}`,
+    ` FPSR PERFORMANCE  ·  ${report.cold ? "COLD" : "WARM"}  ·  ${new Date(report.at).toLocaleTimeString()}`,
   );
   lines.push("═══════════════════════════════════════════════════════════");
   lines.push("");
@@ -73,14 +73,13 @@ export function formatPerfReport(report: PerfReport): string {
   stages.push({ label: "icon bake", ms: profile.iconBakeMs });
   stages.push({ label: "frame", ms: profile.frameMs });
   stages.push({ label: "paint", ms: profile.paintMs });
-  stages.push({ label: "blit", ms: report.blitMs });
 
   lines.push("STAGE TIMINGS");
   lines.push("───────────────────────────────────────────────────────────");
   for (const s of stages) {
     lines.push(stageLine(s.label, s.ms, report.wallMs));
   }
-  lines.push(`  ${"TOTAL".padEnd(14)} ${fmtMs(report.wallMs).padStart(8)}  (wall: render + blit)`);
+  lines.push(`  ${"TOTAL".padEnd(14)} ${fmtMs(report.wallMs).padStart(8)}  (worker render wall)`);
   lines.push(
     `  ${"profile".padEnd(14)} ${fmtMs(profile.totalMs).padStart(8)}  (inside renderer.render)`,
   );
@@ -250,7 +249,6 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push(`  pixels/tile       ${out.pixelsPerTile}`);
   lines.push(`  tile frame        ${tilesW} × ${tilesH} tiles`);
   lines.push(`  vs 4K screen      ${screens4k.toFixed(2)}×`);
-  lines.push(`  render backend    ${report.backend}`);
   lines.push(
     `  shadow scratch   ${(profile.shadow.peakScratchPixels / 1_000_000).toFixed(2)} MP peak`,
   );

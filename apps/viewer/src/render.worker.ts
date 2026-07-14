@@ -7,18 +7,18 @@ import {
   type Renderer,
   type RenderResult,
 } from "fpsr";
+import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "./assetConfig";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,
   type RenderWorkerResponse,
 } from "./renderWorkerProtocol";
 
-const ASSETS_BASE = "/assets/2.1.9";
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
 
 const assets = cdnAssets(ASSETS_BASE, {
-  maxConcurrentDecodes: 2,
+  maxConcurrentDecodes: MAX_CONCURRENT_ASSET_DECODES,
   onAssetEvent(event) {
     assetEvents.push(event);
     if (!event.cached && event.bytes != null) sessionBlobBytes += event.bytes;

@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  nowMs,
   stripRichText,
   type Blueprint,
   type BlueprintDocument,
@@ -43,16 +42,6 @@ function isAssetsError(message: string): boolean {
 function resultPixelsPerTile(result: PreviewRenderResult): number {
   const tilesX = result.tileFrame.maxX - result.tileFrame.minX;
   return tilesX > 0 ? result.width / tilesX : 32;
-}
-
-function paintDisplayFallback(canvas: HTMLCanvasElement, result: PreviewRenderResult): void {
-  if (!result.canvas || result.canvas === canvas) return;
-  canvas.width = result.width;
-  canvas.height = result.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(result.canvas as CanvasImageSource, 0, 0, result.width, result.height);
 }
 
 function formatTileSize(result: PreviewRenderResult | null): string {
@@ -147,21 +136,12 @@ export function PreviewPane({
           });
           if (gen !== renderGenRef.current) return;
 
-          let blitMs = 0;
-          if (display && result.canvas !== display) {
-            const tBlit = nowMs();
-            paintDisplayFallback(display, result);
-            blitMs = nowMs() - tBlit;
-          }
-
           const profile = result.profile;
           if (profile) {
             const report: PerfReport = {
               at: Date.now(),
               cold: profile.cold,
-              backend: result.backend,
-              blitMs,
-              wallMs: result.wallMs + blitMs,
+              wallMs: result.wallMs,
               profile,
               decode: decodeStats ?? undefined,
               blueprint: {
@@ -183,7 +163,7 @@ export function PreviewPane({
           onRenderProgress?.({
             value: 100,
             label: "Complete",
-            durationMs: result.wallMs + blitMs,
+            durationMs: result.wallMs,
           });
         } catch (e) {
           if (controller.signal.aborted) return;
@@ -221,13 +201,6 @@ export function PreviewPane({
     onPerfReport,
     onRenderProgress,
   ]);
-
-  // Re-paint if the canvas mounts after the render promise resolves (fit/layout timing).
-  useEffect(() => {
-    if (!lastResult) return;
-    const canvas = canvasRef.current;
-    if (canvas) paintDisplayFallback(canvas, lastResult);
-  }, [lastResult]);
 
   const handleDownload = useCallback(async () => {
     if (!lastResult) return;

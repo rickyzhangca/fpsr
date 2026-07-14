@@ -1,19 +1,20 @@
 // @vitest-environment jsdom
-import type { Blueprint, BlueprintDocument, RenderResult } from "fpsr";
+import type { Blueprint, BlueprintDocument } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
-  render: vi.fn(),
+  renderPreview: vi.fn(),
+  clearPreview: vi.fn(),
 }));
 
-vi.mock("fpsr", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("fpsr")>();
+vi.mock("./previewRenderer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./previewRenderer")>();
   return {
     ...actual,
-    cdnAssets: vi.fn(() => ({})),
-    createRenderer: vi.fn(async () => ({ render: mocks.render })),
+    renderPreview: mocks.renderPreview,
+    clearPreview: mocks.clearPreview,
   };
 });
 
@@ -40,36 +41,18 @@ vi.mock("./PreviewCanvasFrame", () => ({
 }));
 
 import { PreviewPane } from "./PreviewPane";
-import type { PreviewRenderProgress } from "./previewRenderer";
+import type { PreviewRenderProgress, PreviewRenderResult } from "./previewRenderer";
 
-function result(altMode: boolean): RenderResult {
+function result(): PreviewRenderResult {
   return {
-    canvas: {} as RenderResult["canvas"],
     width: 32,
     height: 32,
     tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
-    drawList: {
-      schema: 1,
-      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
-      commands: altMode
-        ? [
-            {
-              kind: "icon",
-              layer: 58,
-              sortY: 0,
-              sortX: 0,
-              entity: 1,
-              sub: 0,
-              frame: 0,
-              x: 0.5,
-              y: 0.5,
-              size: 0.5,
-            },
-          ]
-        : [],
-    },
+    profile: undefined,
+    assetDetails: [],
+    sessionBytes: 0,
+    wallMs: 12,
     toPngBlob: vi.fn(async () => new Blob()),
-    toPngBuffer: vi.fn(async () => new Uint8Array()),
   };
 }
 
@@ -85,8 +68,9 @@ describe("PreviewPane alt-mode toggle", () => {
     };
     host = document.createElement("div");
     document.body.append(host);
-    mocks.render.mockReset();
-    mocks.render.mockImplementation(async (_doc, opts) => result(opts?.altMode === true));
+    mocks.renderPreview.mockReset();
+    mocks.clearPreview.mockReset();
+    mocks.renderPreview.mockImplementation(async () => result());
   });
 
   afterEach(() => {
@@ -116,17 +100,17 @@ describe("PreviewPane alt-mode toggle", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
-    expect(mocks.render).toHaveBeenCalledTimes(1);
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(onRenderProgress).toHaveBeenLastCalledWith({
       value: 100,
       label: "Complete",
       durationMs: expect.any(Number),
     });
-    expect(mocks.render.mock.calls[0]?.[1]).toMatchObject({
+    expect(mocks.renderPreview.mock.calls[0]?.[0]).toBeInstanceOf(HTMLCanvasElement);
+    expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({
       altMode: true,
       padTiles: 1,
       showCheckerboard: true,
-      canvas: expect.any(HTMLCanvasElement),
       signal: expect.any(AbortSignal),
     });
 
@@ -138,8 +122,8 @@ describe("PreviewPane alt-mode toggle", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
-    expect(mocks.render).toHaveBeenCalledTimes(2);
-    expect(mocks.render.mock.calls[1]?.[1]).toMatchObject({ altMode: false });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
+    expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({ altMode: false });
     const download = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Download",
     );
@@ -167,8 +151,8 @@ describe("PreviewPane alt-mode toggle", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
-    expect(mocks.render).toHaveBeenCalledTimes(1);
-    expect(mocks.render.mock.calls[0]?.[1]).toMatchObject({ showCheckerboard: true });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+    expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({ showCheckerboard: true });
 
     const toggle = host.querySelector<HTMLButtonElement>("#checkerboard");
     expect(toggle).toBeTruthy();
@@ -178,8 +162,8 @@ describe("PreviewPane alt-mode toggle", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
-    expect(mocks.render).toHaveBeenCalledTimes(2);
-    expect(mocks.render.mock.calls[1]?.[1]).toMatchObject({ showCheckerboard: false });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
+    expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({ showCheckerboard: false });
 
     await act(async () => root.unmount());
   });

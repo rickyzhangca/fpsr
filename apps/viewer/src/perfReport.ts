@@ -10,14 +10,12 @@ export interface PerfReportBlueprint {
 
 /**
  * Viewer-assembled report for the Performance tab: renderer profile plus
- * decode stats, display blit timing, and session asset details.
+ * decode stats and session asset details.
  */
 export interface PerfReport {
   at: number;
   cold: boolean;
-  backend: "worker" | "main";
-  blitMs: number;
-  /** Wall-clock for render() + display blit. */
+  /** Wall-clock for the worker render. */
   wallMs: number;
   profile: RenderProfile;
   decode?: DecodeStats;

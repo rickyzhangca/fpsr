@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { BlueprintDocument } from "fpsr";
-import { PreviewRenderWorkerClient } from "./previewRenderer";
+import { PreviewRenderWorkerClient, renderPreview } from "./previewRenderer";
 import type { RenderWorkerRequest, RenderWorkerResponse } from "./renderWorkerProtocol";
 
 class FakeWorker extends EventTarget {
   readonly posts: { message: RenderWorkerRequest; transfer?: Transferable[] }[] = [];
-  readonly terminate = vi.fn<() => void>();
 
   postMessage(message: RenderWorkerRequest, transfer?: Transferable[]): void {
     this.posts.push({ message, transfer });
@@ -86,7 +85,6 @@ describe("PreviewRenderWorkerClient", () => {
     });
 
     const result = await pending;
-    expect(result.backend).toBe("worker");
     expect(result.width).toBe(640);
     expect(transfer).toHaveBeenCalledTimes(1);
 
@@ -152,7 +150,6 @@ describe("PreviewRenderWorkerClient", () => {
     await expect(pending).rejects.toThrow("worker startup failed");
     expect(transfer).not.toHaveBeenCalled();
     expect(worker.posts).toHaveLength(0);
-    expect(client.owns(canvas)).toBe(false);
   });
 
   it("aborts while waiting for readiness without touching the canvas", async () => {
@@ -167,5 +164,15 @@ describe("PreviewRenderWorkerClient", () => {
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(transfer).not.toHaveBeenCalled();
     expect(worker.posts).toHaveLength(0);
+  });
+});
+
+describe("renderPreview", () => {
+  it("rejects unsupported environments instead of rendering on the main thread", async () => {
+    const canvas = {} as HTMLCanvasElement;
+
+    await expect(renderPreview(canvas, doc, {})).rejects.toThrow(
+      "Preview rendering requires a browser with Web Workers and OffscreenCanvas support.",
+    );
   });
 });

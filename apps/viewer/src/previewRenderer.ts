@@ -1,28 +1,17 @@
 import {
-  nowMs,
   type AssetEvent,
   type BlueprintDocument,
-  type CanvasLike,
   type RenderOptions,
   type RenderProfile,
   type TileFrame,
 } from "fpsr";
 import {
-  toPreviewRenderProgress,
   type PreviewRenderProgress,
   type RenderWorkerRequest,
   type RenderWorkerResponse,
 } from "./renderWorkerProtocol";
-import {
-  getAssetEventCursor,
-  getAssetEventsSince,
-  getSessionBlobBytes,
-  getViewerRenderer,
-} from "./viewerAssets";
 
 export interface PreviewRenderResult {
-  backend: "worker" | "main";
-  canvas?: CanvasLike;
   width: number;
   height: number;
   tileFrame: TileFrame;
@@ -86,10 +75,6 @@ export class PreviewRenderWorkerClient {
     });
   }
 
-  owns(canvas: HTMLCanvasElement): boolean {
-    return this.surfaces.has(canvas);
-  }
-
   async render(
     canvas: HTMLCanvasElement,
     doc: BlueprintDocument,
@@ -151,11 +136,6 @@ export class PreviewRenderWorkerClient {
     return true;
   }
 
-  terminate(error = new Error("Render worker was disabled")): void {
-    this.fail(error);
-    this.worker.terminate();
-  }
-
   private export(surfaceId: string, renderId: number): Promise<Blob> {
     const requestId = this.nextRequestId++;
     return new Promise<Blob>((resolve, reject) => {
@@ -196,7 +176,6 @@ export class PreviewRenderWorkerClient {
     if (pending.kind !== "render") return;
     pending.cleanup();
     pending.resolve({
-      backend: "worker",
       width: response.width,
       height: response.height,
       tileFrame: response.tileFrame,
@@ -250,15 +229,6 @@ export class PreviewRenderWorkerClient {
 }
 
 let workerClient: PreviewRenderWorkerClient | undefined;
-let workerRenderingDisabled = false;
-
-function supportsWorkerRendering(canvas: HTMLCanvasElement): boolean {
-  return (
-    !workerRenderingDisabled &&
-    typeof Worker !== "undefined" &&
-    typeof canvas.transferControlToOffscreen === "function"
-  );
-}
 
 function getWorkerClient(): PreviewRenderWorkerClient {
   if (!workerClient) {
@@ -268,61 +238,17 @@ function getWorkerClient(): PreviewRenderWorkerClient {
   return workerClient;
 }
 
-function isAbortError(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && "name" in error && error.name === "AbortError"
-  );
-}
-
-function disableWorkerRendering(client?: PreviewRenderWorkerClient): void {
-  workerRenderingDisabled = true;
-  if (client && workerClient === client) {
-    client.terminate();
-    workerClient = undefined;
-  }
-}
-
 export async function renderPreview(
   canvas: HTMLCanvasElement,
   doc: BlueprintDocument,
   options: PreviewRenderOptions,
 ): Promise<PreviewRenderResult> {
-  if (supportsWorkerRendering(canvas)) {
-    let client: PreviewRenderWorkerClient | undefined;
-    try {
-      client = getWorkerClient();
-      return await client.render(canvas, doc, options);
-    } catch (error) {
-      if (isAbortError(error) || client?.owns(canvas)) throw error;
-      // Worker construction/startup failed before canvas ownership changed, so
-      // this canvas is still safe to render on the main thread. Disable worker
-      // startup attempts for the rest of this viewer session.
-      disableWorkerRendering(client);
-    }
+  if (typeof Worker === "undefined" || typeof canvas.transferControlToOffscreen !== "function") {
+    throw new Error(
+      "Preview rendering requires a browser with Web Workers and OffscreenCanvas support.",
+    );
   }
-
-  const detailStart = getAssetEventCursor();
-  const renderer = await getViewerRenderer();
-  const wallStart = nowMs();
-  const { onProgress, ...renderOptions } = options;
-  onProgress?.({ value: 5, label: "Rendering on main thread" });
-  const result = await renderer.render(doc, {
-    ...renderOptions,
-    canvas,
-    onProgress: (progress) => onProgress?.(toPreviewRenderProgress(progress)),
-  });
-  return {
-    backend: "main",
-    canvas: result.canvas,
-    width: result.width,
-    height: result.height,
-    tileFrame: result.tileFrame,
-    profile: result.profile,
-    assetDetails: getAssetEventsSince(detailStart),
-    sessionBytes: getSessionBlobBytes(),
-    wallMs: nowMs() - wallStart,
-    toPngBlob: () => result.toPngBlob(),
-  };
+  return getWorkerClient().render(canvas, doc, options);
 }
 
 export function clearPreview(canvas: HTMLCanvasElement): void {
