@@ -120,6 +120,51 @@ describe("createRenderer", () => {
     spy.mockRestore();
   });
 
+  it("encodes WebP directly from the rendered canvas with the requested quality", async () => {
+    const convertToBlob = vi.fn(
+      async (options?: { type?: string; quality?: number }) =>
+        new Blob(["encoded"], { type: options?.type }),
+    );
+    const toBuffer = vi.fn(async () => Buffer.from("encoded"));
+    const canvas = { ...stubCanvas(), convertToBlob, toBuffer };
+    const renderer = await createRenderer({ assets, renderDb: db, createCanvas: () => canvas });
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+
+    const result = await renderer.render(bp);
+    const blob = await result.toImageBlob({ type: "image/webp", quality: 0.9 });
+
+    expect(blob.type).toBe("image/webp");
+    expect(convertToBlob).toHaveBeenCalledWith({ type: "image/webp", quality: 0.9 });
+    expect(await result.toImageBuffer({ type: "image/webp", quality: 0.9 })).toEqual(
+      Buffer.from("encoded"),
+    );
+    expect(toBuffer).toHaveBeenCalledWith("image/webp", { quality: 0.9 });
+  });
+
+  it("rejects an unsupported image encoder fallback instead of mislabeling the file", async () => {
+    const canvas = {
+      ...stubCanvas(),
+      async convertToBlob() {
+        return new Blob(["png"], { type: "image/png" });
+      },
+    };
+    const renderer = await createRenderer({ assets, renderDb: db, createCanvas: () => canvas });
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+
+    const result = await renderer.render(bp);
+    await expect(result.toImageBlob({ type: "image/webp" })).rejects.toThrow(
+      "Canvas encoder does not support image/webp",
+    );
+  });
+
   it("profile:true attaches RenderProfile with stage timings and counts", async () => {
     const renderer = await createRenderer({
       assets,

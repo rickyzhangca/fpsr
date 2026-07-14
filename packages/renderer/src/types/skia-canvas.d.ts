@@ -10,6 +10,6 @@ declare module "skia-canvas" {
     width: number;
     height: number;
     getContext(type: "2d"): unknown;
-    toBuffer(mime?: string): Buffer | Promise<Buffer>;
+    toBuffer(mime?: string, options?: { quality?: number }): Buffer | Promise<Buffer>;
   }
 }

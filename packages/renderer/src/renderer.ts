@@ -28,10 +28,19 @@ export interface CanvasLike {
   height: number;
   getContext(type: "2d"): Canvas2DContextLike | null;
   convertToBlob?(options?: { type?: string; quality?: number }): Promise<Blob>;
-  toBuffer?(mime?: string): Buffer | Promise<Buffer>;
+  toBuffer?(mime?: string, options?: { quality?: number }): Buffer | Promise<Buffer>;
 }
 
 export type CreateCanvasFn = (width: number, height: number) => CanvasLike;
+
+export type RenderImageMimeType = "image/png" | "image/webp";
+
+export interface RenderImageOptions {
+  /** Output image format. Defaults to PNG. */
+  type?: RenderImageMimeType;
+  /** Encoder quality from 0 to 1 for lossy formats such as WebP. */
+  quality?: number;
+}
 
 export interface CreateRendererOptions {
   assets: AssetSource;
@@ -79,6 +88,10 @@ export interface RenderResult {
   tileFrame: TileFrame;
   /** Present when `RenderOptions.profile` was true. */
   profile?: RenderProfile;
+  /** Encode the current canvas directly into the requested image format. */
+  toImageBlob(options?: RenderImageOptions): Promise<Blob>;
+  /** Encode the current canvas directly into a browser- or Node-compatible byte array. */
+  toImageBuffer(options?: RenderImageOptions): Promise<Uint8Array>;
   toPngBlob(): Promise<Blob>;
   toPngBuffer(): Promise<Uint8Array>;
 }
@@ -109,6 +122,52 @@ function defaultCreateCanvas(width: number, height: number): CanvasLike {
       "(e.g. createRenderer({ assets, createCanvas: (w, h) => new Canvas(w, h) })) " +
       "or use fpsr/node helpers.",
   );
+}
+
+async function encodeCanvasBlob(
+  canvas: CanvasLike,
+  options: RenderImageOptions = {},
+): Promise<Blob> {
+  const type = options.type ?? "image/png";
+  let blob: Blob;
+  if (typeof canvas.convertToBlob === "function") {
+    blob = await canvas.convertToBlob({ type, quality: options.quality });
+  } else {
+    const htmlCanvas = canvas as unknown as HTMLCanvasElement;
+    if (typeof htmlCanvas.toBlob !== "function") {
+      throw new Error(
+        "Canvas does not support image blob encoding; use OffscreenCanvas or HTMLCanvasElement.",
+      );
+    }
+    blob = await new Promise<Blob>((resolve, reject) => {
+      htmlCanvas.toBlob(
+        (encoded) => {
+          if (encoded) resolve(encoded);
+          else reject(new Error("canvas.toBlob returned null"));
+        },
+        type,
+        options.quality,
+      );
+    });
+  }
+
+  if (blob.type !== type) {
+    throw new Error(`Canvas encoder does not support ${type}; returned ${blob.type || "unknown"}`);
+  }
+  return blob;
+}
+
+async function encodeCanvasBuffer(
+  canvas: CanvasLike,
+  options: RenderImageOptions = {},
+): Promise<Uint8Array> {
+  const type = options.type ?? "image/png";
+  if (typeof canvas.toBuffer === "function") {
+    const buffer = await canvas.toBuffer(type, { quality: options.quality });
+    return buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  }
+  const blob = await encodeCanvasBlob(canvas, options);
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 function collectAtlasIndices(list: DrawList, db: RenderDb): number[] {
@@ -451,53 +510,17 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         drawList,
         tileFrame,
         profile,
+        toImageBlob(options?: RenderImageOptions): Promise<Blob> {
+          return encodeCanvasBlob(canvas, options);
+        },
+        toImageBuffer(options?: RenderImageOptions): Promise<Uint8Array> {
+          return encodeCanvasBuffer(canvas, options);
+        },
         async toPngBlob(): Promise<Blob> {
-          if (typeof canvas.convertToBlob === "function") {
-            return canvas.convertToBlob({ type: "image/png" });
-          }
-          const htmlCanvas = canvas as unknown as HTMLCanvasElement;
-          if (typeof htmlCanvas.toBlob === "function") {
-            return new Promise<Blob>((resolve, reject) => {
-              htmlCanvas.toBlob((blob) => {
-                if (blob) resolve(blob);
-                else reject(new Error("canvas.toBlob returned null"));
-              }, "image/png");
-            });
-          }
-          throw new Error(
-            "Canvas does not support toPngBlob(); use OffscreenCanvas, HTMLCanvasElement, " +
-              "or skia-canvas with toPngBuffer()",
-          );
+          return encodeCanvasBlob(canvas, { type: "image/png" });
         },
         async toPngBuffer(): Promise<Uint8Array> {
-          if (typeof canvas.toBuffer === "function") {
-            const buf = await canvas.toBuffer("image/png");
-            return buf instanceof Uint8Array ? buf : new Uint8Array(buf);
-          }
-          // Fall back via blob when available.
-          if (
-            typeof canvas.convertToBlob === "function" ||
-            typeof (canvas as unknown as HTMLCanvasElement).toBlob === "function"
-          ) {
-            const blob = await (async () => {
-              if (typeof canvas.convertToBlob === "function") {
-                return canvas.convertToBlob({ type: "image/png" });
-              }
-              const htmlCanvas = canvas as unknown as HTMLCanvasElement;
-              return new Promise<Blob>((resolve, reject) => {
-                htmlCanvas.toBlob((b) => {
-                  if (b) resolve(b);
-                  else reject(new Error("canvas.toBlob returned null"));
-                }, "image/png");
-              });
-            })();
-            const ab = await blob.arrayBuffer();
-            return new Uint8Array(ab);
-          }
-          throw new Error(
-            "Canvas does not support toPngBuffer(); in Node pass a skia-canvas Canvas " +
-              "via createCanvas / render({ canvas })",
-          );
+          return encodeCanvasBuffer(canvas, { type: "image/png" });
         },
       };
     },

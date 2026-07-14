@@ -150,6 +150,8 @@ export type {
   CreateCanvasFn,
   CreateRendererOptions,
   Renderer,
+  RenderImageMimeType,
+  RenderImageOptions,
   RenderOptions,
   RenderProgressEvent,
   RenderResult,
