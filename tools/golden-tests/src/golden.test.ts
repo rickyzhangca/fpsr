@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
@@ -11,10 +11,19 @@ import { renderCase } from "./render-case.js";
 const cases = loadCases();
 
 function assetsReadySync(): boolean {
-  return (
-    existsSync(path.join(ASSETS_DIR, "render-db.json")) &&
-    existsSync(path.join(ASSETS_DIR, "manifest.json"))
-  );
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(ASSETS_DIR, "manifest.json"), "utf8")) as {
+      schema?: unknown;
+      renderDb?: { file?: unknown };
+    };
+    return (
+      manifest.schema === 2 &&
+      typeof manifest.renderDb?.file === "string" &&
+      existsSync(path.join(ASSETS_DIR, manifest.renderDb.file))
+    );
+  } catch {
+    return false;
+  }
 }
 
 describe("golden PNG regression", () => {

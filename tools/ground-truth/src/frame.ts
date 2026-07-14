@@ -1,6 +1,7 @@
 import type { RenderDb } from "fpsr";
 import { computeTileFrame, decode, planDrawList, selectBlueprint } from "fpsr";
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ASSETS_DIR, GAME_VERSION } from "./paths.js";
 
 export type ShotView = {
@@ -16,14 +17,22 @@ let cachedDb: RenderDb | null = null;
 
 async function loadRenderDb(): Promise<RenderDb> {
   if (cachedDb) return cachedDb;
-  const dbPath = `${ASSETS_DIR}/render-db.json`;
+  const manifestPath = path.join(ASSETS_DIR, "manifest.json");
   try {
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      schema?: unknown;
+      renderDb?: { file?: unknown };
+    };
+    if (manifest.schema !== 2 || typeof manifest.renderDb?.file !== "string") {
+      throw new Error("invalid schema-2 manifest");
+    }
+    const dbPath = path.join(ASSETS_DIR, manifest.renderDb.file);
     cachedDb = JSON.parse(await readFile(dbPath, "utf8")) as RenderDb;
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `Cannot plan shot framing — missing ${dbPath} (${reason}). ` +
-        `Run: pnpm -F @fpsr/pipeline run pipeline distill`,
+      `Cannot plan shot framing — invalid assets at ${ASSETS_DIR} (${reason}). ` +
+        `Run: pnpm assets:build`,
     );
   }
   return cachedDb;

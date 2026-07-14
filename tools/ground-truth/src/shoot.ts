@@ -13,7 +13,7 @@ export type ShootOptions = {
   padTiles?: number;
   /**
    * When true (default), plan camera from fpsr draw-list bounds so the shot
-   * matches the renderer canvas. Requires assets-out/<version>/render-db.json.
+   * matches the renderer canvas. Requires a built assets-out/<version>/ bundle.
    */
   useFpsrView?: boolean;
 };

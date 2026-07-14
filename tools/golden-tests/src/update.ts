@@ -1,20 +1,14 @@
 #!/usr/bin/env tsx
 
-import { access } from "node:fs/promises";
 import { writeFile } from "node:fs/promises";
-import path from "node:path";
+import { assetsAvailable } from "./assets.js";
 import { goldenPngPath, loadCases } from "./cases.js";
 import { ASSETS_DIR } from "./paths.js";
 import { renderCase } from "./render-case.js";
 
 async function main(): Promise<void> {
-  try {
-    await access(path.join(ASSETS_DIR, "render-db.json"));
-    await access(path.join(ASSETS_DIR, "manifest.json"));
-  } catch {
-    throw new Error(
-      `Assets not found in ${ASSETS_DIR}\nRun: pnpm -F @fpsr/pipeline run pipeline all`,
-    );
+  if (!(await assetsAvailable(ASSETS_DIR))) {
+    throw new Error(`Assets not found in ${ASSETS_DIR}\nRun: pnpm assets:build`);
   }
 
   const cases = loadCases();
