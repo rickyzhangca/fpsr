@@ -51,20 +51,26 @@ function abortError(): DOMException {
 export class PreviewRenderWorkerClient {
   private readonly surfaces = new WeakMap<HTMLCanvasElement, string>();
   private readonly pending = new Map<number, PendingRequest>();
+  private readonly readyPromise: Promise<void>;
+  private resolveReady!: () => void;
+  private rejectReady!: (error: Error) => void;
+  private failure?: Error;
   private nextRequestId = 1;
   private nextSurfaceId = 1;
 
   constructor(private readonly worker: Worker) {
+    this.readyPromise = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve;
+      this.rejectReady = reject;
+    });
+    // A worker may fail before the first render starts waiting on readiness.
+    // Attach a handler now while preserving the rejection for later callers.
+    void this.readyPromise.catch(() => undefined);
     worker.addEventListener("message", (event: MessageEvent<RenderWorkerResponse>) => {
       this.handleMessage(event.data);
     });
     worker.addEventListener("error", (event) => {
-      const error = new Error(event.message || "Render worker failed");
-      for (const request of this.pending.values()) {
-        if (request.kind === "render") request.cleanup();
-        request.reject(error);
-      }
-      this.pending.clear();
+      this.fail(new Error(event.message || "Render worker failed"));
     });
   }
 
@@ -72,15 +78,19 @@ export class PreviewRenderWorkerClient {
     return this.surfaces.has(canvas);
   }
 
-  render(
+  async render(
     canvas: HTMLCanvasElement,
     doc: BlueprintDocument,
     options: Omit<RenderOptions, "canvas">,
   ): Promise<PreviewRenderResult> {
+    await this.waitUntilReady(options.signal);
+
     let surfaceId = this.surfaces.get(canvas);
     if (!surfaceId) {
       surfaceId = `preview-${this.nextSurfaceId++}`;
       const offscreen = canvas.transferControlToOffscreen();
+      // Once transferControlToOffscreen succeeds this canvas cannot safely fall
+      // back to main-thread rendering, even if posting the attachment fails.
       this.surfaces.set(canvas, surfaceId);
       const attach: RenderWorkerRequest = { type: "attach", surfaceId, canvas: offscreen };
       this.worker.postMessage(attach, [offscreen]);
@@ -127,6 +137,11 @@ export class PreviewRenderWorkerClient {
     return true;
   }
 
+  terminate(error = new Error("Render worker was disabled")): void {
+    this.fail(error);
+    this.worker.terminate();
+  }
+
   private export(surfaceId: string, renderId: number): Promise<Blob> {
     const requestId = this.nextRequestId++;
     return new Promise<Blob>((resolve, reject) => {
@@ -142,6 +157,10 @@ export class PreviewRenderWorkerClient {
   }
 
   private handleMessage(response: RenderWorkerResponse): void {
+    if (response.type === "ready") {
+      if (!this.failure) this.resolveReady();
+      return;
+    }
     const pending = this.pending.get(response.requestId);
     if (!pending) return;
     this.pending.delete(response.requestId);
@@ -170,12 +189,57 @@ export class PreviewRenderWorkerClient {
       toPngBlob: () => this.export(pending.surfaceId, response.requestId),
     });
   }
+
+  private waitUntilReady(signal?: AbortSignal): Promise<void> {
+    if (this.failure) return Promise.reject(this.failure);
+    if (signal?.aborted) return Promise.reject(abortError());
+    if (!signal) {
+      return this.readyPromise.then(() => {
+        if (this.failure) throw this.failure;
+      });
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        cleanup();
+        reject(abortError());
+      };
+      const cleanup = () => signal.removeEventListener("abort", onAbort);
+      signal.addEventListener("abort", onAbort, { once: true });
+      this.readyPromise.then(
+        () => {
+          cleanup();
+          if (this.failure) reject(this.failure);
+          else resolve();
+        },
+        (error: Error) => {
+          cleanup();
+          reject(error);
+        },
+      );
+    });
+  }
+
+  private fail(error: Error): void {
+    if (!this.failure) this.failure = error;
+    this.rejectReady(this.failure);
+    for (const request of this.pending.values()) {
+      if (request.kind === "render") request.cleanup();
+      request.reject(this.failure);
+    }
+    this.pending.clear();
+  }
 }
 
 let workerClient: PreviewRenderWorkerClient | undefined;
+let workerRenderingDisabled = false;
 
 function supportsWorkerRendering(canvas: HTMLCanvasElement): boolean {
-  return typeof Worker !== "undefined" && typeof canvas.transferControlToOffscreen === "function";
+  return (
+    !workerRenderingDisabled &&
+    typeof Worker !== "undefined" &&
+    typeof canvas.transferControlToOffscreen === "function"
+  );
 }
 
 function getWorkerClient(): PreviewRenderWorkerClient {
@@ -186,13 +250,40 @@ function getWorkerClient(): PreviewRenderWorkerClient {
   return workerClient;
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
+function disableWorkerRendering(client?: PreviewRenderWorkerClient): void {
+  workerRenderingDisabled = true;
+  if (client && workerClient === client) {
+    client.terminate();
+    workerClient = undefined;
+  }
+}
+
 export async function renderPreview(
   canvas: HTMLCanvasElement,
   doc: BlueprintDocument,
   options: Omit<RenderOptions, "canvas">,
 ): Promise<PreviewRenderResult> {
   if (supportsWorkerRendering(canvas)) {
-    return getWorkerClient().render(canvas, doc, options);
+    let client: PreviewRenderWorkerClient | undefined;
+    try {
+      client = getWorkerClient();
+      return await client.render(canvas, doc, options);
+    } catch (error) {
+      if (isAbortError(error) || client?.owns(canvas)) throw error;
+      // Worker construction/startup failed before canvas ownership changed, so
+      // this canvas is still safe to render on the main thread. Disable worker
+      // startup attempts for the rest of this viewer session.
+      disableWorkerRendering(client);
+    }
   }
 
   const detailStart = getAssetEventCursor();

@@ -5,6 +5,7 @@ import type { RenderWorkerRequest, RenderWorkerResponse } from "./renderWorkerPr
 
 class FakeWorker extends EventTarget {
   readonly posts: { message: RenderWorkerRequest; transfer?: Transferable[] }[] = [];
+  readonly terminate = vi.fn<() => void>();
 
   postMessage(message: RenderWorkerRequest, transfer?: Transferable[]): void {
     this.posts.push({ message, transfer });
@@ -13,6 +14,17 @@ class FakeWorker extends EventTarget {
   respond(message: RenderWorkerResponse): void {
     this.dispatchEvent(new MessageEvent("message", { data: message }));
   }
+
+  fail(message = "worker startup failed"): void {
+    const event = new Event("error") as ErrorEvent;
+    Object.defineProperty(event, "message", { value: message });
+    this.dispatchEvent(event);
+  }
+}
+
+async function flushReady(worker: FakeWorker): Promise<void> {
+  worker.respond({ type: "ready" });
+  await Promise.resolve();
 }
 
 function fakeCanvas() {
@@ -37,6 +49,10 @@ describe("PreviewRenderWorkerClient", () => {
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
     const { canvas, offscreen, transfer } = fakeCanvas();
     const pending = client.render(canvas, doc, { pixelsPerTile: 64, profile: true });
+
+    expect(transfer).not.toHaveBeenCalled();
+    expect(worker.posts).toHaveLength(0);
+    await flushReady(worker);
 
     expect(worker.posts[0]?.message.type).toBe("attach");
     expect(worker.posts[0]?.transfer).toEqual([offscreen]);
@@ -69,6 +85,9 @@ describe("PreviewRenderWorkerClient", () => {
     expect(await blobPending).toBe(blob);
 
     const second = client.render(canvas, doc, { pixelsPerTile: 32 });
+    await vi.waitFor(() => {
+      expect(worker.posts.at(-1)?.message.type).toBe("render");
+    });
     expect(transfer).toHaveBeenCalledTimes(1);
     const secondRequest = worker.posts.at(-1)?.message;
     if (secondRequest?.type !== "render") throw new Error("expected second render request");
@@ -90,8 +109,12 @@ describe("PreviewRenderWorkerClient", () => {
     const worker = new FakeWorker();
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
     const { canvas } = fakeCanvas();
+    await flushReady(worker);
     const controller = new AbortController();
     const pending = client.render(canvas, doc, { signal: controller.signal });
+    await vi.waitFor(() => {
+      expect(worker.posts.at(-1)?.message.type).toBe("render");
+    });
     const renderRequest = worker.posts.at(-1)?.message;
     if (renderRequest?.type !== "render") throw new Error("expected render request");
 
@@ -102,5 +125,33 @@ describe("PreviewRenderWorkerClient", () => {
       requestId: renderRequest.requestId,
       surfaceId: renderRequest.surfaceId,
     });
+  });
+
+  it("does not transfer a canvas when the worker fails before its ready handshake", async () => {
+    const worker = new FakeWorker();
+    const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
+    const { canvas, transfer } = fakeCanvas();
+    const pending = client.render(canvas, doc, {});
+
+    worker.fail();
+
+    await expect(pending).rejects.toThrow("worker startup failed");
+    expect(transfer).not.toHaveBeenCalled();
+    expect(worker.posts).toHaveLength(0);
+    expect(client.owns(canvas)).toBe(false);
+  });
+
+  it("aborts while waiting for readiness without touching the canvas", async () => {
+    const worker = new FakeWorker();
+    const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
+    const { canvas, transfer } = fakeCanvas();
+    const controller = new AbortController();
+    const pending = client.render(canvas, doc, { signal: controller.signal });
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(transfer).not.toHaveBeenCalled();
+    expect(worker.posts).toHaveLength(0);
   });
 });

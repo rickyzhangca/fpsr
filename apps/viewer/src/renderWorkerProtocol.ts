@@ -33,6 +33,9 @@ export type RenderWorkerRequest =
 
 export type RenderWorkerResponse =
   | {
+      type: "ready";
+    }
+  | {
       type: "rendered";
       requestId: number;
       surfaceId: string;

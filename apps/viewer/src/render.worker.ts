@@ -141,3 +141,7 @@ workerScope.onmessage = (event) => {
       break;
   }
 };
+
+// Signal only after the module has initialized its asset store and message handler.
+// The main thread must receive this before transferring ownership of a canvas.
+workerScope.postMessage({ type: "ready" });
