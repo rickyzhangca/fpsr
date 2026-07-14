@@ -118,14 +118,16 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
   }
 }
 
-async function exportPng(request: Extract<RenderWorkerRequest, { type: "export" }>): Promise<void> {
+async function exportImage(
+  request: Extract<RenderWorkerRequest, { type: "export" }>,
+): Promise<void> {
   const surface = surfaces.get(request.surfaceId);
   if (!surface?.result || surface.result.requestId !== request.renderId) {
     postError(request.requestId, new Error("The requested render is no longer available"));
     return;
   }
   try {
-    const blob = await surface.result.result.toPngBlob();
+    const blob = await surface.result.result.toImageBlob(request.options);
     workerScope.postMessage({ type: "exported", requestId: request.requestId, blob });
   } catch (error) {
     postError(request.requestId, error);
@@ -157,7 +159,7 @@ workerScope.onmessage = (event) => {
       break;
     }
     case "export":
-      void exportPng(request);
+      void exportImage(request);
       break;
   }
 };

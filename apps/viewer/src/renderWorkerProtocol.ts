@@ -1,6 +1,7 @@
 import type {
   AssetEvent,
   BlueprintDocument,
+  RenderImageOptions,
   RenderOptions,
   RenderProfile,
   RenderProgressEvent,
@@ -64,6 +65,7 @@ export type RenderWorkerRequest =
       requestId: number;
       renderId: number;
       surfaceId: string;
+      options: RenderImageOptions;
     };
 
 export type RenderWorkerResponse =

@@ -43,7 +43,7 @@ const doc: BlueprintDocument = {
 };
 
 describe("PreviewRenderWorkerClient", () => {
-  it("transfers a canvas once, reuses its surface, and proxies PNG export", async () => {
+  it("transfers a canvas once, reuses its surface, and proxies image export", async () => {
     const worker = new FakeWorker();
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
     const { canvas, offscreen, transfer } = fakeCanvas();
@@ -88,11 +88,12 @@ describe("PreviewRenderWorkerClient", () => {
     expect(result.width).toBe(640);
     expect(transfer).toHaveBeenCalledTimes(1);
 
-    const blobPending = result.toPngBlob();
+    const blobPending = result.toImageBlob({ type: "image/webp", quality: 0.9 });
     const exportRequest = worker.posts.at(-1)?.message;
     expect(exportRequest?.type).toBe("export");
     if (exportRequest?.type !== "export") throw new Error("expected export request");
-    const blob = new Blob(["png"], { type: "image/png" });
+    expect(exportRequest.options).toEqual({ type: "image/webp", quality: 0.9 });
+    const blob = new Blob(["webp"], { type: "image/webp" });
     worker.respond({ type: "exported", requestId: exportRequest.requestId, blob });
     expect(await blobPending).toBe(blob);
 

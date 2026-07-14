@@ -1,6 +1,7 @@
 import {
   type AssetEvent,
   type BlueprintDocument,
+  type RenderImageOptions,
   type RenderOptions,
   type RenderProfile,
   type TileFrame,
@@ -19,6 +20,7 @@ export interface PreviewRenderResult {
   assetDetails: AssetEvent[];
   sessionBytes: number;
   wallMs: number;
+  toImageBlob(options: RenderImageOptions): Promise<Blob>;
   toPngBlob(): Promise<Blob>;
 }
 
@@ -136,7 +138,7 @@ export class PreviewRenderWorkerClient {
     return true;
   }
 
-  private export(surfaceId: string, renderId: number): Promise<Blob> {
+  private export(surfaceId: string, renderId: number, options: RenderImageOptions): Promise<Blob> {
     const requestId = this.nextRequestId++;
     return new Promise<Blob>((resolve, reject) => {
       this.pending.set(requestId, { kind: "export", resolve, reject });
@@ -145,6 +147,7 @@ export class PreviewRenderWorkerClient {
         requestId,
         renderId,
         surfaceId,
+        options,
       };
       this.worker.postMessage(request);
     });
@@ -183,7 +186,8 @@ export class PreviewRenderWorkerClient {
       assetDetails: response.assetDetails,
       sessionBytes: response.sessionBytes,
       wallMs: response.wallMs,
-      toPngBlob: () => this.export(pending.surfaceId, response.requestId),
+      toImageBlob: (options) => this.export(pending.surfaceId, response.requestId, options),
+      toPngBlob: () => this.export(pending.surfaceId, response.requestId, { type: "image/png" }),
     });
   }
 

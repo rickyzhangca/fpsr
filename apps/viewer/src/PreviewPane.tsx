@@ -1,13 +1,9 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import {
-  stripRichText,
-  type Blueprint,
-  type BlueprintDocument,
-  type DecodeStats,
-} from "fpsr";
+import { stripRichText, type Blueprint, type BlueprintDocument, type DecodeStats } from "fpsr";
 import {
   useCallback,
   useEffect,
@@ -28,7 +24,24 @@ import {
 
 const NORMAL_PIXELS_PER_TILE = 32;
 const HD_PIXELS_PER_TILE = 64;
+const WEBP_QUALITY = 0.9;
 const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
+
+type ExportFormat = "webp" | "png";
+
+const EXPORT_OPTIONS = {
+  webp: { type: "image/webp", quality: WEBP_QUALITY },
+  png: { type: "image/png" },
+} as const;
+
+function exportFormatLabel(format: ExportFormat): "WebP" | "PNG" {
+  return format === "webp" ? "WebP" : "PNG";
+}
+
+function formatExportSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function isAssetsError(message: string): boolean {
   return (
@@ -69,8 +82,13 @@ export function PreviewPane({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
+  const exportPromisesRef = useRef<{
+    result: PreviewRenderResult;
+    promises: Partial<Record<ExportFormat, Promise<Blob>>>;
+  } | null>(null);
 
   const [hd, setHd] = useState(true);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("webp");
   const pixelsPerTile = hd ? HD_PIXELS_PER_TILE : NORMAL_PIXELS_PER_TILE;
   const [altMode, setAltMode] = useState(true);
   const [showCoords, setShowCoords] = useState(false);
@@ -80,6 +98,10 @@ export function PreviewPane({
   const [assetsMissing, setAssetsMissing] = useState(false);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [lastResult, setLastResult] = useState<PreviewRenderResult | null>(null);
+  const [preparedExports, setPreparedExports] = useState<{
+    result: PreviewRenderResult;
+    formats: Partial<Record<ExportFormat, { blob?: Blob; error?: string }>>;
+  } | null>(null);
   const [_hoverTile, setHoverTile] = useState<{
     cellX: number;
     cellY: number;
@@ -90,6 +112,69 @@ export function PreviewPane({
   useEffect(() => {
     onTileSizeChange?.(formatTileSize(lastResult));
   }, [lastResult, onTileSizeChange]);
+
+  useEffect(() => {
+    if (!lastResult) {
+      exportPromisesRef.current = null;
+      setPreparedExports(null);
+      return;
+    }
+
+    let cache = exportPromisesRef.current;
+    if (cache?.result !== lastResult) {
+      cache = { result: lastResult, promises: {} };
+      exportPromisesRef.current = cache;
+    }
+
+    let promise = cache.promises[exportFormat];
+    if (!promise) {
+      promise = lastResult.toImageBlob(EXPORT_OPTIONS[exportFormat]);
+      cache.promises[exportFormat] = promise;
+    }
+
+    let stale = false;
+    setPreparedExports((current) =>
+      current?.result === lastResult ? current : { result: lastResult, formats: {} },
+    );
+    void promise.then(
+      (blob) => {
+        if (stale) return;
+        setPreparedExports((current) => ({
+          result: lastResult,
+          formats: {
+            ...(current?.result === lastResult ? current.formats : {}),
+            [exportFormat]: { blob },
+          },
+        }));
+      },
+      (error: unknown) => {
+        if (stale) return;
+        const message = error instanceof Error ? error.message : "Image encoding failed";
+        setPreparedExports((current) => ({
+          result: lastResult,
+          formats: {
+            ...(current?.result === lastResult ? current.formats : {}),
+            [exportFormat]: { error: message },
+          },
+        }));
+        if (exportPromisesRef.current?.result === lastResult) {
+          delete exportPromisesRef.current.promises[exportFormat];
+        }
+      },
+    );
+
+    return () => {
+      stale = true;
+    };
+  }, [lastResult, exportFormat]);
+
+  const currentExport =
+    preparedExports?.result === lastResult ? preparedExports.formats[exportFormat] : undefined;
+  const exportBlob = currentExport?.blob;
+  const exportLabel = exportFormatLabel(exportFormat);
+  const exportPreparing = Boolean(lastResult && !currentExport);
+  const downloadPendingLabel =
+    !lastResult || loading ? "Rendering" : exportPreparing ? "Encoding" : null;
 
   useEffect(() => {
     if (!doc || !blueprint) {
@@ -202,35 +287,37 @@ export function PreviewPane({
     onRenderProgress,
   ]);
 
-  const handleDownload = useCallback(async () => {
-    if (!lastResult) return;
-    const filename = `${stripRichText(blueprint?.label).replace(/[^\w.-]+/g, "_") || "blueprint"}.png`;
+  const handleDownload = useCallback(() => {
+    if (!exportBlob) return;
+    const filename = `${stripRichText(blueprint?.label).replace(/[^\w.-]+/g, "_") || "blueprint"}.${exportFormat}`;
     try {
-      const blob = await lastResult.toPngBlob();
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(exportBlob);
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = filename;
       anchor.click();
       URL.revokeObjectURL(url);
-      toast.success("PNG downloaded", { description: filename });
+      toast.success(`${exportLabel} downloaded`, { description: filename });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Download failed";
       toast.error(message);
     }
-  }, [lastResult, blueprint?.label]);
+  }, [exportBlob, blueprint?.label, exportFormat, exportLabel]);
 
-  const handleCopyPng = useCallback(async () => {
-    if (!lastResult) return;
+  const handleCopy = useCallback(async () => {
+    if (!exportBlob) return;
     try {
-      const blob = await lastResult.toPngBlob();
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      toast.success("PNG copied to clipboard");
+      const mime = EXPORT_OPTIONS[exportFormat].type;
+      if (typeof ClipboardItem.supports === "function" && !ClipboardItem.supports(mime)) {
+        throw new Error(`${exportLabel} images are not supported by this browser's clipboard`);
+      }
+      await navigator.clipboard.write([new ClipboardItem({ [mime]: exportBlob })]);
+      toast.success(`${exportLabel} copied to clipboard`);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Copy failed";
       toast.error(message);
     }
-  }, [lastResult]);
+  }, [exportBlob, exportFormat, exportLabel]);
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -290,11 +377,20 @@ export function PreviewPane({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-center gap-5 p-4">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-1 pb-3">
           <div className="flex items-center gap-2">
-            <Switch size="sm" id="hd" checked={hd} onCheckedChange={setHd} />
+            <Switch
+              size="sm"
+              id="hd"
+              checked={hd}
+              disabled={loading}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setHd(checked);
+              }}
+            />
             <Label htmlFor="hd">
-              HD
+              HD assets
               <span className="text-muted-foreground">
                 {dimensions && (
                   <>
@@ -305,11 +401,40 @@ export function PreviewPane({
             </Label>
           </div>
           <div className="flex items-center gap-2">
-            <Switch size="sm" id="alt-mode" checked={altMode} onCheckedChange={setAltMode} />
+            <Switch
+              id="export-format"
+              aria-label="Use WebP image format"
+              size="sm"
+              checked={exportFormat === "webp"}
+              disabled={loading || exportPreparing}
+              onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
+            />
+            <Label htmlFor="export-format">WebP</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              size="sm"
+              id="alt-mode"
+              checked={altMode}
+              disabled={loading}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setAltMode(checked);
+              }}
+            />
             <Label htmlFor="alt-mode">Alt mode</Label>
           </div>
           <div className="flex items-center gap-2">
-            <Switch size="sm" id="coords" checked={showCoords} onCheckedChange={setShowCoords} />
+            <Switch
+              size="sm"
+              id="coords"
+              checked={showCoords}
+              disabled={loading}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setShowCoords(checked);
+              }}
+            />
             <Label htmlFor="coords">Coords</Label>
           </div>
           <div className="flex items-center gap-2">
@@ -317,7 +442,11 @@ export function PreviewPane({
               size="sm"
               id="checkerboard"
               checked={showCheckerboard}
-              onCheckedChange={setShowCheckerboard}
+              disabled={loading}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setShowCheckerboard(checked);
+              }}
             />
             <Label htmlFor="checkerboard">Checkerboard</Label>
           </div>
@@ -330,13 +459,21 @@ export function PreviewPane({
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
-                onClick={() => void handleDownload()}
-                disabled={!lastResult || loading}
+                onClick={handleDownload}
+                disabled={!exportBlob || loading}
+                aria-busy={downloadPendingLabel !== null}
+                title={currentExport?.error}
               >
-                Download
+                {downloadPendingLabel && <Spinner data-icon="inline-start" />}
+                {downloadPendingLabel ??
+                  (exportBlob ? `Download ${formatExportSize(exportBlob.size)}` : "Unavailable")}
               </Button>
-              <Button onClick={() => void handleCopyPng()} disabled={!lastResult || loading}>
-                Copy PNG
+              <Button
+                onClick={() => void handleCopy()}
+                disabled={!exportBlob || loading}
+                title={currentExport?.error}
+              >
+                Copy {exportLabel}
               </Button>
             </div>
           }
