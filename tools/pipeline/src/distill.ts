@@ -1,15 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { packAtlases } from "./atlas.js";
 import { asOffset2, splitBeltFrameMain } from "./belt-connector-split.js";
 import { discoverPlaceableEntities, discoverPlaceableTiles } from "./discover.js";
 import {
-  DUMP_PATH,
-  GAME_VERSION,
+  getPipelinePaths,
   OFFICIAL_MODS,
   UNSUPPORTED_ENTITY_PNG,
-  VERSION_OUT,
   resolveSpritePath,
 } from "./paths.js";
 import { fpsrLayer, guessedLayer, officialLayer, railPieceLayerFromDump } from "./render-layers.js";
@@ -39,6 +37,7 @@ import type {
   SpriteVariant,
   TileRenderDef,
 } from "./types.js";
+import { verifyAssetBundle } from "./verify.js";
 
 /**
  * Layer assignment policy (see docs/RENDER_LAYERS.md):
@@ -3181,13 +3180,54 @@ export interface DistillReport {
   entityCount: number;
   tileCount: number;
   kindCounts: Record<string, number>;
+  packing?: {
+    sourceFrames: number;
+    packedFrames: number;
+    sourcePixels: number;
+    packedPixels: number;
+    clonedPixelRatio: number;
+  };
+}
+
+async function directoryBytes(dir: string): Promise<number> {
+  try {
+    const entries = await readdir(dir);
+    let total = 0;
+    for (const entry of entries) {
+      const info = await stat(path.join(dir, entry));
+      if (info.isFile()) total += info.size;
+    }
+    return total;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw error;
+  }
+}
+
+async function publishAtomic(staging: string, target: string): Promise<void> {
+  const backup = `${target}.previous-${process.pid}`;
+  let hadTarget = false;
+  try {
+    await rename(target, backup);
+    hadTarget = true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  try {
+    await rename(staging, target);
+  } catch (error) {
+    if (hadTarget) await rename(backup, target);
+    throw error;
+  }
+  if (hadTarget) await rm(backup, { recursive: true, force: true });
 }
 
 export async function distillAndPack(): Promise<RenderDb> {
+  const paths = getPipelinePaths();
   pipeCoversCache = undefined;
   clearImageCache();
   console.log("distill: loading data-raw-dump.json…");
-  const text = await readFile(DUMP_PATH, "utf8");
+  const text = await readFile(paths.dumpPath, "utf8");
   const raw = JSON.parse(text) as DataRaw;
   console.log(`distill: parsed ${(text.length / 1e6).toFixed(1)} MB`);
 
@@ -3320,13 +3360,19 @@ export async function distillAndPack(): Promise<RenderDb> {
     }
   }
 
-  await mkdir(VERSION_OUT, { recursive: true });
+  await mkdir(paths.assetsOut, { recursive: true });
+  const staging = await mkdtemp(path.join(paths.assetsOut, `.tmp-${paths.install.version}-`));
   console.log("pack: packing atlases…");
-  const packed = await packAtlases(bank.list(), VERSION_OUT);
+  const packed = await packAtlases(bank.list(), { entities, tiles, icons }, staging).catch(
+    async (error) => {
+      await rm(staging, { recursive: true, force: true });
+      throw error;
+    },
+  );
 
   const db: RenderDb = {
-    schema: 1,
-    gameVersion: GAME_VERSION,
+    schema: 2,
+    gameVersion: paths.install.version,
     mods: [...OFFICIAL_MODS],
     atlases: packed.atlases,
     frames: packed.frames,
@@ -3337,24 +3383,28 @@ export async function distillAndPack(): Promise<RenderDb> {
   };
 
   const dbJson = `${JSON.stringify(db)}\n`;
-  const dbPath = path.join(VERSION_OUT, "render-db.json");
-  await writeFile(dbPath, dbJson);
   const renderDbSha256 = createHash("sha256").update(dbJson).digest("hex");
+  const renderDbFile = `render-db.${renderDbSha256}.json`;
+  await writeFile(path.join(staging, renderDbFile), dbJson);
 
   const manifest = {
-    gameVersion: GAME_VERSION,
+    schema: 2,
+    gameVersion: paths.install.version,
+    mods: [...OFFICIAL_MODS],
+    renderDb: {
+      file: renderDbFile,
+      sha256: renderDbSha256,
+      bytes: Buffer.byteLength(dbJson),
+    },
     atlases: packed.manifestAtlases.map((a) => ({
       file: a.file,
       w: a.width,
       h: a.height,
       sha256: a.sha256,
+      bytes: a.bytes,
     })),
-    renderDbSha256,
   };
-  await writeFile(
-    path.join(VERSION_OUT, "manifest.json"),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-  );
+  await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
   const kindCounts: Record<string, number> = {};
   for (const e of Object.values(entities)) {
@@ -3365,13 +3415,35 @@ export async function distillAndPack(): Promise<RenderDb> {
     entityCount: Object.keys(entities).length,
     tileCount: Object.keys(tiles).length,
     kindCounts,
+    packing: {
+      sourceFrames: packed.stats.sourceFrames,
+      packedFrames: packed.stats.packedFrames,
+      sourcePixels: packed.stats.sourcePixels,
+      packedPixels: packed.stats.packedPixels,
+      clonedPixelRatio: packed.stats.clonedPixelRatio,
+    },
   };
   await writeFile(
-    path.join(VERSION_OUT, "distill-report.json"),
+    path.join(staging, "distill-report.json"),
     `${JSON.stringify(report, null, 2)}\n`,
   );
 
   clearImageCache();
+
+  const previousBytes = await directoryBytes(paths.versionOut);
+  const generatedBytes = await directoryBytes(staging);
+  if (previousBytes > 0 && generatedBytes > previousBytes * 1.25) {
+    await rm(staging, { recursive: true, force: true });
+    throw new Error(
+      `Generated bundle ${(generatedBytes / 1024 / 1024).toFixed(2)} MiB exceeds ` +
+        `125% of existing ${(previousBytes / 1024 / 1024).toFixed(2)} MiB bundle`,
+    );
+  }
+  await verifyAssetBundle(staging).catch(async (error) => {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
+  });
+  await publishAtomic(staging, paths.versionOut);
 
   console.log(
     `distill: done — ${report.entityCount} entities, ${report.tileCount} tiles, ${Object.keys(icons).length} icons, ${packed.frames.length} frames, ${packed.atlases.length} atlases`,
@@ -3381,6 +3453,6 @@ export async function distillAndPack(): Promise<RenderDb> {
     for (const ph of placeholders) console.log(`  - ${ph.name}: ${ph.reason}`);
   }
   console.log(`  kinds: ${JSON.stringify(kindCounts)}`);
-  console.log(`  render-db.json ${(dbJson.length / 1024).toFixed(1)} KB`);
+  console.log(`  ${renderDbFile} ${(dbJson.length / 1024).toFixed(1)} KB`);
   return db;
 }

@@ -170,7 +170,7 @@ export interface TileRenderDef {
 }
 
 export interface RenderDb {
-  schema: 1;
+  schema: 2;
   gameVersion: string;
   mods: string[];
   atlases: AtlasMeta[];

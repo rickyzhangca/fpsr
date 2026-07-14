@@ -2,77 +2,87 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  ASSETS_OUT,
-  DUMP_META_PATH,
-  DUMP_PATH,
-  DUMP_SOURCE,
-  FACTORIO_BIN,
-  GAME_VERSION,
-  OFFICIAL_MODS,
-  TEMP_MOD_DIR,
-} from "./paths.js";
+import { getPipelinePaths, OFFICIAL_MODS } from "./paths.js";
 
-async function pathExists(p: string): Promise<boolean> {
+async function pathExists(filename: string): Promise<boolean> {
   try {
-    await readFile(p);
+    await readFile(filename);
     return true;
   } catch {
     return false;
   }
 }
 
-function run(cmd: string, args: string[]): Promise<void> {
+function run(command: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: "inherit" });
+    const child = spawn(command, args, { stdio: "inherit" });
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`${cmd} exited with code ${code}`));
+      else reject(new Error(`${command} exited with code ${code}`));
     });
   });
 }
 
-export async function dumpData(opts: { force?: boolean } = {}): Promise<void> {
-  await mkdir(ASSETS_OUT, { recursive: true });
+async function dumpMatchesVersion(metaPath: string, version: string): Promise<boolean> {
+  try {
+    const meta = JSON.parse(await readFile(metaPath, "utf8")) as { gameVersion?: unknown };
+    return meta.gameVersion === version;
+  } catch {
+    return false;
+  }
+}
 
-  if (!opts.force && (await pathExists(DUMP_PATH))) {
-    console.log(`dump: skip (exists) ${DUMP_PATH}`);
+export async function dumpData(opts: { force?: boolean } = {}): Promise<void> {
+  const paths = getPipelinePaths();
+  await mkdir(paths.assetsOut, { recursive: true });
+
+  if (
+    !opts.force &&
+    (await pathExists(paths.dumpPath)) &&
+    (await dumpMatchesVersion(paths.dumpMetaPath, paths.install.version))
+  ) {
+    console.log(`dump: skip (${paths.install.version} exists) ${paths.dumpPath}`);
     return;
   }
 
-  await mkdir(TEMP_MOD_DIR, { recursive: true });
-  const modList = {
-    mods: OFFICIAL_MODS.map((name) => ({ name, enabled: true })),
-  };
+  await mkdir(paths.tempModDir, { recursive: true });
   await writeFile(
-    path.join(TEMP_MOD_DIR, "mod-list.json"),
-    `${JSON.stringify(modList, null, 2)}\n`,
+    path.join(paths.tempModDir, "mod-list.json"),
+    `${JSON.stringify(
+      { mods: OFFICIAL_MODS.map((name) => ({ name, enabled: true })) },
+      null,
+      2,
+    )}\n`,
   );
 
-  console.log("dump: running factorio --dump-data (official mods only)…");
-  await run(FACTORIO_BIN, ["--dump-data", "--disable-audio", "--mod-directory", TEMP_MOD_DIR]);
+  console.log(`dump: running ${paths.install.binary} --dump-data (official mods only)…`);
+  await run(paths.install.binary, [
+    "--dump-data",
+    "--disable-audio",
+    "--mod-directory",
+    paths.tempModDir,
+  ]);
 
-  if (!(await pathExists(DUMP_SOURCE))) {
-    throw new Error(`Expected dump at ${DUMP_SOURCE} but it was not created`);
+  if (!(await pathExists(paths.dumpSource))) {
+    throw new Error(`Expected dump at ${paths.dumpSource} but it was not created`);
   }
 
-  // Copy via read/write so we don't remove the game's copy unexpectedly.
-  const buf = await readFile(DUMP_SOURCE);
-  const tmp = `${DUMP_PATH}.tmp`;
-  await writeFile(tmp, buf);
-  await rename(tmp, DUMP_PATH);
+  const buf = await readFile(paths.dumpSource);
+  const temporary = `${paths.dumpPath}.tmp`;
+  await writeFile(temporary, buf);
+  await rename(temporary, paths.dumpPath);
 
   const sha256 = createHash("sha256").update(buf).digest("hex");
   const meta = {
     sha256,
-    gameVersion: GAME_VERSION,
+    gameVersion: paths.install.version,
     mods: [...OFFICIAL_MODS],
-    source: DUMP_SOURCE,
+    source: paths.dumpSource,
     bytes: buf.byteLength,
   };
-  await writeFile(DUMP_META_PATH, `${JSON.stringify(meta, null, 2)}\n`);
+  await writeFile(paths.dumpMetaPath, `${JSON.stringify(meta, null, 2)}\n`);
   console.log(
-    `dump: wrote ${DUMP_PATH} (${(buf.byteLength / 1e6).toFixed(1)} MB, sha256=${sha256.slice(0, 12)}…)`,
+    `dump: wrote ${paths.dumpPath} (${(buf.byteLength / 1e6).toFixed(1)} MB, sha256=${sha256.slice(0, 12)}…)`,
   );
 }

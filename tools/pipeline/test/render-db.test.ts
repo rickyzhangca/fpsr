@@ -1,12 +1,10 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
-import { VERSION_OUT } from "../src/paths.js";
+import { getPipelinePaths } from "../src/paths.js";
 import type { EntityRenderDef, FrameMeta, RenderDb, SpriteVariant } from "../src/types.js";
+import { readAssetBundle } from "../src/verify.js";
 
 async function loadDb(): Promise<RenderDb> {
-  const text = await readFile(path.join(VERSION_OUT, "render-db.json"), "utf8");
-  return JSON.parse(text) as RenderDb;
+  return (await readAssetBundle(getPipelinePaths().versionOut)).db;
 }
 
 function isFiniteNumber(n: unknown): n is number {
@@ -97,8 +95,8 @@ function collectFrameIds(db: RenderDb): Set<number> {
 describe("render-db contract", () => {
   it("has required top-level shape", async () => {
     const db = await loadDb();
-    expect(db.schema).toBe(1);
-    expect(db.gameVersion).toBe("2.1.9");
+    expect(db.schema).toBe(2);
+    expect(db.gameVersion).toBe(getPipelinePaths().install.version);
     expect(Array.isArray(db.mods)).toBe(true);
     expect(db.mods.length).toBeGreaterThan(0);
     expect(Array.isArray(db.atlases)).toBe(true);
