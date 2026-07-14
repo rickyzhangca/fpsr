@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "render": "tsx src/cli.ts",
+    "bench:thread": "tsx src/thread-bench.ts",
     "build": "echo 'no build step'",
     "test": "echo 'no tests yet'",
     "lint": "vp lint",

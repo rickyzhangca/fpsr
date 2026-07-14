@@ -69,6 +69,7 @@ vp install
 | `pnpm assets:build`                                | Generate and verify assets from local Factorio       |
 | `pnpm assets:verify`                               | Verify hashes, dimensions, and frame references      |
 | `pnpm assets:bench -- temp.txt`                    | Report atlas working set for a blueprint             |
+| `pnpm renderer:bench-thread -- temp.txt`           | Compare main-thread and worker render responsiveness |
 | `pnpm -F @fpsr/cdn-upload run upload -- --dry-run` | Preview CDN upload manifest                          |
 | `pnpm goldens:update`                              | Regenerate golden PNGs (requires local assets)       |
 | `pnpm goldens:test`                                | Run golden PNG pixel-diff tests                      |
