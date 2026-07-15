@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { decode, planDrawList, selectBlueprint, type RenderDb } from "fpsr";
-import { readAssetBundle } from "./verify.js";
+import { readAssetBundle, type AssetTier } from "./verify.js";
 
 export interface AssetBenchResult {
+  tier: AssetTier;
   blueprint: string;
   commands: number;
   uniqueFrames: number;
@@ -18,11 +19,12 @@ export interface AssetBenchResult {
 export async function benchAssetUsage(
   blueprintFile: string,
   assetDir: string,
+  tier: AssetTier = "2x",
 ): Promise<AssetBenchResult> {
   const source = await readFile(blueprintFile, "utf8");
   const doc = decode(source);
   const blueprint = selectBlueprint(doc);
-  const { manifest, db } = await readAssetBundle(assetDir);
+  const { descriptor, db } = await readAssetBundle(assetDir, tier);
   const list = planDrawList(blueprint, db as RenderDb, { altMode: true });
   const frameIds = new Set<number>();
   for (const command of list.commands) {
@@ -41,16 +43,17 @@ export async function benchAssetUsage(
   }
   const orderedAtlases = [...atlasIndices].sort((a, b) => a - b);
   const decodedPixels = orderedAtlases.reduce((sum, index) => {
-    const atlas = manifest.atlases[index];
+    const atlas = descriptor.atlases[index];
     if (!atlas) throw new Error(`Missing manifest atlas ${index}`);
     return sum + atlas.w * atlas.h;
   }, 0);
   const blobBytes = orderedAtlases.reduce(
-    (sum, index) => sum + (manifest.atlases[index]?.bytes ?? 0),
+    (sum, index) => sum + (descriptor.atlases[index]?.bytes ?? 0),
     0,
   );
   const targetDecodedPixels = 25_000_000;
   return {
+    tier,
     blueprint: path.resolve(blueprintFile),
     commands: list.commands.length,
     uniqueFrames: frameIds.size,
@@ -66,7 +69,7 @@ export async function benchAssetUsage(
 export function formatAssetBench(result: AssetBenchResult): string {
   const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
   return [
-    `Asset usage: ${result.blueprint}`,
+    `Asset usage (${result.tier}): ${result.blueprint}`,
     `  commands:        ${result.commands.toLocaleString()}`,
     `  unique frames:   ${result.uniqueFrames.toLocaleString()}`,
     `  atlases:         ${result.atlasIndices.length} [${result.atlasIndices.join(", ")}]`,

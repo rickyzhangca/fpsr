@@ -18,6 +18,8 @@ export interface FrameMeta {
   oy: number;
   sw: number;
   sh: number;
+  pw?: number;
+  ph?: number;
 }
 
 export interface SpriteVariant {
@@ -173,6 +175,7 @@ export interface RenderDb {
   schema: 2;
   gameVersion: string;
   mods: string[];
+  assetDensity?: 1 | 2;
   atlases: AtlasMeta[];
   frames: FrameMeta[];
   entities: Record<string, EntityRenderDef>;

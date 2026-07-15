@@ -24,6 +24,10 @@ export interface PackUsageInput {
   icons: Record<string, number>;
 }
 
+export interface PackAtlasOptions {
+  format?: "png" | "webp";
+}
+
 export interface PackStats {
   sourceFrames: number;
   packedFrames: number;
@@ -61,6 +65,14 @@ interface Page {
   width: number;
   height: number;
   placements: Placement[];
+}
+
+function packedWidth(frame: RegisteredFrame): number {
+  return frame.meta.pw ?? frame.meta.w;
+}
+
+function packedHeight(frame: RegisteredFrame): number {
+  return frame.meta.ph ?? frame.meta.h;
 }
 
 function collectObjectFrameRefs(
@@ -207,8 +219,8 @@ function virtualFrames(
       const af = frames[a]!;
       const bf = frames[b]!;
       return (
-        Math.max(bf.meta.w, bf.meta.h) - Math.max(af.meta.w, af.meta.h) ||
-        bf.meta.w * bf.meta.h - af.meta.w * af.meta.h ||
+        Math.max(packedWidth(bf), packedHeight(bf)) - Math.max(packedWidth(af), packedHeight(af)) ||
+        packedWidth(bf) * packedHeight(bf) - packedWidth(af) * packedHeight(af) ||
         a - b
       );
     });
@@ -218,14 +230,17 @@ function virtualFrames(
       const id = virtual.length;
       virtual.push({ id, oldId, group, domain: groupDomain(group), frame });
       remap.set(`${group}\0${oldId}`, id);
-      pixels += frame.meta.w * frame.meta.h;
+      pixels += packedWidth(frame) * packedHeight(frame);
     }
     groups[group] = { frames: ids.length, pixels };
   }
 
-  const sourcePixels = frames.reduce((sum, frame) => sum + frame.meta.w * frame.meta.h, 0);
+  const sourcePixels = frames.reduce(
+    (sum, frame) => sum + packedWidth(frame) * packedHeight(frame),
+    0,
+  );
   const packedPixels = virtual.reduce(
-    (sum, item) => sum + item.frame.meta.w * item.frame.meta.h,
+    (sum, item) => sum + packedWidth(item.frame) * packedHeight(item.frame),
     0,
   );
   const clonedPixelRatio = sourcePixels > 0 ? packedPixels / sourcePixels : 1;
@@ -271,7 +286,8 @@ function placeFrames(virtual: VirtualFrame[]): Page[] {
   };
 
   const placeRegular = (item: VirtualFrame, maxSize: number): boolean => {
-    const { w, h } = item.frame.meta;
+    const w = packedWidth(item.frame);
+    const h = packedHeight(item.frame);
     const rgba = item.frame.rgba;
     if (!rgba) throw new Error(`Frame ${item.oldId} is missing pixels before pack`);
     for (const shelf of shelves) {
@@ -311,7 +327,8 @@ function placeFrames(virtual: VirtualFrame[]): Page[] {
   for (const item of virtual) {
     if (domain !== undefined && item.domain !== domain) finishPage();
     domain = item.domain;
-    const { w, h } = item.frame.meta;
+    const w = packedWidth(item.frame);
+    const h = packedHeight(item.frame);
     const maxSize = item.domain === "0-icons" ? ICON_ATLAS_MAX : ATLAS_MAX;
     if (w > maxSize || h > maxSize) {
       finishPage();
@@ -337,6 +354,7 @@ export async function packAtlases(
   frames: RegisteredFrame[],
   usage: PackUsageInput,
   outDir: string,
+  options: PackAtlasOptions = {},
 ): Promise<{
   atlases: AtlasMeta[];
   manifestAtlases: PackedAtlas[];
@@ -369,19 +387,21 @@ export async function packAtlases(
       }
     }
 
-    const png = await sharp({
+    const image = sharp({
       create: {
         width: page.width,
         height: page.height,
         channels: 4,
         background: { r: 0, g: 0, b: 0, alpha: 0 },
       },
-    })
-      .composite(composites)
-      .png()
-      .toBuffer();
-    const sha256 = createHash("sha256").update(png).digest("hex");
-    const file = `atlas.${sha256}.png`;
+    }).composite(composites);
+    const format = options.format ?? "png";
+    const encoded =
+      format === "webp"
+        ? await image.webp({ lossless: true, effort: 6 }).toBuffer()
+        : await image.png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+    const sha256 = createHash("sha256").update(encoded).digest("hex");
+    const file = `atlas.${sha256}.${format}`;
     const existingAtlas = atlasByHash.get(sha256);
     const finalAtlasIndex = existingAtlas ?? atlases.length;
     for (const placement of page.placements) {
@@ -389,8 +409,8 @@ export async function packAtlases(
       meta.a = finalAtlasIndex;
       meta.x = placement.x;
       meta.y = placement.y;
-      meta.w = placement.w;
-      meta.h = placement.h;
+      if (meta.pw != null) meta.pw = placement.w;
+      if (meta.ph != null) meta.ph = placement.h;
     }
     if (existingAtlas != null) {
       console.log(
@@ -398,7 +418,7 @@ export async function packAtlases(
       );
       continue;
     }
-    await writeFile(path.join(outDir, file), png);
+    await writeFile(path.join(outDir, file), encoded);
     atlasByHash.set(sha256, finalAtlasIndex);
     atlases.push({ file, width: page.width, height: page.height });
     manifestAtlases.push({
@@ -406,11 +426,11 @@ export async function packAtlases(
       width: page.width,
       height: page.height,
       sha256,
-      bytes: png.byteLength,
+      bytes: encoded.byteLength,
     });
     console.log(
       `pack: ${file.slice(0, 22)}… ${page.width}x${page.height} ` +
-        `(${(png.byteLength / 1024).toFixed(0)} KB, ${page.placements.length} frames)`,
+        `(${(encoded.byteLength / 1024).toFixed(0)} KB, ${page.placements.length} frames)`,
     );
   }
 

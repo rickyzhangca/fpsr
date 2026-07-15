@@ -24,6 +24,7 @@ import {
   normalizeShift,
   normalizeTint,
   round4,
+  scaleRegisteredFrames,
   spriteSize,
 } from "./sprite.js";
 import type {
@@ -3187,6 +3188,15 @@ export interface DistillReport {
     packedPixels: number;
     clonedPixelRatio: number;
   };
+  tierPacking?: Record<
+    "1x" | "2x",
+    {
+      frames: number;
+      atlases: number;
+      decodedPixels: number;
+      blobBytes: number;
+    }
+  >;
 }
 
 async function directoryBytes(dir: string): Promise<number> {
@@ -3362,47 +3372,72 @@ export async function distillAndPack(): Promise<RenderDb> {
 
   await mkdir(paths.assetsOut, { recursive: true });
   const staging = await mkdtemp(path.join(paths.assetsOut, `.tmp-${paths.install.version}-`));
-  console.log("pack: packing atlases…");
-  const packed = await packAtlases(bank.list(), { entities, tiles, icons }, staging).catch(
-    async (error) => {
-      await rm(staging, { recursive: true, force: true });
-      throw error;
-    },
-  );
+  console.log("pack: deriving 1x frames…");
+  const oneXFrames = await scaleRegisteredFrames(bank.list(), 0.5);
+  const tierDefinitions = () => ({
+    entities: structuredClone(entities),
+    tiles: structuredClone(tiles),
+    icons: structuredClone(icons),
+  });
 
-  const db: RenderDb = {
-    schema: 2,
-    gameVersion: paths.install.version,
-    mods: [...OFFICIAL_MODS],
-    atlases: packed.atlases,
-    frames: packed.frames,
-    entities,
-    tiles,
-    icons,
-    ...(Object.keys(iconScales).length > 0 ? { iconScales } : {}),
+  console.log("pack: packing 1x atlases…");
+  const oneXDefinitions = tierDefinitions();
+  const packed1x = await packAtlases(oneXFrames, oneXDefinitions, staging, {
+    format: "webp",
+  }).catch(async (error) => {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
+  });
+
+  console.log("pack: packing 2x atlases…");
+  const twoXDefinitions = tierDefinitions();
+  const packed2x = await packAtlases(bank.list(), twoXDefinitions, staging).catch(async (error) => {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
+  });
+
+  const persistTier = async (
+    density: 1 | 2,
+    packed: typeof packed2x,
+    definitions: ReturnType<typeof tierDefinitions>,
+  ) => {
+    const db: RenderDb = {
+      schema: 2,
+      gameVersion: paths.install.version,
+      mods: [...OFFICIAL_MODS],
+      assetDensity: density,
+      atlases: packed.atlases,
+      frames: packed.frames,
+      ...definitions,
+      ...(Object.keys(iconScales).length > 0 ? { iconScales } : {}),
+    };
+    const dbJson = `${JSON.stringify(db)}\n`;
+    const sha256 = createHash("sha256").update(dbJson).digest("hex");
+    const file = `render-db.${sha256}.json`;
+    await writeFile(path.join(staging, file), dbJson);
+    return {
+      db,
+      manifest: {
+        density,
+        renderDb: { file, sha256, bytes: Buffer.byteLength(dbJson) },
+        atlases: packed.manifestAtlases.map((atlas) => ({
+          file: atlas.file,
+          w: atlas.width,
+          h: atlas.height,
+          sha256: atlas.sha256,
+          bytes: atlas.bytes,
+        })),
+      },
+    };
   };
 
-  const dbJson = `${JSON.stringify(db)}\n`;
-  const renderDbSha256 = createHash("sha256").update(dbJson).digest("hex");
-  const renderDbFile = `render-db.${renderDbSha256}.json`;
-  await writeFile(path.join(staging, renderDbFile), dbJson);
-
+  const oneX = await persistTier(1, packed1x, oneXDefinitions);
+  const twoX = await persistTier(2, packed2x, twoXDefinitions);
   const manifest = {
     schema: 2,
     gameVersion: paths.install.version,
     mods: [...OFFICIAL_MODS],
-    renderDb: {
-      file: renderDbFile,
-      sha256: renderDbSha256,
-      bytes: Buffer.byteLength(dbJson),
-    },
-    atlases: packed.manifestAtlases.map((a) => ({
-      file: a.file,
-      w: a.width,
-      h: a.height,
-      sha256: a.sha256,
-      bytes: a.bytes,
-    })),
+    tiers: { "1x": oneX.manifest, "2x": twoX.manifest },
   };
   await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
@@ -3416,11 +3451,25 @@ export async function distillAndPack(): Promise<RenderDb> {
     tileCount: Object.keys(tiles).length,
     kindCounts,
     packing: {
-      sourceFrames: packed.stats.sourceFrames,
-      packedFrames: packed.stats.packedFrames,
-      sourcePixels: packed.stats.sourcePixels,
-      packedPixels: packed.stats.packedPixels,
-      clonedPixelRatio: packed.stats.clonedPixelRatio,
+      sourceFrames: packed2x.stats.sourceFrames,
+      packedFrames: packed2x.stats.packedFrames,
+      sourcePixels: packed2x.stats.sourcePixels,
+      packedPixels: packed2x.stats.packedPixels,
+      clonedPixelRatio: packed2x.stats.clonedPixelRatio,
+    },
+    tierPacking: {
+      "1x": {
+        frames: packed1x.frames.length,
+        atlases: packed1x.atlases.length,
+        decodedPixels: packed1x.atlases.reduce((sum, atlas) => sum + atlas.width * atlas.height, 0),
+        blobBytes: packed1x.manifestAtlases.reduce((sum, atlas) => sum + atlas.bytes, 0),
+      },
+      "2x": {
+        frames: packed2x.frames.length,
+        atlases: packed2x.atlases.length,
+        decodedPixels: packed2x.atlases.reduce((sum, atlas) => sum + atlas.width * atlas.height, 0),
+        blobBytes: packed2x.manifestAtlases.reduce((sum, atlas) => sum + atlas.bytes, 0),
+      },
     },
   };
   await writeFile(
@@ -3446,13 +3495,18 @@ export async function distillAndPack(): Promise<RenderDb> {
   await publishAtomic(staging, paths.versionOut);
 
   console.log(
-    `distill: done — ${report.entityCount} entities, ${report.tileCount} tiles, ${Object.keys(icons).length} icons, ${packed.frames.length} frames, ${packed.atlases.length} atlases`,
+    `distill: done — ${report.entityCount} entities, ${report.tileCount} tiles, ${Object.keys(icons).length} icons, ` +
+      `1x ${packed1x.frames.length} frames/${packed1x.atlases.length} atlases, ` +
+      `2x ${packed2x.frames.length} frames/${packed2x.atlases.length} atlases`,
   );
   if (placeholders.length > 0) {
     console.log(`distill: ${placeholders.length} placeholders:`);
     for (const ph of placeholders) console.log(`  - ${ph.name}: ${ph.reason}`);
   }
   console.log(`  kinds: ${JSON.stringify(kindCounts)}`);
-  console.log(`  ${renderDbFile} ${(dbJson.length / 1024).toFixed(1)} KB`);
-  return db;
+  console.log(
+    `  render DBs: 1x ${(oneX.manifest.renderDb.bytes / 1024).toFixed(1)} KB, ` +
+      `2x ${(twoX.manifest.renderDb.bytes / 1024).toFixed(1)} KB`,
+  );
+  return twoX.db;
 }

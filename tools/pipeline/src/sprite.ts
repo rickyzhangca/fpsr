@@ -24,6 +24,36 @@ export interface RegisteredFrame {
   rgba?: Buffer;
 }
 
+/** Derive a deterministic lower-density tier while retaining canonical frame geometry. */
+export async function scaleRegisteredFrames(
+  frames: RegisteredFrame[],
+  scale: number,
+): Promise<RegisteredFrame[]> {
+  if (!(scale > 0 && scale <= 1)) throw new Error(`Invalid frame scale: ${scale}`);
+  return Promise.all(
+    frames.map(async (frame) => {
+      const rgba = frame.rgba;
+      if (!rgba) throw new Error(`Frame ${frame.id} is missing pixels before scaling`);
+      const width = frame.meta.pw ?? frame.meta.w;
+      const height = frame.meta.ph ?? frame.meta.h;
+      const packedWidth = Math.max(1, Math.round(width * scale));
+      const packedHeight = Math.max(1, Math.round(height * scale));
+      const data =
+        packedWidth === width && packedHeight === height
+          ? Buffer.from(rgba)
+          : await sharp(rgba, { raw: { width, height, channels: 4 } })
+              .resize(packedWidth, packedHeight, { fit: "fill", kernel: "lanczos3" })
+              .raw()
+              .toBuffer();
+      return {
+        id: frame.id,
+        meta: { ...frame.meta, pw: packedWidth, ph: packedHeight },
+        rgba: data,
+      };
+    }),
+  );
+}
+
 const imageCache = new Map<string, Promise<{ data: Buffer; width: number; height: number }>>();
 
 async function loadImage(

@@ -105,7 +105,11 @@ async function main(): Promise<void> {
   if (options.command === "bench") {
     if (!options.blueprint) throw new Error(`bench requires a blueprint file\n\n${usage()}`);
     const dir = await generatedAssetDir(options.dir, options.factorioPath);
-    console.log(formatAssetBench(await benchAssetUsage(options.blueprint, dir)));
+    const reports = await Promise.all([
+      benchAssetUsage(options.blueprint, dir, "1x"),
+      benchAssetUsage(options.blueprint, dir, "2x"),
+    ]);
+    console.log(reports.map(formatAssetBench).join("\n\n"));
     return;
   }
 
