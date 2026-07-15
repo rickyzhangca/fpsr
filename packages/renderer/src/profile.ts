@@ -63,6 +63,7 @@ export interface AssetEvent {
   kind: AssetEventKind;
   /** Atlas index when kind === "atlas". */
   index?: number;
+  tier?: "1x" | "2x";
   url?: string;
   cached: boolean;
   fetchMs?: number;
@@ -114,6 +115,9 @@ export interface RenderProfile {
     height: number;
     megapixels: number;
     pixelsPerTile: number;
+    requestedPixelsPerTile: number;
+    capped: boolean;
+    assetTier: "1x" | "2x";
     tileFrame: TileFrame;
   };
   db: {

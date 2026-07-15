@@ -38,6 +38,9 @@ export interface FrameMeta {
   oy: number;
   sw: number;
   sh: number;
+  /** Packed dimensions when this atlas tier stores a downsampled frame. */
+  pw?: number;
+  ph?: number;
 }
 
 /**
@@ -315,6 +318,8 @@ export interface RenderDb {
   schema: 2;
   gameVersion: string;
   mods: string[];
+  /** Physical atlas density; frame geometry remains in canonical 2× pixels. */
+  assetDensity?: 1 | 2;
   atlases: AtlasMeta[];
   frames: FrameMeta[];
   entities: Record<string, EntityRenderDef>;

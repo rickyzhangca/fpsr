@@ -3,7 +3,7 @@ import type { AssetSource } from "../src/assets.js";
 import type { Canvas2DContextLike } from "../src/canvas2d.js";
 import * as canvas2d from "../src/canvas2d.js";
 import type { CanvasLike, RenderProgressEvent } from "../src/renderer.js";
-import { createRenderer } from "../src/renderer.js";
+import { createRenderer, measureTileFrame } from "../src/renderer.js";
 import type { Blueprint, BlueprintDocument } from "../src/types/blueprint.js";
 import { makeMiniDb } from "./fixtures/mini-db.js";
 
@@ -90,6 +90,46 @@ describe("createRenderer", () => {
       return fakeImage;
     },
   };
+
+  it("fits output inside a maximum size without changing the tile frame", () => {
+    const measured = measureTileFrame({ minX: 0, minY: 0, maxX: 89, maxY: 151 }, 64, {
+      width: 4096,
+      height: 4096,
+    });
+
+    expect(measured.requestedWidth).toBe(5696);
+    expect(measured.requestedHeight).toBe(9664);
+    expect(measured.width).toBe(2414);
+    expect(measured.height).toBe(4096);
+    expect(measured.pixelsPerTile).toBeCloseTo(4096 / 151);
+    expect(measured.capped).toBe(true);
+  });
+
+  it("measures without loading atlases or mutating a canvas", async () => {
+    const loadAtlasImage = vi.fn(async () => fakeImage);
+    const createCanvas = vi.fn(() => stubCanvas());
+    const renderer = await createRenderer({
+      assets: { ...assets, loadAtlasImage },
+      renderDb: db,
+      createCanvas,
+    });
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+
+    const measured = renderer.measure(bp, {
+      pixelsPerTile: 64,
+      padTiles: 1,
+      maxOutputSize: { width: 32, height: 32 },
+    });
+
+    expect(measured.width).toBeLessThanOrEqual(32);
+    expect(measured.height).toBeLessThanOrEqual(32);
+    expect(loadAtlasImage).not.toHaveBeenCalled();
+    expect(createCanvas).not.toHaveBeenCalled();
+  });
 
   it("render() returns drawList and calls executeDrawList", async () => {
     const spy = vi.spyOn(canvas2d, "executeDrawList");
@@ -194,6 +234,8 @@ describe("createRenderer", () => {
     expect(p.totalMs).toBeGreaterThanOrEqual(p.paintMs);
     expect(p.shadow.peakScratchPixels).toBeGreaterThanOrEqual(0);
     expect(p.output.width).toBe(cold.width);
+    expect(p.output.requestedPixelsPerTile).toBe(32);
+    expect(p.output.capped).toBe(false);
     expect(p.cold).toBe(true);
     expect(p.assets.some((a) => a.kind === "atlas" && !a.cached)).toBe(true);
 

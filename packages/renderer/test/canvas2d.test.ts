@@ -205,6 +205,42 @@ describe("executeDrawList", () => {
     expect(args[8]).toBe(20);
   });
 
+  it("uses packed dimensions for a 1x atlas while preserving logical geometry", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [
+        {
+          kind: "sprite",
+          layer: 70,
+          sortY: 0,
+          sortX: 0,
+          entity: 1,
+          sub: 0,
+          frame: 2,
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+        },
+      ],
+    };
+    const frames = db.frames.map((frame, index) =>
+      index === 2 ? { ...frame, pw: 12, ph: 10 } : frame,
+    );
+    const ctx = mockCtx();
+
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      frames,
+    });
+
+    const args = ctx.calls.find((call) => call.method === "drawImage")?.args ?? [];
+    expect(args.slice(1, 5)).toEqual([TRIMMED_FRAME.x, TRIMMED_FRAME.y, 12, 10]);
+    expect(args.slice(5, 9)).toEqual([4, 6, 24, 20]);
+  });
+
   it("flipX produces negative-scale transform around center", () => {
     const list: DrawList = {
       schema: 1,

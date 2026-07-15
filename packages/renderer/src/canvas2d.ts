@@ -12,6 +12,14 @@ import type {
 } from "./types/draw-list.js";
 import type { FrameMeta } from "./types/render-db.js";
 
+function packedWidth(frame: FrameMeta): number {
+  return frame.pw ?? frame.w;
+}
+
+function packedHeight(frame: FrameMeta): number {
+  return frame.ph ?? frame.h;
+}
+
 /** Minimal Canvas 2D surface used by the backend (browser or skia-canvas). */
 export interface Canvas2DContextLike {
   save(): void;
@@ -188,7 +196,17 @@ function drawSprite(
     destDw: number,
     destDh: number,
   ): void => {
-    target.drawImage(image, frame.x, frame.y, frame.w, frame.h, destDx, destDy, destDw, destDh);
+    target.drawImage(
+      image,
+      frame.x,
+      frame.y,
+      packedWidth(frame),
+      packedHeight(frame),
+      destDx,
+      destDy,
+      destDw,
+      destDh,
+    );
   };
 
   /** Multiply-tint the sprite via an offscreen canvas, then draw the result. */
@@ -452,8 +470,8 @@ function drawIcon(
       backingImage,
       backingFrame.x,
       backingFrame.y,
-      backingFrame.w,
-      backingFrame.h,
+      packedWidth(backingFrame),
+      packedHeight(backingFrame),
       backingLeft + backingFrame.ox * backingScale,
       backingTop + backingFrame.oy * backingScale,
       backingFrame.w * backingScale,
@@ -530,20 +548,31 @@ function drawIcon(
 
   if (needsEntityInfoSilhouette && iconImage && silhouetteImage) {
     const pad = entityInfoSilhouettePadPx();
+    const sourcePad = Math.max(1, Math.round(pad * (packedWidth(frame) / frame.w)));
     const padX = pad * iconScaleX;
     const padY = pad * iconScaleY;
     drawIconLayer(
       silhouetteImage,
       0,
       0,
-      frame.w + 2 * pad,
-      frame.h + 2 * pad,
+      packedWidth(frame) + 2 * sourcePad,
+      packedHeight(frame) + 2 * sourcePad,
       iconLeft - padX,
       iconTop - padY,
       iconWidth + 2 * padX,
       iconHeight + 2 * padY,
     );
-    drawIconLayer(iconImage, 0, 0, frame.w, frame.h, iconLeft, iconTop, iconWidth, iconHeight);
+    drawIconLayer(
+      iconImage,
+      0,
+      0,
+      packedWidth(frame),
+      packedHeight(frame),
+      iconLeft,
+      iconTop,
+      iconWidth,
+      iconHeight,
+    );
     return;
   }
 
@@ -554,8 +583,8 @@ function drawIcon(
     sourceImage,
     sourceX,
     sourceY,
-    frame.w,
-    frame.h,
+    packedWidth(frame),
+    packedHeight(frame),
     iconLeft,
     iconTop,
     iconWidth,

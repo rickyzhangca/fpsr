@@ -121,7 +121,13 @@ export { WIRE_CONNECTOR_ID, wireConnectorColor } from "./wire-connectors.js";
 export type { WireColor } from "./wire-connectors.js";
 
 export { cdnAssets } from "./assets.js";
-export type { AssetManifest, AssetSource, CdnAssetsOptions } from "./assets.js";
+export type {
+  AssetManifest,
+  AssetSource,
+  AssetTier,
+  AssetTierManifest,
+  CdnAssetsOptions,
+} from "./assets.js";
 
 export { executeDrawList } from "./canvas2d.js";
 export type {
@@ -144,14 +150,16 @@ export type { TileFrame } from "./frame.js";
 
 export { blitWithTileCheckerboard, drawTileCheckerboard } from "./checkerboard.js";
 
-export { createRenderer } from "./renderer.js";
+export { createRenderer, measureTileFrame } from "./renderer.js";
 export type {
   CanvasLike,
   CreateCanvasFn,
   CreateRendererOptions,
+  MaxOutputSize,
   Renderer,
   RenderImageMimeType,
   RenderImageOptions,
+  RenderMeasurement,
   RenderOptions,
   RenderProgressEvent,
   RenderResult,

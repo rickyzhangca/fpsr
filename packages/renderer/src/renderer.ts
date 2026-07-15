@@ -1,4 +1,4 @@
-import type { AssetSource } from "./assets.js";
+import type { AssetSource, AssetTier } from "./assets.js";
 import { selectBlueprint } from "./book.js";
 import type { Canvas2DContextLike, ExecuteDrawListStats } from "./canvas2d.js";
 import * as canvas2d from "./canvas2d.js";
@@ -42,8 +42,26 @@ export interface RenderImageOptions {
   quality?: number;
 }
 
+export interface MaxOutputSize {
+  width: number;
+  height: number;
+}
+
+export interface RenderMeasurement {
+  tileFrame: TileFrame;
+  requestedPixelsPerTile: number;
+  pixelsPerTile: number;
+  requestedWidth: number;
+  requestedHeight: number;
+  width: number;
+  height: number;
+  capped: boolean;
+}
+
 export interface CreateRendererOptions {
   assets: AssetSource;
+  /** Physical atlas tier. Defaults to 2x. */
+  assetTier?: AssetTier;
   /** Preloaded render-db; when omitted, loaded once via assets.loadRenderDb(). */
   renderDb?: RenderDb;
   /** Canvas factory; defaults to OffscreenCanvas / document.createElement. */
@@ -60,6 +78,11 @@ export type RenderProgressEvent =
 export interface RenderOptions {
   blueprintPath?: number[];
   pixelsPerTile?: number;
+  /**
+   * Fit the output inside this box by lowering pixelsPerTile before painting.
+   * The renderer never creates a full-resolution intermediate canvas.
+   */
+  maxOutputSize?: MaxOutputSize;
   altMode?: boolean;
   background?: [number, number, number, number] | null;
   padTiles?: number;
@@ -97,10 +120,52 @@ export interface RenderResult {
 }
 
 export interface Renderer {
+  /** Plan bounds and output dimensions without loading atlases or painting. */
+  measure(docOrBlueprint: BlueprintDocument | Blueprint, opts?: RenderOptions): RenderMeasurement;
   render(
     docOrBlueprint: BlueprintDocument | Blueprint,
     opts?: RenderOptions,
   ): Promise<RenderResult>;
+}
+
+function finitePositive(value: number, label: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${label} must be a finite number greater than zero`);
+  }
+  return value;
+}
+
+export function measureTileFrame(
+  tileFrame: TileFrame,
+  requestedPixelsPerTile: number,
+  maxOutputSize?: MaxOutputSize,
+): RenderMeasurement {
+  const requested = finitePositive(requestedPixelsPerTile, "pixelsPerTile");
+  const tilesWide = Math.max(0, tileFrame.maxX - tileFrame.minX);
+  const tilesHigh = Math.max(0, tileFrame.maxY - tileFrame.minY);
+  const requestedWidth = Math.max(1, Math.floor(tilesWide * requested));
+  const requestedHeight = Math.max(1, Math.floor(tilesHigh * requested));
+
+  let pixelsPerTile = requested;
+  if (maxOutputSize) {
+    const maxWidth = finitePositive(maxOutputSize.width, "maxOutputSize.width");
+    const maxHeight = finitePositive(maxOutputSize.height, "maxOutputSize.height");
+    if (tilesWide > 0) pixelsPerTile = Math.min(pixelsPerTile, maxWidth / tilesWide);
+    if (tilesHigh > 0) pixelsPerTile = Math.min(pixelsPerTile, maxHeight / tilesHigh);
+  }
+
+  const width = Math.max(1, Math.floor(tilesWide * pixelsPerTile));
+  const height = Math.max(1, Math.floor(tilesHigh * pixelsPerTile));
+  return {
+    tileFrame,
+    requestedPixelsPerTile: requested,
+    pixelsPerTile,
+    requestedWidth,
+    requestedHeight,
+    width,
+    height,
+    capped: pixelsPerTile < requested,
+  };
 }
 
 function isBlueprint(value: BlueprintDocument | Blueprint): value is Blueprint {
@@ -237,8 +302,9 @@ function reportProgress(opts: RenderOptions, event: RenderProgressEvent): void {
  */
 export async function createRenderer(options: CreateRendererOptions): Promise<Renderer> {
   const { assets } = options;
+  const assetTier = options.assetTier ?? "2x";
   const createCanvas = options.createCanvas ?? defaultCreateCanvas;
-  const db = options.renderDb ?? (await assets.loadRenderDb());
+  const db = options.renderDb ?? (await assets.loadRenderDb(assetTier));
   const atlasCache = new Map<number, Promise<CanvasImageSource>>();
   const iconImageCache = new Map<string, CanvasImageSource>();
   const silhouetteImageCache = new Map<string, CanvasImageSource>();
@@ -246,7 +312,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
   const loadAtlas = (index: number): Promise<CanvasImageSource> => {
     let pending = atlasCache.get(index);
     if (!pending) {
-      pending = assets.loadAtlasImage(index).catch((error) => {
+      pending = assets.loadAtlasImage(index, assetTier).catch((error) => {
         atlasCache.delete(index);
         throw error;
       });
@@ -256,6 +322,20 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
   };
 
   return {
+    measure(docOrBlueprint, opts = {}): RenderMeasurement {
+      throwIfAborted(opts.signal);
+      const bp = isBlueprint(docOrBlueprint)
+        ? docOrBlueprint
+        : selectBlueprint(docOrBlueprint, opts.blueprintPath);
+      const drawList = planDrawList(bp, db, {
+        altMode: opts.altMode,
+        background: opts.background ?? null,
+      });
+      throwIfAborted(opts.signal);
+      const tileFrame = computeTileFrame(drawList.bounds, opts.padTiles ?? 0);
+      return measureTileFrame(tileFrame, opts.pixelsPerTile ?? 64, opts.maxOutputSize);
+    },
+
     async render(docOrBlueprint, opts = {}): Promise<RenderResult> {
       throwIfAborted(opts.signal);
       const wantProfile = opts.profile === true;
@@ -268,7 +348,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         : selectBlueprint(docOrBlueprint, opts.blueprintPath);
       const selectMs = wantProfile ? nowMs() - t : 0;
 
-      const pixelsPerTile = opts.pixelsPerTile ?? 64;
+      const requestedPixelsPerTile = opts.pixelsPerTile ?? 64;
       const padTiles = opts.padTiles ?? 0;
       const background = opts.background ?? null;
 
@@ -313,6 +393,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
             assetEvents.push({
               kind: "atlas",
               index: i,
+              tier: assetTier,
               cached,
               decodedPixels: atlas ? atlas.width * atlas.height : undefined,
               totalMs: nowMs() - tAtlas,
@@ -358,7 +439,10 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         const atlasImage = frame ? images[frame.a] : undefined;
         if (!frame || !atlasImage || frame.w <= 0 || frame.h <= 0) continue;
 
-        const iconKey = `${cmd.frame}:${frame.w}x${frame.h}`;
+        const packedWidth = frame.pw ?? frame.w;
+        const packedHeight = frame.ph ?? frame.h;
+
+        const iconKey = `${assetTier}:${cmd.frame}:${packedWidth}x${packedHeight}`;
         const cachedIcon = iconImageCache.get(iconKey);
         if (!seenIconKeys.has(iconKey)) {
           seenIconKeys.add(iconKey);
@@ -367,21 +451,21 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         if (cachedIcon) {
           iconImages.set(cmd.frame, cachedIcon);
         } else if (!iconImages.has(cmd.frame)) {
-          const iconCanvas = createCanvas(frame.w, frame.h);
-          iconCanvas.width = frame.w;
-          iconCanvas.height = frame.h;
+          const iconCanvas = createCanvas(packedWidth, packedHeight);
+          iconCanvas.width = packedWidth;
+          iconCanvas.height = packedHeight;
           const iconContext = iconCanvas.getContext("2d");
           if (!iconContext) continue;
           iconContext.drawImage(
             atlasImage,
             frame.x,
             frame.y,
-            frame.w,
-            frame.h,
+            packedWidth,
+            packedHeight,
             0,
             0,
-            frame.w,
-            frame.h,
+            packedWidth,
+            packedHeight,
           );
           const image = iconCanvas as unknown as CanvasImageSource;
           iconImages.set(cmd.frame, image);
@@ -390,7 +474,13 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         }
 
         if (cmd.backingStyle === "request-pin" || silhouetteImages.has(cmd.frame)) continue;
-        const silhouetteKey = `${iconKey}:${ENTITY_INFO_SILHOUETTE_RADIUS_PX}:${ENTITY_INFO_SILHOUETTE_BLUR_PX}`;
+        const densityScale = (db.assetDensity ?? 2) / 2;
+        const dilateRadius = Math.max(
+          1,
+          Math.round(ENTITY_INFO_SILHOUETTE_RADIUS_PX * densityScale),
+        );
+        const blurRadius = Math.max(1, Math.round(ENTITY_INFO_SILHOUETTE_BLUR_PX * densityScale));
+        const silhouetteKey = `${iconKey}:${dilateRadius}:${blurRadius}`;
         const cachedSilhouette = silhouetteImageCache.get(silhouetteKey);
         if (!seenSilhouetteKeys.has(silhouetteKey)) {
           seenSilhouetteKeys.add(silhouetteKey);
@@ -404,9 +494,11 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         if (!iconSource) continue;
         const silhouette = bakeEntityInfoSilhouette(
           iconSource,
-          frame.w,
-          frame.h,
+          packedWidth,
+          packedHeight,
           createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
+          dilateRadius,
+          blurRadius,
         );
         if (silhouette) {
           silhouetteImages.set(cmd.frame, silhouette);
@@ -418,8 +510,8 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
 
       t = wantProfile ? nowMs() : 0;
       const tileFrame = computeTileFrame(drawList.bounds, padTiles);
-      const width = Math.max(1, (tileFrame.maxX - tileFrame.minX) * pixelsPerTile);
-      const height = Math.max(1, (tileFrame.maxY - tileFrame.minY) * pixelsPerTile);
+      const output = measureTileFrame(tileFrame, requestedPixelsPerTile, opts.maxOutputSize);
+      const { width, height, pixelsPerTile } = output;
 
       throwIfAborted(opts.signal);
       const canvas = opts.canvas ?? createCanvas(width, height);
@@ -490,6 +582,9 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
               height,
               megapixels: (width * height) / 1_000_000,
               pixelsPerTile,
+              requestedPixelsPerTile,
+              capped: output.capped,
+              assetTier,
               tileFrame,
             },
             db: {

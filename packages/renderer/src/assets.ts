@@ -6,9 +6,11 @@ import type { RenderDb } from "./types/render-db.js";
  * skia-canvas Image (via fpsr/node).
  */
 export interface AssetSource {
-  loadRenderDb(): Promise<RenderDb>;
-  loadAtlasImage(index: number): Promise<CanvasImageSource>;
+  loadRenderDb(tier?: AssetTier): Promise<RenderDb>;
+  loadAtlasImage(index: number, tier?: AssetTier): Promise<CanvasImageSource>;
 }
+
+export type AssetTier = "1x" | "2x";
 
 export interface ManifestAtlas {
   file: string;
@@ -21,6 +23,11 @@ export interface AssetManifest {
   schema: 2;
   gameVersion: string;
   mods: string[];
+  tiers: Record<AssetTier, AssetTierManifest>;
+}
+
+export interface AssetTierManifest {
+  density: 1 | 2;
   atlases: ManifestAtlas[];
   renderDb: {
     file: string;
@@ -116,7 +123,7 @@ async function blobToImage(
 /**
  * Fetch-based AssetSource for CDN (or any HTTP) layouts:
  *   {baseUrl}/manifest.json
- *   {baseUrl}/{manifest.renderDb.file}
+ *   {baseUrl}/{manifest.tiers[tier].renderDb.file}
  *   {baseUrl}/{atlas.file}
  */
 export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSource {
@@ -127,10 +134,10 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
   const withDecodeSlot = decodeLimiter(maxConcurrentDecodes);
   let manifestPromise: Promise<AssetManifest> | undefined;
   let manifestReady = false;
-  let dbPromise: Promise<RenderDb> | undefined;
-  let dbReady = false;
-  const atlasCache = new Map<number, Promise<CanvasImageSource>>();
-  const atlasReady = new Set<number>();
+  const dbPromises = new Map<AssetTier, Promise<RenderDb>>();
+  const dbReady = new Set<AssetTier>();
+  const atlasCache = new Map<string, Promise<CanvasImageSource>>();
+  const atlasReady = new Set<string>();
 
   const loadManifest = (): Promise<AssetManifest> => {
     if (!manifestPromise) {
@@ -141,8 +148,8 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
         if (value.schema !== 2) {
           throw new Error(`Unsupported asset manifest schema: ${String(value.schema)}`);
         }
-        if (!value.renderDb?.file) {
-          throw new Error("Asset manifest is missing renderDb.file");
+        if (!value.tiers?.["1x"]?.renderDb.file || !value.tiers?.["2x"]?.renderDb.file) {
+          throw new Error("Asset manifest is missing required 1x/2x tiers");
         }
         onAssetEvent?.({
           kind: "manifest",
@@ -171,49 +178,54 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
   };
 
   return {
-    loadRenderDb(): Promise<RenderDb> {
-      if (!dbPromise) {
-        dbPromise = (async () => {
+    loadRenderDb(tier: AssetTier = "2x"): Promise<RenderDb> {
+      let pending = dbPromises.get(tier);
+      if (!pending) {
+        pending = (async () => {
           const t0 = nowMs();
           const manifest = await loadManifest();
-          const url = `${root}/${manifest.renderDb.file}`;
+          const url = `${root}/${manifest.tiers[tier].renderDb.file}`;
           const { value, bytes, fetchMs } = await loadJson<RenderDb>(url, fetchImpl);
           if (value.schema !== 2) {
             throw new Error(`Unsupported render-db schema: ${String(value.schema)}`);
           }
           onAssetEvent?.({
             kind: "render-db",
+            tier,
             url,
             cached: false,
             fetchMs,
             totalMs: nowMs() - t0,
             bytes,
           });
-          dbReady = true;
+          dbReady.add(tier);
           return value;
         })().catch((error) => {
-          dbPromise = undefined;
-          dbReady = false;
+          dbPromises.delete(tier);
+          dbReady.delete(tier);
           throw error;
         });
-      } else if (dbReady) {
+        dbPromises.set(tier, pending);
+      } else if (dbReady.has(tier)) {
         onAssetEvent?.({
           kind: "render-db",
+          tier,
           url: undefined,
           cached: true,
           totalMs: 0,
         });
       }
-      return dbPromise;
+      return pending;
     },
 
-    async loadAtlasImage(index: number): Promise<CanvasImageSource> {
-      let pending = atlasCache.get(index);
+    async loadAtlasImage(index: number, tier: AssetTier = "2x"): Promise<CanvasImageSource> {
+      const cacheKey = `${tier}:${index}`;
+      let pending = atlasCache.get(cacheKey);
       if (!pending) {
         pending = (async () => {
           const t0 = nowMs();
           const manifest = await loadManifest();
-          const entry = manifest.atlases[index];
+          const entry = manifest.tiers[tier].atlases[index];
           if (!entry) {
             throw new Error(`Atlas index ${index} missing from manifest`);
           }
@@ -232,6 +244,7 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
           onAssetEvent?.({
             kind: "atlas",
             index,
+            tier,
             url,
             cached: false,
             fetchMs,
@@ -241,18 +254,19 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
             totalMs: nowMs() - t0,
             bytes: blob.size,
           });
-          atlasReady.add(index);
+          atlasReady.add(cacheKey);
           return image;
         })().catch((error) => {
-          atlasCache.delete(index);
-          atlasReady.delete(index);
+          atlasCache.delete(cacheKey);
+          atlasReady.delete(cacheKey);
           throw error;
         });
-        atlasCache.set(index, pending);
-      } else if (atlasReady.has(index)) {
+        atlasCache.set(cacheKey, pending);
+      } else if (atlasReady.has(cacheKey)) {
         onAssetEvent?.({
           kind: "atlas",
           index,
+          tier,
           cached: true,
           totalMs: 0,
         });

@@ -21,12 +21,26 @@ const manifest: AssetManifest = {
   schema: 2,
   gameVersion: "2.1.9",
   mods: ["base"],
-  renderDb: { file: "render-db.hash.json", sha256: "hash" },
-  atlases: db.atlases.map((atlas) => ({
-    file: atlas.file,
-    w: atlas.width,
-    h: atlas.height,
-  })),
+  tiers: {
+    "1x": {
+      density: 1,
+      renderDb: { file: "render-db.1x.hash.json", sha256: "1x-hash" },
+      atlases: db.atlases.map((atlas) => ({
+        file: `1x-${atlas.file}`,
+        w: Math.ceil(atlas.width / 2),
+        h: Math.ceil(atlas.height / 2),
+      })),
+    },
+    "2x": {
+      density: 2,
+      renderDb: { file: "render-db.2x.hash.json", sha256: "2x-hash" },
+      atlases: db.atlases.map((atlas) => ({
+        file: atlas.file,
+        w: atlas.width,
+        h: atlas.height,
+      })),
+    },
+  },
 };
 
 function jsonResponse(value: unknown): Response {
@@ -41,7 +55,7 @@ describe("cdnAssets", () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       if (url.endsWith("manifest.json")) return jsonResponse(manifest);
-      if (url.endsWith(manifest.renderDb.file)) return jsonResponse(db);
+      if (url.endsWith(manifest.tiers["2x"].renderDb.file)) return jsonResponse(db);
       return new Response(null, { status: 404 });
     }) as unknown as typeof fetch;
 
@@ -50,6 +64,27 @@ describe("cdnAssets", () => {
     expect(loaded).toEqual(db);
     await expect(assets.loadRenderDb()).resolves.toBe(loaded);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps 1x and 2x databases and atlases in independent caches", async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("manifest.json")) return jsonResponse(manifest);
+      if (url.includes("render-db.")) return jsonResponse(db);
+      return new Response(new Blob([url]), { status: 200 });
+    }) as unknown as typeof fetch;
+    const decodeImage = vi.fn(async () => ({}) as CanvasImageSource);
+    const assets = cdnAssets("https://assets.example/2.1.9", { fetchImpl, decodeImage });
+
+    await Promise.all([
+      assets.loadRenderDb("1x"),
+      assets.loadRenderDb("2x"),
+      assets.loadAtlasImage(0, "1x"),
+      assets.loadAtlasImage(0, "2x"),
+    ]);
+
+    expect(decodeImage).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
   });
 
   it("deduplicates atlas promises and limits bitmap decoding to two slots", async () => {

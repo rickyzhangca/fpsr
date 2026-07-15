@@ -58,8 +58,10 @@ const { toPngBuffer } = await renderer.render(doc);
 await Bun.write("out.png", toPngBuffer());
 ```
 
-`localAssets` reads schema-2 `manifest.json` and its content-addressed render DB
-and atlas files from a pipeline output directory on disk.
+`localAssets` reads schema-2 `manifest.json` and the selected `1x` or `2x`
+content-addressed render DB and atlas files from a pipeline output directory on
+disk. Asset sources default to `2x`; callers can set `assetTier` when creating a
+renderer.
 
 ## Blueprint books
 
@@ -240,8 +242,8 @@ order for reviewable text diffs.
 ## Asset hosting
 
 Rendering requires a content-addressed **render database** and packed **sprite
-atlases** described by a schema-2 `manifest.json`. These are generated from **your
-own game files** using the offline pipeline in this repository
+atlases** in deterministic `1x` and `2x` tiers described by a schema-2
+`manifest.json`. These are generated from **your own game files** using the offline pipeline in this repository
 ([`@fpsr/pipeline`](https://github.com/rickyzhangca/fpsr/tree/main/tools/pipeline)).
 
 They are **never redistributed** with the npm package or committed to git. Host
