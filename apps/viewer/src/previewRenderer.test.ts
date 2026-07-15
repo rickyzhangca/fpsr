@@ -43,6 +43,35 @@ const doc: BlueprintDocument = {
 };
 
 describe("PreviewRenderWorkerClient", () => {
+  it("measures without attaching or mutating a canvas", async () => {
+    const worker = new FakeWorker();
+    const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
+    await flushReady(worker);
+
+    const pending = client.measure(doc, { pixelsPerTile: 64, padTiles: 1 });
+    await vi.waitFor(() => {
+      expect(worker.posts.at(-1)?.message.type).toBe("measure");
+    });
+    const request = worker.posts.at(-1)?.message;
+    expect(request?.type).toBe("measure");
+    if (request?.type !== "measure") throw new Error("expected measure request");
+    expect(worker.posts.some((post) => post.message.type === "attach")).toBe(false);
+
+    const measurement = {
+      tileFrame: { minX: 0, minY: 0, maxX: 89, maxY: 151 },
+      requestedPixelsPerTile: 64,
+      pixelsPerTile: 64,
+      requestedWidth: 5696,
+      requestedHeight: 9664,
+      width: 5696,
+      height: 9664,
+      capped: false,
+    };
+    worker.respond({ type: "measured", requestId: request.requestId, measurement });
+
+    await expect(pending).resolves.toEqual(measurement);
+  });
+
   it("transfers a canvas once, reuses its surface, and proxies image export", async () => {
     const worker = new FakeWorker();
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);

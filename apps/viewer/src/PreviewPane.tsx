@@ -1,9 +1,15 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { stripRichText, type Blueprint, type BlueprintDocument, type DecodeStats } from "fpsr";
+import {
+  stripRichText,
+  type Blueprint,
+  type BlueprintDocument,
+  type DecodeStats,
+  type RenderMeasurement,
+} from "fpsr";
 import {
   useCallback,
   useEffect,
@@ -17,13 +23,14 @@ import type { PerfReport } from "./perfReport";
 import { PreviewCanvasFrame } from "./PreviewCanvasFrame";
 import {
   clearPreview,
+  measurePreview,
   renderPreview,
   type PreviewRenderProgress,
   type PreviewRenderResult,
 } from "./previewRenderer";
 
-const NORMAL_PIXELS_PER_TILE = 32;
-const HD_PIXELS_PER_TILE = 64;
+const FULL_PIXELS_PER_TILE = 64;
+const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
 const WEBP_QUALITY = 0.9;
 const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
 
@@ -41,6 +48,13 @@ function exportFormatLabel(format: ExportFormat): "WebP" | "PNG" {
 function formatExportSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatSurfaceMemory(width: number, height: number): string {
+  const bytes = width * height * 4;
+  return bytes < 1024 * 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(0)} MB`
+    : `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
 function isAssetsError(message: string): boolean {
@@ -87,17 +101,26 @@ export function PreviewPane({
     promises: Partial<Record<ExportFormat, Promise<Blob>>>;
   } | null>(null);
 
-  const [hd, setHd] = useState(true);
+  const [limitTo4k, setLimitTo4k] = useState(true);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("webp");
-  const pixelsPerTile = hd ? HD_PIXELS_PER_TILE : NORMAL_PIXELS_PER_TILE;
   const [altMode, setAltMode] = useState(true);
   const [showCoords, setShowCoords] = useState(false);
   const [showCheckerboard, setShowCheckerboard] = useState(true);
+  const [preflighting, setPreflighting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assetsMissing, setAssetsMissing] = useState(false);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [lastResult, setLastResult] = useState<PreviewRenderResult | null>(null);
+  const [fullResWarning, setFullResWarning] = useState<{
+    blueprint: Blueprint;
+    measurement: RenderMeasurement;
+  } | null>(null);
+  const [fullResApproval, setFullResApproval] = useState<{
+    blueprint: Blueprint;
+    width: number;
+    height: number;
+  } | null>(null);
   const [preparedExports, setPreparedExports] = useState<{
     result: PreviewRenderResult;
     formats: Partial<Record<ExportFormat, { blob?: Blob; error?: string }>>;
@@ -173,13 +196,17 @@ export function PreviewPane({
   const exportBlob = currentExport?.blob;
   const exportLabel = exportFormatLabel(exportFormat);
   const exportPreparing = Boolean(lastResult && !currentExport);
+  const controlsDisabled = preflighting || loading || exportPreparing;
   const downloadPendingLabel =
-    !lastResult || loading ? "Rendering" : exportPreparing ? "Encoding" : null;
+    !lastResult || preflighting || loading ? "Rendering" : exportPreparing ? "Encoding" : null;
 
   useEffect(() => {
     if (!doc || !blueprint) {
       setDimensions(null);
       setLastResult(null);
+      setPreflighting(false);
+      setFullResWarning(null);
+      setFullResApproval(null);
       setError(null);
       setAssetsMissing(false);
       setHoverTile(null);
@@ -195,89 +222,132 @@ export function PreviewPane({
 
     const gen = ++renderGenRef.current;
     const controller = new AbortController();
-    setLoading(true);
-    onRenderProgress?.({ value: 1, label: "Queued" });
     setError(null);
     setAssetsMissing(false);
     if (!showCoords) setHoverTile(null);
 
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        let completed = false;
-        try {
-          const display = canvasRef.current;
-          if (!display) return;
-          const result = await renderPreview(display, doc, {
-            blueprintPath: blueprintPath ?? undefined,
-            pixelsPerTile,
-            padTiles: 1,
-            altMode,
-            background: null,
-            showCheckerboard,
-            showCoordinates: showCoords,
-            signal: controller.signal,
-            profile: true,
-            onProgress: onRenderProgress,
-          });
-          if (gen !== renderGenRef.current) return;
+    let timer: number | undefined;
+    const renderOptions = {
+      blueprintPath: blueprintPath ?? undefined,
+      pixelsPerTile: FULL_PIXELS_PER_TILE,
+      padTiles: 1,
+      altMode,
+      background: null,
+      showCheckerboard,
+      showCoordinates: showCoords,
+      profile: true,
+    } as const;
 
-          const profile = result.profile;
-          if (profile) {
-            const report: PerfReport = {
-              at: Date.now(),
-              cold: profile.cold,
-              wallMs: result.wallMs,
-              profile,
-              decode: decodeStats ?? undefined,
-              blueprint: {
-                entityCount: blueprint.entities?.length ?? 0,
-                tileCount: blueprint.tiles?.length ?? 0,
-                wireCount: blueprint.wires?.length ?? 0,
-                version: formatGameVersion(blueprint.version ?? 0),
-                topEntities: countEntitiesByName(blueprint.entities).slice(0, 5),
-              },
-              assetDetails: result.assetDetails,
-              sessionBytes: result.sessionBytes,
-            };
-            onPerfReport?.(report);
+    const startRender = () => {
+      setPreflighting(false);
+      setFullResWarning(null);
+      setLoading(true);
+      onRenderProgress?.({ value: 1, label: "Queued" });
+      timer = window.setTimeout(() => {
+        void (async () => {
+          let completed = false;
+          try {
+            const display = canvasRef.current;
+            if (!display) return;
+            const result = await renderPreview(display, doc, {
+              ...renderOptions,
+              maxOutputSize: limitTo4k ? MAX_OUTPUT_SIZE : undefined,
+              signal: controller.signal,
+              onProgress: onRenderProgress,
+            });
+            if (gen !== renderGenRef.current) return;
+
+            const profile = result.profile;
+            if (profile) {
+              const report: PerfReport = {
+                at: Date.now(),
+                cold: profile.cold,
+                wallMs: result.wallMs,
+                profile,
+                decode: decodeStats ?? undefined,
+                blueprint: {
+                  entityCount: blueprint.entities?.length ?? 0,
+                  tileCount: blueprint.tiles?.length ?? 0,
+                  wireCount: blueprint.wires?.length ?? 0,
+                  version: formatGameVersion(blueprint.version ?? 0),
+                  topEntities: countEntitiesByName(blueprint.entities).slice(0, 5),
+                },
+                assetDetails: result.assetDetails,
+                sessionBytes: result.sessionBytes,
+              };
+              onPerfReport?.(report);
+            }
+
+            setDimensions({ width: result.width, height: result.height });
+            setLastResult(result);
+            completed = true;
+            onRenderProgress?.({
+              value: 100,
+              label: "Complete",
+              durationMs: result.wallMs,
+            });
+          } catch (e) {
+            if (controller.signal.aborted) return;
+            if (gen !== renderGenRef.current) return;
+            const message = e instanceof Error ? e.message : "Render failed";
+            setAssetsMissing(isAssetsError(message));
+            setError(message);
+            setDimensions(null);
+            setLastResult(null);
+            setHoverTile(null);
+            onPerfReport?.(null);
+          } finally {
+            if (gen === renderGenRef.current) {
+              setLoading(false);
+              if (!completed) onRenderProgress?.(null);
+            }
           }
+        })();
+      }, 150);
+    };
 
-          setDimensions({ width: result.width, height: result.height });
-          setLastResult(result);
-          completed = true;
-          onRenderProgress?.({
-            value: 100,
-            label: "Complete",
-            durationMs: result.wallMs,
-          });
-        } catch (e) {
-          if (controller.signal.aborted) return;
+    if (limitTo4k) {
+      startRender();
+    } else {
+      setLoading(false);
+      setPreflighting(true);
+      onRenderProgress?.(null);
+      void measurePreview(doc, renderOptions).then(
+        (measurement) => {
           if (gen !== renderGenRef.current) return;
-          const message = e instanceof Error ? e.message : "Render failed";
-          setAssetsMissing(isAssetsError(message));
+          setPreflighting(false);
+          const oversized =
+            measurement.requestedWidth > MAX_OUTPUT_SIZE.width ||
+            measurement.requestedHeight > MAX_OUTPUT_SIZE.height;
+          const approved =
+            fullResApproval?.blueprint === blueprint &&
+            fullResApproval.width === measurement.requestedWidth &&
+            fullResApproval.height === measurement.requestedHeight;
+          if (oversized && !approved) {
+            setFullResWarning({ blueprint, measurement });
+            return;
+          }
+          startRender();
+        },
+        (reason: unknown) => {
+          if (gen !== renderGenRef.current) return;
+          setPreflighting(false);
+          const message = reason instanceof Error ? reason.message : "Size check failed";
           setError(message);
-          setDimensions(null);
-          setLastResult(null);
-          setHoverTile(null);
-          onPerfReport?.(null);
-        } finally {
-          if (gen === renderGenRef.current) {
-            setLoading(false);
-            if (!completed) onRenderProgress?.(null);
-          }
-        }
-      })();
-    }, 150);
+          setFullResWarning(null);
+        },
+      );
+    }
 
     return () => {
-      window.clearTimeout(timer);
+      if (timer != null) window.clearTimeout(timer);
       controller.abort();
     };
   }, [
     doc,
     blueprint,
     blueprintPath,
-    pixelsPerTile,
+    limitTo4k,
     altMode,
     showCoords,
     showCheckerboard,
@@ -285,6 +355,7 @@ export function PreviewPane({
     onTileSizeChange,
     onPerfReport,
     onRenderProgress,
+    fullResApproval,
   ]);
 
   const handleDownload = useCallback(() => {
@@ -363,6 +434,78 @@ export function PreviewPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-1 pb-3">
+        <div className="flex items-center gap-2">
+          <Switch
+            size="sm"
+            id="limit-to-4k"
+            checked={limitTo4k}
+            disabled={controlsDisabled}
+            onCheckedChange={(checked) => {
+              setFullResApproval(null);
+              setFullResWarning(null);
+              setLimitTo4k(checked);
+            }}
+          />
+          <Label htmlFor="limit-to-4k" className="gap-1.5">
+            Limit to 4K
+            <span className="text-muted-foreground">
+              {dimensions && `${dimensions.width}×${dimensions.height}px`}
+            </span>
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="export-format"
+            aria-label="Use WebP image format"
+            size="sm"
+            checked={exportFormat === "webp"}
+            disabled={controlsDisabled}
+            onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
+          />
+          <Label htmlFor="export-format">WebP</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            size="sm"
+            id="alt-mode"
+            checked={altMode}
+            disabled={controlsDisabled}
+            onCheckedChange={(checked) => {
+              setLoading(true);
+              setAltMode(checked);
+            }}
+          />
+          <Label htmlFor="alt-mode">Alt mode</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            size="sm"
+            id="coords"
+            checked={showCoords}
+            disabled={controlsDisabled}
+            onCheckedChange={(checked) => {
+              setLoading(true);
+              setShowCoords(checked);
+            }}
+          />
+          <Label htmlFor="coords">Coords</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            size="sm"
+            id="checkerboard"
+            checked={showCheckerboard}
+            disabled={controlsDisabled}
+            onCheckedChange={(checked) => {
+              setLoading(true);
+              setShowCheckerboard(checked);
+            }}
+          />
+          <Label htmlFor="checkerboard">Checkerboard</Label>
+        </div>
+      </div>
+
       {assetsMissing && (
         <Alert className="shrink-0 mx-4">
           <AlertTitle>Assets missing</AlertTitle>
@@ -376,91 +519,63 @@ export function PreviewPane({
         </Alert>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-1 pb-3">
-          <div className="flex items-center gap-2">
-            <Switch
-              size="sm"
-              id="hd"
-              checked={hd}
-              disabled={loading}
-              onCheckedChange={(checked) => {
-                setLoading(true);
-                setHd(checked);
-              }}
-            />
-            <Label htmlFor="hd">
-              HD assets
-              <span className="text-muted-foreground">
-                {dimensions && (
-                  <>
-                    {dimensions.width}×{dimensions.height}px
-                  </>
+      <PreviewCanvasFrame
+        width={dimensions?.width}
+        height={dimensions?.height}
+        overlay={
+          fullResWarning && (
+            <Alert className="max-w-lg has-data-[slot=alert-action]:pr-2.5">
+              <AlertTitle>Large full-resolution render</AlertTitle>
+              <AlertDescription>
+                This blueprint is expected to produce a{" "}
+                {fullResWarning.measurement.requestedWidth.toLocaleString()}×
+                {fullResWarning.measurement.requestedHeight.toLocaleString()} image (
+                {(
+                  (fullResWarning.measurement.requestedWidth *
+                    fullResWarning.measurement.requestedHeight) /
+                  1_000_000
+                ).toFixed(1)}{" "}
+                MP). One RGBA surface alone is about{" "}
+                {formatSurfaceMemory(
+                  fullResWarning.measurement.requestedWidth,
+                  fullResWarning.measurement.requestedHeight,
                 )}
-              </span>
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="export-format"
-              aria-label="Use WebP image format"
-              size="sm"
-              checked={exportFormat === "webp"}
-              disabled={loading || exportPreparing}
-              onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
-            />
-            <Label htmlFor="export-format">WebP</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              size="sm"
-              id="alt-mode"
-              checked={altMode}
-              disabled={loading}
-              onCheckedChange={(checked) => {
-                setLoading(true);
-                setAltMode(checked);
-              }}
-            />
-            <Label htmlFor="alt-mode">Alt mode</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              size="sm"
-              id="coords"
-              checked={showCoords}
-              disabled={loading}
-              onCheckedChange={(checked) => {
-                setLoading(true);
-                setShowCoords(checked);
-              }}
-            />
-            <Label htmlFor="coords">Coords</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              size="sm"
-              id="checkerboard"
-              checked={showCheckerboard}
-              disabled={loading}
-              onCheckedChange={(checked) => {
-                setLoading(true);
-                setShowCheckerboard(checked);
-              }}
-            />
-            <Label htmlFor="checkerboard">Checkerboard</Label>
-          </div>
-        </div>
-
-        <PreviewCanvasFrame
-          width={dimensions?.width}
-          height={dimensions?.height}
-          actions={
+                ; painting, shadows, and encoding can require more.
+              </AlertDescription>
+              <AlertAction className="static mt-4 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => {
+                    setFullResWarning(null);
+                    setLoading(true);
+                    setLimitTo4k(true);
+                  }}
+                >
+                  Limit to 4K
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const { measurement } = fullResWarning;
+                    setFullResApproval({
+                      blueprint: fullResWarning.blueprint,
+                      width: measurement.requestedWidth,
+                      height: measurement.requestedHeight,
+                    });
+                  }}
+                >
+                  Proceed with full res
+                </Button>
+              </AlertAction>
+            </Alert>
+          )
+        }
+        actions={
+          !fullResWarning && (
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 onClick={handleDownload}
-                disabled={!exportBlob || loading}
+                disabled={!exportBlob || controlsDisabled}
                 aria-busy={downloadPendingLabel !== null}
                 title={currentExport?.error}
               >
@@ -470,23 +585,23 @@ export function PreviewPane({
               </Button>
               <Button
                 onClick={() => void handleCopy()}
-                disabled={!exportBlob || loading}
+                disabled={!exportBlob || controlsDisabled}
                 title={currentExport?.error}
               >
                 Copy {exportLabel}
               </Button>
             </div>
-          }
-        >
-          <canvas
-            ref={canvasRef}
-            className="size-full [image-rendering:pixelated]"
-            draggable={false}
-            onPointerMove={handlePointerMove}
-            onPointerLeave={handlePointerLeave}
-          />
-        </PreviewCanvasFrame>
-      </div>
+          )
+        }
+      >
+        <canvas
+          ref={canvasRef}
+          className="size-full [image-rendering:pixelated]"
+          draggable={false}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+        />
+      </PreviewCanvasFrame>
     </div>
   );
 }

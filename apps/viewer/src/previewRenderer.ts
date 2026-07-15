@@ -3,6 +3,7 @@ import {
   type BlueprintDocument,
   type RenderImageOptions,
   type RenderOptions,
+  type RenderMeasurement,
   type RenderProfile,
   type TileFrame,
 } from "fpsr";
@@ -10,6 +11,7 @@ import {
   type PreviewRenderProgress,
   type RenderWorkerRequest,
   type RenderWorkerResponse,
+  type WorkerRenderOptions,
 } from "./renderWorkerProtocol";
 
 export interface PreviewRenderResult {
@@ -45,7 +47,13 @@ interface PendingExport {
   reject(error: Error): void;
 }
 
-type PendingRequest = PendingRender | PendingExport;
+interface PendingMeasure {
+  kind: "measure";
+  resolve(measurement: RenderMeasurement): void;
+  reject(error: Error): void;
+}
+
+type PendingRequest = PendingRender | PendingExport | PendingMeasure;
 
 function abortError(): DOMException {
   return new DOMException("The render was aborted", "AbortError");
@@ -130,6 +138,16 @@ export class PreviewRenderWorkerClient {
     });
   }
 
+  async measure(doc: BlueprintDocument, options: WorkerRenderOptions): Promise<RenderMeasurement> {
+    await this.waitUntilReady();
+    const requestId = this.nextRequestId++;
+    return new Promise<RenderMeasurement>((resolve, reject) => {
+      this.pending.set(requestId, { kind: "measure", resolve, reject });
+      const request: RenderWorkerRequest = { type: "measure", requestId, doc, options };
+      this.worker.postMessage(request);
+    });
+  }
+
   clear(canvas: HTMLCanvasElement): boolean {
     const surfaceId = this.surfaces.get(canvas);
     if (!surfaceId) return false;
@@ -174,6 +192,10 @@ export class PreviewRenderWorkerClient {
     }
     if (response.type === "exported") {
       if (pending.kind === "export") pending.resolve(response.blob);
+      return;
+    }
+    if (response.type === "measured") {
+      if (pending.kind === "measure") pending.resolve(response.measurement);
       return;
     }
     if (pending.kind !== "render") return;
@@ -253,6 +275,16 @@ export async function renderPreview(
     );
   }
   return getWorkerClient().render(canvas, doc, options);
+}
+
+export async function measurePreview(
+  doc: BlueprintDocument,
+  options: WorkerRenderOptions,
+): Promise<RenderMeasurement> {
+  if (typeof Worker === "undefined") {
+    throw new Error("Preview measurement requires a browser with Web Workers support.");
+  }
+  return getWorkerClient().measure(doc, options);
 }
 
 export function clearPreview(canvas: HTMLCanvasElement): void {

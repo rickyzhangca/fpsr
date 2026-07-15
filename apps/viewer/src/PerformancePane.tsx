@@ -246,7 +246,11 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push("───────────────────────────────────────────────────────────");
   lines.push(`  canvas            ${out.width} × ${out.height} px`);
   lines.push(`  megapixels        ${out.megapixels.toFixed(3)} MP`);
-  lines.push(`  pixels/tile       ${out.pixelsPerTile}`);
+  lines.push(
+    `  pixels/tile       ${out.pixelsPerTile.toFixed(out.capped ? 2 : 0)}${out.capped ? ` (requested ${out.requestedPixelsPerTile})` : ""}`,
+  );
+  lines.push(`  asset tier        ${out.assetTier}`);
+  lines.push(`  resolution cap    ${out.capped ? "applied" : "none"}`);
   lines.push(`  tile frame        ${tilesW} × ${tilesH} tiles`);
   lines.push(`  vs 4K screen      ${screens4k.toFixed(2)}×`);
   lines.push(

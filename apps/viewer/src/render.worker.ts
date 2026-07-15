@@ -3,6 +3,7 @@ import {
   createRenderer,
   nowMs,
   type AssetEvent,
+  type AssetTier,
   type CanvasLike,
   type Renderer,
   type RenderResult,
@@ -25,15 +26,17 @@ const assets = cdnAssets(ASSETS_BASE, {
   },
 });
 
-let rendererPromise: Promise<Renderer> | undefined;
-function getRenderer(): Promise<Renderer> {
-  if (!rendererPromise) {
-    rendererPromise = createRenderer({ assets }).catch((error) => {
-      rendererPromise = undefined;
+const rendererPromises = new Map<AssetTier, Promise<Renderer>>();
+function getRenderer(tier: AssetTier): Promise<Renderer> {
+  let pending = rendererPromises.get(tier);
+  if (!pending) {
+    pending = createRenderer({ assets, assetTier: tier }).catch((error) => {
+      rendererPromises.delete(tier);
       throw error;
     });
+    rendererPromises.set(tier, pending);
   }
-  return rendererPromise;
+  return pending;
 }
 
 interface SurfaceState {
@@ -77,7 +80,13 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
       surfaceId: request.surfaceId,
       progress: { value: 5, label: "Preparing renderer" },
     });
-    const renderer = await getRenderer();
+    let tier: AssetTier = (request.options.pixelsPerTile ?? 64) <= 32 ? "1x" : "2x";
+    if (request.options.maxOutputSize && tier === "2x") {
+      const measuringRenderer = await getRenderer("2x");
+      const measurement = measuringRenderer.measure(request.doc, request.options);
+      if (measurement.pixelsPerTile <= 32) tier = "1x";
+    }
+    const renderer = await getRenderer(tier);
     if (controller.signal.aborted) return;
     const wallStart = nowMs();
     const result = await renderer.render(request.doc, {
@@ -118,6 +127,16 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
   }
 }
 
+async function measure(request: Extract<RenderWorkerRequest, { type: "measure" }>): Promise<void> {
+  try {
+    const renderer = await getRenderer("2x");
+    const measurement = renderer.measure(request.doc, request.options);
+    workerScope.postMessage({ type: "measured", requestId: request.requestId, measurement });
+  } catch (error) {
+    postError(request.requestId, error);
+  }
+}
+
 async function exportImage(
   request: Extract<RenderWorkerRequest, { type: "export" }>,
 ): Promise<void> {
@@ -139,6 +158,9 @@ workerScope.onmessage = (event) => {
   switch (request.type) {
     case "attach":
       surfaces.set(request.surfaceId, { canvas: request.canvas });
+      break;
+    case "measure":
+      void measure(request);
       break;
     case "render":
       void render(request);

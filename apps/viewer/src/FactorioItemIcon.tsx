@@ -49,7 +49,17 @@ function cropFrameToCanvas(atlas: CanvasImageSource, frame: FrameMeta): HTMLCanv
   const canvas = createCanvas(frame.sw, frame.sh);
   const ctx = canvas.getContext("2d");
   if (ctx) {
-    ctx.drawImage(atlas, frame.x, frame.y, frame.w, frame.h, frame.ox, frame.oy, frame.w, frame.h);
+    ctx.drawImage(
+      atlas,
+      frame.x,
+      frame.y,
+      frame.pw ?? frame.w,
+      frame.ph ?? frame.h,
+      frame.ox,
+      frame.oy,
+      frame.w,
+      frame.h,
+    );
   }
   return canvas;
 }

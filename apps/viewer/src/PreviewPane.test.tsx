@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 const mocks = vi.hoisted(() => ({
   renderPreview: vi.fn(),
+  measurePreview: vi.fn(),
   clearPreview: vi.fn(),
   clipboardWrite: vi.fn(),
   createObjectURL: vi.fn(() => "blob:test-export"),
@@ -23,6 +24,7 @@ vi.mock("./previewRenderer", async (importOriginal) => {
   return {
     ...actual,
     renderPreview: mocks.renderPreview,
+    measurePreview: mocks.measurePreview,
     clearPreview: mocks.clearPreview,
   };
 });
@@ -38,12 +40,15 @@ vi.mock("./PreviewCanvasFrame", () => ({
   PreviewCanvasFrame: ({
     children,
     actions,
+    overlay,
   }: {
     children: React.ReactNode;
     actions?: React.ReactNode;
+    overlay?: React.ReactNode;
   }) => (
     <>
       {children}
+      {overlay}
       {actions}
     </>
   ),
@@ -79,12 +84,23 @@ describe("PreviewPane alt-mode toggle", () => {
     host = document.createElement("div");
     document.body.append(host);
     mocks.renderPreview.mockReset();
+    mocks.measurePreview.mockReset();
     mocks.clearPreview.mockReset();
     mocks.clipboardWrite.mockReset();
     mocks.createObjectURL.mockClear();
     mocks.revokeObjectURL.mockClear();
     ClipboardItemMock.supports.mockClear();
     mocks.renderPreview.mockImplementation(async () => result());
+    mocks.measurePreview.mockResolvedValue({
+      tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      requestedPixelsPerTile: 64,
+      pixelsPerTile: 64,
+      requestedWidth: 64,
+      requestedHeight: 64,
+      width: 64,
+      height: 64,
+      capped: false,
+    });
     vi.stubGlobal("ClipboardItem", ClipboardItemMock);
     vi.stubGlobal("URL", {
       ...URL,
@@ -134,6 +150,8 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(mocks.renderPreview.mock.calls[0]?.[0]).toBeInstanceOf(HTMLCanvasElement);
     expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({
       altMode: true,
+      pixelsPerTile: 64,
+      maxOutputSize: { width: 4096, height: 4096 },
       padTiles: 1,
       showCheckerboard: true,
       signal: expect.any(AbortSignal),
@@ -261,7 +279,11 @@ describe("PreviewPane alt-mode toggle", () => {
     act(() => {
       formatSwitch?.click();
     });
-    expect(formatSwitch?.hasAttribute("data-disabled")).toBe(true);
+    expect(
+      [...host.querySelectorAll<HTMLButtonElement>('[data-slot="switch"]')].every((switchEl) =>
+        switchEl.hasAttribute("data-disabled"),
+      ),
+    ).toBe(true);
     expect(findButton("Encoding")?.disabled).toBe(true);
     await act(async () => {
       resolvePng?.(pngBlob);
@@ -284,6 +306,69 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(findButton("Download 2.0 KB")?.disabled).toBe(false);
     expect(findButton("Copy WebP")).toBeTruthy();
     expect(toImageBlob).toHaveBeenCalledTimes(2);
+
+    await act(async () => root.unmount());
+  });
+
+  it("preflights an oversized full-resolution render before painting", async () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "Large blueprint",
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+    const doc: BlueprintDocument = { blueprint };
+    mocks.measurePreview.mockResolvedValue({
+      tileFrame: { minX: 0, minY: 0, maxX: 89, maxY: 151 },
+      requestedPixelsPerTile: 64,
+      pixelsPerTile: 64,
+      requestedWidth: 5696,
+      requestedHeight: 9664,
+      width: 5696,
+      height: 9664,
+      capped: false,
+    });
+    const root = createRoot(host);
+
+    act(() => {
+      root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+
+    const limitSwitch = host.querySelector<HTMLButtonElement>("#limit-to-4k");
+    act(() => {
+      limitSwitch?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mocks.measurePreview).toHaveBeenCalledTimes(1);
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("Large full-resolution render");
+    expect(host.textContent).toContain("5,696×9,664");
+    const proceed = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Proceed with full res",
+    );
+    expect(proceed).toBeTruthy();
+
+    act(() => {
+      proceed?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+
+    expect(mocks.measurePreview).toHaveBeenCalledTimes(2);
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
+    expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({
+      pixelsPerTile: 64,
+      maxOutputSize: undefined,
+    });
+    expect(host.textContent).not.toContain("Large full-resolution render");
 
     await act(async () => root.unmount());
   });

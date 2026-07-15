@@ -3,6 +3,7 @@ import type {
   BlueprintDocument,
   RenderImageOptions,
   RenderOptions,
+  RenderMeasurement,
   RenderProfile,
   RenderProgressEvent,
   TileFrame,
@@ -40,6 +41,12 @@ export function toPreviewRenderProgress(event: RenderProgressEvent): PreviewRend
 
 export type RenderWorkerRequest =
   | {
+      type: "measure";
+      requestId: number;
+      doc: BlueprintDocument;
+      options: WorkerRenderOptions;
+    }
+  | {
       type: "attach";
       surfaceId: string;
       canvas: OffscreenCanvas;
@@ -69,6 +76,11 @@ export type RenderWorkerRequest =
     };
 
 export type RenderWorkerResponse =
+  | {
+      type: "measured";
+      requestId: number;
+      measurement: RenderMeasurement;
+    }
   | {
       type: "ready";
     }

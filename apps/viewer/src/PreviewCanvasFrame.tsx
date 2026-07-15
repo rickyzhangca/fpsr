@@ -114,6 +114,7 @@ function ViewerToolbar({
 export function PreviewCanvasFrame({
   className,
   actions,
+  overlay,
   width,
   height,
   children,
@@ -123,6 +124,7 @@ export function PreviewCanvasFrame({
   height?: number;
   className?: string;
   actions?: ReactNode;
+  overlay?: ReactNode;
   children: ReactNode;
 }) {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -423,6 +425,12 @@ export function PreviewCanvasFrame({
           {children}
         </div>
       </div>
+
+      {overlay != null && (
+        <div data-no-pan className="absolute inset-0 flex items-center justify-center p-6">
+          {overlay}
+        </div>
+      )}
 
       {ready && (
         <ViewerToolbar
