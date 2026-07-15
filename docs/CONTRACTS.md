@@ -43,7 +43,7 @@ loading and canvas execution are async. Nothing above the backend may touch the 
 
 - All draw-list geometry is in **tile units** (floats), in blueprint map coordinates
   (entity `position` is the entity center, y grows downward/south).
-- The backend converts tiles to pixels via `pixelsPerTile` (default 32). Game-native
+- The backend converts tiles to pixels via `pixelsPerTile` (default 64). Game-native
   scale is 32 px/tile at zoom 1; source sprites are high-res with a prototype `scale`
   (usually 0.5), so a sprite's on-map size in tiles is `srcPx * protoScale / 32`.
 - `DrawList.bounds` is the tight tile-space bounding box of all commands; the backend
@@ -107,7 +107,8 @@ planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList;
 
 // rendering — async, needs assets
 const r = await createRenderer({ assets: AssetSource, renderDb?: RenderDb });
-const out = await r.render(docOrBp, { blueprintPath?, pixelsPerTile?, altMode?, background?, showCheckerboard?, showCoordinates? });
+const measurement = r.measure(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize? });
+const out = await r.render(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize?, altMode?, background?, showCheckerboard?, showCoordinates? });
 // out: { canvas, width, height, drawList, toPngBlob()/toPngBuffer() }
 
 // asset sources
@@ -152,10 +153,11 @@ Amendments ratified during M1 (binding):
 
 Written to `assets-out/<game-version>/` (gitignored — Wube assets must never be committed):
 
-- `render-db.<sha256>.json` — schema-2 `RenderDb` referenced by the manifest
-- `atlas.<sha256>.png` — deterministic usage-aware pages, normally at most 1024×1024
-- `manifest.json` — stable schema-2 entry point with the game/mod set, dimensions,
-  hashes, byte sizes, and render-database descriptor
+- `render-db.<sha256>.json` — schema-2 `RenderDb` for each density tier
+- `atlas.<sha256>.webp` / `atlas.<sha256>.png` — deterministic usage-aware pages,
+  normally at most 1024×1024; `1x` uses lossless WebP and `2x` uses PNG
+- `manifest.json` — stable schema-2 entry point with the game/mod set and `1x`/`2x`
+  descriptors, dimensions, hashes, byte sizes, and render databases
 
 The same directory layout is what gets uploaded to the CDN under `/<game-version>/…`,
 so `cdnAssets(base + "/<version>")` and `localAssets("assets-out/<version>")` are

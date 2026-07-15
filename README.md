@@ -27,7 +27,7 @@ Supported Factorio install (version detected from game metadata)
         │
         ▼
   @fpsr/pipeline  ──►  assets-out/<detected-version>/
-  (dump → distill → pack)     render-db.<hash>.json, atlas.<hash>.png, manifest.json
+  (dump → distill → pack)     tiered render-db/atlas assets + manifest.json
         │                              │
         │                              ├──► @fpsr/cdn-upload  ──► private CDN
         │                              │
