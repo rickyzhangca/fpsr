@@ -21,12 +21,13 @@ async function loadRenderDb(): Promise<RenderDb> {
   try {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
       schema?: unknown;
-      renderDb?: { file?: unknown };
+      tiers?: { "2x"?: { renderDb?: { file?: unknown } } };
     };
-    if (manifest.schema !== 2 || typeof manifest.renderDb?.file !== "string") {
+    const renderDbFile = manifest.tiers?.["2x"]?.renderDb?.file;
+    if (manifest.schema !== 2 || typeof renderDbFile !== "string") {
       throw new Error("invalid schema-2 manifest");
     }
-    const dbPath = path.join(ASSETS_DIR, manifest.renderDb.file);
+    const dbPath = path.join(ASSETS_DIR, renderDbFile);
     cachedDb = JSON.parse(await readFile(dbPath, "utf8")) as RenderDb;
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);

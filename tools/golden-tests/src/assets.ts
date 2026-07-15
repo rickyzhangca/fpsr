@@ -5,10 +5,11 @@ export async function assetsAvailable(dir: string): Promise<boolean> {
   try {
     const manifest = JSON.parse(await readFile(path.join(dir, "manifest.json"), "utf8")) as {
       schema?: unknown;
-      renderDb?: { file?: unknown };
+      tiers?: { "2x"?: { renderDb?: { file?: unknown } } };
     };
-    if (manifest.schema !== 2 || typeof manifest.renderDb?.file !== "string") return false;
-    await access(path.join(dir, manifest.renderDb.file));
+    const renderDbFile = manifest.tiers?.["2x"]?.renderDb?.file;
+    if (manifest.schema !== 2 || typeof renderDbFile !== "string") return false;
+    await access(path.join(dir, renderDbFile));
     return true;
   } catch {
     return false;

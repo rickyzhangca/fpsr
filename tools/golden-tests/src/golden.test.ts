@@ -14,12 +14,13 @@ function assetsReadySync(): boolean {
   try {
     const manifest = JSON.parse(readFileSync(path.join(ASSETS_DIR, "manifest.json"), "utf8")) as {
       schema?: unknown;
-      renderDb?: { file?: unknown };
+      tiers?: { "2x"?: { renderDb?: { file?: unknown } } };
     };
+    const renderDbFile = manifest.tiers?.["2x"]?.renderDb?.file;
     return (
       manifest.schema === 2 &&
-      typeof manifest.renderDb?.file === "string" &&
-      existsSync(path.join(ASSETS_DIR, manifest.renderDb.file))
+      typeof renderDbFile === "string" &&
+      existsSync(path.join(ASSETS_DIR, renderDbFile))
     );
   } catch {
     return false;
