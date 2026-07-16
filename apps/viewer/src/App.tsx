@@ -60,7 +60,7 @@ const SAMPLES = [
 ] as const;
 
 const TEST_BOOKS = [
-  { id: "tests-base-game-2.1.11", label: "Base game 2.1.11", value: baseGameTestsBp.trim() },
+  { id: "tests-base-game-2.1.11", label: "base items 2.1.11", value: baseGameTestsBp.trim() },
 ] as const;
 
 const BUILT_IN_SOURCES = [...SAMPLES, ...TEST_BOOKS];
