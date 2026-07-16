@@ -39,7 +39,9 @@ const ProcessPanel = ({
         {headerRight}
       </div>
       {scrollContent ? (
-        <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
+        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+          {children}
+        </ScrollArea>
       ) : (
         <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
       )}
@@ -111,52 +113,59 @@ export const ProcessPane = ({
     })();
   }, [blueprint]);
   return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 gap-0.5">
-      <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
-        <ProcessPanel title="Decoded JSON" index={0} maxIndex={2} scrollContent={false}>
-          <JsonViewer value={decodedValue} />
-        </ProcessPanel>
-      </ResizablePanel>
+    <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="h-full min-h-[480px] min-w-[540px] flex-1 gap-0.5"
+      >
+        <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
+          <ProcessPanel title="Decoded JSON" index={0} maxIndex={2} scrollContent={false}>
+            <JsonViewer value={decodedValue} />
+          </ProcessPanel>
+        </ResizablePanel>
 
-      <ResizableHandle withHandle handleOnly disableDoubleClick />
+        <ResizableHandle withHandle handleOnly disableDoubleClick />
 
-      <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
-        <ProcessPanel
-          title="Draw commands"
-          index={1}
-          maxIndex={2}
-          scrollContent={false}
-          headerRight={
-            <div className="flex items-center gap-1.5">
-              <Checkbox
-                id="organize-draw-commands"
-                checked={organizeDrawCommands}
-                onCheckedChange={(checked) => setOrganizeDrawCommands(checked)}
-              />
-              <Label
-                htmlFor="organize-draw-commands"
-                className="text-xs font-normal text-muted-foreground"
-              >
-                Organize
-              </Label>
-            </div>
-          }
-        >
-          {drawLoading && <p className="p-4 font-mono text-xs text-muted-foreground">Planning…</p>}
-          {!drawLoading && drawError && (
-            <p className="p-4 font-mono text-xs text-destructive">{drawError}</p>
-          )}
-          {!drawLoading && !drawError && <JsonViewer value={drawValue} />}
-        </ProcessPanel>
-      </ResizablePanel>
+        <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
+          <ProcessPanel
+            title="Draw commands"
+            index={1}
+            maxIndex={2}
+            scrollContent={false}
+            headerRight={
+              <div className="flex items-center gap-1.5">
+                <Checkbox
+                  id="organize-draw-commands"
+                  checked={organizeDrawCommands}
+                  onCheckedChange={(checked) => setOrganizeDrawCommands(checked)}
+                />
+                <Label
+                  htmlFor="organize-draw-commands"
+                  className="text-xs font-normal text-muted-foreground"
+                >
+                  Organize
+                </Label>
+              </div>
+            }
+          >
+            {drawLoading && (
+              <p className="p-4 font-mono text-xs text-muted-foreground">Planning…</p>
+            )}
+            {!drawLoading && drawError && (
+              <p className="p-4 font-mono text-xs text-destructive">{drawError}</p>
+            )}
+            {!drawLoading && !drawError && <JsonViewer value={drawValue} />}
+          </ProcessPanel>
+        </ResizablePanel>
 
-      <ResizableHandle withHandle handleOnly disableDoubleClick />
+        <ResizableHandle withHandle handleOnly disableDoubleClick />
 
-      <ResizablePanel defaultSize={20} minSize={160} className="min-h-0">
-        <ProcessPanel title="Checks" index={2} maxIndex={2}>
-          <ChecksPanel blueprint={blueprint} />
-        </ProcessPanel>
-      </ResizablePanel>
-    </ResizablePanelGroup>
+        <ResizablePanel defaultSize={20} minSize={160} className="min-h-0">
+          <ProcessPanel title="Checks" index={2} maxIndex={2}>
+            <ChecksPanel blueprint={blueprint} />
+          </ProcessPanel>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </ScrollArea>
   );
 };

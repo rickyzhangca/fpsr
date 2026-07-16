@@ -31,7 +31,7 @@ type VirtualizedJsonScrollerProps = ScrollerProps & {
 const VirtualizedJsonScroller = forwardRef<HTMLDivElement, VirtualizedJsonScrollerProps>(
   ({ children, className, style, ...props }, ref) => (
     <ScrollAreaRoot className={className}>
-      <ScrollAreaViewport ref={ref} style={style} {...props}>
+      <ScrollAreaViewport ref={ref} style={style} {...props} className="scroll-fade">
         <ScrollAreaContent>{children}</ScrollAreaContent>
       </ScrollAreaViewport>
       <ScrollBar />

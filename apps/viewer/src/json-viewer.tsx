@@ -1,4 +1,4 @@
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { formatJson } from "./format-json";
 const PLACEHOLDER = "// decode a blueprint to inspect JSON";
@@ -8,9 +8,8 @@ const VirtualizedJsonViewer = lazy(() =>
 );
 const JsonScrollArea = ({ children }: { children: React.ReactNode }) => {
   return (
-    <ScrollArea className="h-full min-h-0">
+    <ScrollArea className="h-full min-h-0" viewportClassName="scroll-fade">
       {children}
-      <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );
 };

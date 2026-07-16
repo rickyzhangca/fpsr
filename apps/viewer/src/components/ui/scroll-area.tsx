@@ -52,6 +52,7 @@ const ScrollArea = ({
         <ScrollAreaContent>{children}</ScrollAreaContent>
       </ScrollAreaViewport>
       <ScrollBar />
+      <ScrollBar orientation="horizontal" />
       <ScrollAreaCorner />
     </ScrollAreaRoot>
   );
