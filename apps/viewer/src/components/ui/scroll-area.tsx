@@ -1,6 +1,6 @@
+import { cn } from "@/lib/utils";
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 import * as React from "react";
-import { cn } from "@/lib/utils";
 const ScrollAreaRoot = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Root.Props>(
   ({ className, ...props }, ref) => (
     <ScrollAreaPrimitive.Root
@@ -27,6 +27,16 @@ const ScrollAreaViewport = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.
 const ScrollAreaCorner = (props: ScrollAreaPrimitive.Corner.Props) => {
   return <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" {...props} />;
 };
+const ScrollAreaContent = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Content.Props>(
+  ({ className, ...props }, ref) => (
+    <ScrollAreaPrimitive.Content
+      ref={ref}
+      data-slot="scroll-area-content"
+      className={cn(className)}
+      {...props}
+    />
+  ),
+);
 const ScrollArea = ({
   className,
   viewportClassName,
@@ -37,7 +47,10 @@ const ScrollArea = ({
 }) => {
   return (
     <ScrollAreaRoot className={className} {...props}>
-      <ScrollAreaViewport className={viewportClassName}>{children}</ScrollAreaViewport>
+      <ScrollAreaViewport className={viewportClassName}>
+        {/* Content observes size changes so overflow/scrollbar state stays in sync. */}
+        <ScrollAreaContent>{children}</ScrollAreaContent>
+      </ScrollAreaViewport>
       <ScrollBar />
       <ScrollAreaCorner />
     </ScrollAreaRoot>
@@ -66,4 +79,11 @@ const ScrollBar = ({
     </ScrollAreaPrimitive.Scrollbar>
   );
 };
-export { ScrollArea, ScrollAreaCorner, ScrollAreaRoot, ScrollAreaViewport, ScrollBar };
+export {
+  ScrollArea,
+  ScrollAreaContent,
+  ScrollAreaCorner,
+  ScrollAreaRoot,
+  ScrollAreaViewport,
+  ScrollBar,
+};

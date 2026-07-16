@@ -1,4 +1,5 @@
 import {
+  ScrollAreaContent,
   ScrollAreaCorner,
   ScrollAreaRoot,
   ScrollAreaViewport,
@@ -31,7 +32,7 @@ const VirtualizedJsonScroller = forwardRef<HTMLDivElement, VirtualizedJsonScroll
   ({ children, className, style, ...props }, ref) => (
     <ScrollAreaRoot className={className}>
       <ScrollAreaViewport ref={ref} style={style} {...props}>
-        {children}
+        <ScrollAreaContent>{children}</ScrollAreaContent>
       </ScrollAreaViewport>
       <ScrollBar />
       <ScrollBar orientation="horizontal" />
