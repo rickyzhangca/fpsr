@@ -50,7 +50,7 @@ export interface SidebarRenderProgress {
   durationMs?: number;
 }
 
-function selectionId(sourceId: SidebarSourceId, path: number[] | null): string {
+export function selectionId(sourceId: SidebarSourceId, path: number[] | null): string {
   if (!path || path.length === 0) return sourceId;
   return `${sourceId}:${path.join(".")}`;
 }
@@ -64,7 +64,7 @@ function ancestorIdsForSelection(sourceId: SidebarSourceId, path: number[] | nul
   return ids;
 }
 
-function docToSidebarItems(source: SidebarSource): Record<string, SidebarTreeItem> {
+export function docToSidebarItems(source: SidebarSource): Record<string, SidebarTreeItem> {
   const book = buildBookTree(source.doc);
   if (book) {
     const items: Record<string, SidebarTreeItem> = {};
@@ -142,7 +142,7 @@ function buildSidebarItems(sources: SidebarSource[]): Record<string, SidebarTree
   return items;
 }
 
-function TreeItemKindIcon({ kind, icons }: { kind: BookTreeItemKind; icons?: Icon[] }) {
+export function TreeItemKindIcon({ kind, icons }: { kind: BookTreeItemKind; icons?: Icon[] }) {
   if (kind === "blueprint" || kind === "book") {
     return (
       <BlueprintIcons
@@ -171,18 +171,22 @@ function formatRenderDuration(durationMs: number): string {
   return `${minutes}m ${seconds}s`;
 }
 
+export type SidebarSelectableKind = "book" | "blueprint";
+
 export function SidebarTree({
   sources,
   selectedSourceId,
   selectedPath,
+  selectedKind,
   renderProgress,
   onSelect,
 }: {
   sources: SidebarSource[];
   selectedSourceId: SidebarSourceId;
   selectedPath: number[] | null;
+  selectedKind?: SidebarSelectableKind;
   renderProgress?: SidebarRenderProgress | null;
-  onSelect: (sourceId: SidebarSourceId, path: number[]) => void;
+  onSelect: (sourceId: SidebarSourceId, path: number[], kind: SidebarSelectableKind) => void;
 }) {
   const items = useMemo(() => buildSidebarItems(sources), [sources]);
   const selectedItemId = selectionId(selectedSourceId, selectedPath);
@@ -200,10 +204,13 @@ export function SidebarTree({
       for (const id of ancestorIdsForSelection(selectedSourceId, selectedPath)) {
         if (id in items) next.add(id);
       }
+      if (selectedKind === "book" && items[selectedItemId]?.kind === "book") {
+        next.add(selectedItemId);
+      }
       next.add(ROOT_ID);
       return [...next];
     });
-  }, [selectedSourceId, selectedPath, items]);
+  }, [selectedSourceId, selectedPath, selectedKind, selectedItemId, items]);
 
   // Drop stale expansions before the tree reads them (e.g. after Delete all).
   const safeExpandedItems = useMemo(
@@ -239,8 +246,11 @@ export function SidebarTree({
       const id = next[0];
       if (!id) return;
       const data = items[id];
-      if (data?.kind === "blueprint") {
-        onSelect(data.sourceId, data.path);
+      if (data?.kind === "book" || data?.kind === "blueprint") {
+        if (data.kind === "book") {
+          setExpandedItems((prev) => (prev.includes(id) ? prev : [...prev, id]));
+        }
+        onSelect(data.sourceId, data.path, data.kind);
       }
     },
     getItemName: (item) => item.getItemData().label,

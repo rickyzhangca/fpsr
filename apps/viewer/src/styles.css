@@ -127,7 +127,7 @@
     @apply h-full overflow-hidden font-sans;
   }
   body {
-    @apply h-full overflow-hidden bg-background text-foreground;
+    @apply relative h-full overflow-hidden bg-background text-foreground;
   }
   #root {
     @apply h-full overflow-hidden;

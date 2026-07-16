@@ -13,6 +13,7 @@ vi.mock("fpsr", () => ({
 import {
   countBlueprintComponentsByName,
   countEntitiesByName,
+  encodedBookByteSize,
   encodedByteSize,
   formatByteSize,
   formatContents,
@@ -121,6 +122,7 @@ describe("blueprintMeta", () => {
       ]),
     ).toBe("wooden-chest ×2");
     expect(encodedByteSize({ item: "blueprint", version: 0 })).toBe(100);
+    expect(encodedBookByteSize({ item: "blueprint-book", version: 0, blueprints: [] })).toBe(100);
     expect(formatByteSize(1234)).toBe("1.21 KB");
   });
 });

@@ -1,4 +1,11 @@
-import { decodeVersion, encode, type Blueprint, type BlueprintEntity, type Tile } from "fpsr";
+import {
+  decodeVersion,
+  encode,
+  type Blueprint,
+  type BlueprintBook,
+  type BlueprintEntity,
+  type Tile,
+} from "fpsr";
 
 export function formatGameVersion(version: number): string {
   const { major, minor, patch } = decodeVersion(version);
@@ -53,6 +60,10 @@ function sortCounts(counts: Map<string, number>): { name: string; count: number 
 
 export function encodedByteSize(blueprint: Blueprint): number {
   return encode({ blueprint }).length;
+}
+
+export function encodedBookByteSize(book: BlueprintBook): number {
+  return encode({ blueprint_book: book }).length;
 }
 
 export function formatByteSize(bytes: number): string {

@@ -45,7 +45,7 @@ describe("SidebarTree render progress", () => {
             value: 47,
             label: "Loading assets 2/5",
           }}
-          onSelect={vi.fn<(sourceId: string, path: number[]) => void>()}
+          onSelect={vi.fn<(sourceId: string, path: number[], kind: "book" | "blueprint") => void>()}
         />,
       );
     });
@@ -70,7 +70,7 @@ describe("SidebarTree render progress", () => {
             label: "Complete",
             durationMs: 1_234,
           }}
-          onSelect={vi.fn<(sourceId: string, path: number[]) => void>()}
+          onSelect={vi.fn<(sourceId: string, path: number[], kind: "book" | "blueprint") => void>()}
         />,
       );
     });

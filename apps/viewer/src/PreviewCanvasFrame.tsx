@@ -17,7 +17,8 @@ const ZOOM_MAX = 16;
 /** Initial fit never exceeds true size — only zoom out to fit, never zoom in. */
 const FIT_ZOOM_MAX = 1;
 const ZOOM_BUTTON_STEP = 0.25;
-const ZOOM_WHEEL_STEP = 0.0015;
+/** Pinch-to-zoom sensitivity: zoom *= exp(-deltaY * step). Higher = faster zoom. */
+const PINCH_ZOOM_STEP = 0.01;
 /** How far past hard pan bounds the user can drag before it resists (px). */
 const RUBBERBAND_DISTANCE = 100;
 /** Matches react-viewer-pan-zoom spring.transition. */
@@ -371,13 +372,16 @@ export function PreviewCanvasFrame({
   const onWheel = useCallback(
     (event: ReactWheelEvent<HTMLDivElement>) => {
       if (!ready) return;
+      // Trackpad pinch sets ctrlKey; two-finger scroll should bubble to the page.
+      if (!event.ctrlKey) return;
+
       event.preventDefault();
       const shell = shellRef.current;
       if (!shell) return;
       const rect = shell.getBoundingClientRect();
       const originX = event.clientX - rect.left - rect.width / 2;
       const originY = event.clientY - rect.top - rect.height / 2;
-      const factor = Math.exp(-event.deltaY * ZOOM_WHEEL_STEP);
+      const factor = Math.exp(-event.deltaY * PINCH_ZOOM_STEP);
       applyZoomAt(viewRef.current.zoom * factor, originX, originY);
     },
     [applyZoomAt, ready],

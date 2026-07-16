@@ -15,6 +15,7 @@ const groundTruthRoot = path.join(repoRoot, "fixtures/ground-truth");
 const MIME: Record<string, string> = {
   ".json": "application/json",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".txt": "text/plain",
 };
 

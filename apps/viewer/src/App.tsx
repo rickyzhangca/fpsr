@@ -9,33 +9,41 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type Blueprint,
+  type BlueprintBook,
   BlueprintDecodeError,
   type BlueprintDocument,
   type DecodeStats,
   decodeWithStats,
   resolveActivePath,
   selectBlueprint,
+  selectBook,
 } from "fpsr";
-import { ClipboardIcon, EllipsisVerticalIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
 import pipePlantBp from "../../../fixtures/golden/pipe-plant.bp.txt?raw";
 import smokeBp from "../../../fixtures/golden/smoke.bp.txt?raw";
 import baseGameTestsBp from "../../../fixtures/visual-tests/base-game/book.bp.txt?raw";
+import elevatedRailsTestsBp from "../../../fixtures/visual-tests/official-mods/elevated-rails.bp.txt?raw";
+import qualityTestsBp from "../../../fixtures/visual-tests/official-mods/quality.bp.txt?raw";
+import recyclerTestsBp from "../../../fixtures/visual-tests/official-mods/recycler.bp.txt?raw";
+import spaceAgeTestsBp from "../../../fixtures/visual-tests/official-mods/space-age.bp.txt?raw";
 import { BlueprintSummary } from "./BlueprintSummary";
+import { BookSummary } from "./BookSummary";
 import { ComparePane } from "./ComparePane";
+import { Logo } from "./components/logo";
 import { addCustom, clearCustoms, listCustoms } from "./customBlueprintsDb";
 import { PerformancePane } from "./PerformancePane";
 import type { PerfReport } from "./perfReport";
@@ -47,7 +55,10 @@ import {
   sameRenderPath,
   updateActiveRenderProgress,
 } from "./renderProgressState";
-import { type SidebarSource, SidebarTree } from "./SidebarTree";
+import { SidebarPanels } from "./SidebarPanels";
+import { resolveSidebarSelection } from "./sidebarSelection";
+import { SidebarSelectionTrigger } from "./SidebarSelectionTrigger";
+import { type SidebarSelectableKind, type SidebarSource } from "./SidebarTree";
 
 type Tab = "preview" | "process" | "performance" | "compare";
 
@@ -61,6 +72,26 @@ const SAMPLES = [
 
 const TEST_BOOKS = [
   { id: "tests-base-game-2.1.11", label: "base items 2.1.11", value: baseGameTestsBp.trim() },
+  {
+    id: "tests-space-age-2.1.11",
+    label: "space age items 2.1.11",
+    value: spaceAgeTestsBp.trim(),
+  },
+  {
+    id: "tests-quality-2.1.11",
+    label: "quality items 2.1.11",
+    value: qualityTestsBp.trim(),
+  },
+  {
+    id: "tests-elevated-rails-2.1.11",
+    label: "elevated rails items 2.1.11",
+    value: elevatedRailsTestsBp.trim(),
+  },
+  {
+    id: "tests-recycler-2.1.11",
+    label: "recycler items 2.1.11",
+    value: recyclerTestsBp.trim(),
+  },
 ] as const;
 
 const BUILT_IN_SOURCES = [...SAMPLES, ...TEST_BOOKS];
@@ -70,6 +101,7 @@ const DEFAULT_SAMPLE = SAMPLES[0];
 interface LastView {
   sourceId: string;
   path: number[] | null;
+  kind: SidebarSelectableKind;
 }
 
 function readLastView(): LastView | null {
@@ -82,7 +114,8 @@ function readLastView(): LastView | null {
       Array.isArray(parsed.path) && parsed.path.every((n) => typeof n === "number")
         ? parsed.path
         : null;
-    return { sourceId: parsed.sourceId, path };
+    const kind: SidebarSelectableKind = parsed.kind === "book" ? "book" : "blueprint";
+    return { sourceId: parsed.sourceId, path, kind };
   } catch {
     return null;
   }
@@ -112,13 +145,29 @@ function decodeErrorMessage(e: unknown): string {
   return "unknown error";
 }
 
-function resolveStoredPath(doc: BlueprintDocument, path: number[] | null): number[] | null {
-  if (!doc.blueprint_book) return null;
+function resolveStoredSelection(
+  doc: BlueprintDocument,
+  path: number[] | null,
+  kind: SidebarSelectableKind,
+): { path: number[] | null; kind: SidebarSelectableKind } {
+  if (kind === "book") {
+    if (!doc.blueprint_book) {
+      return { path: resolveActivePath(doc), kind: "blueprint" };
+    }
+    try {
+      selectBook(doc, path ?? undefined);
+      return { path, kind: "book" };
+    } catch {
+      return { path: null, kind: "book" };
+    }
+  }
+
+  if (!doc.blueprint_book) return { path: null, kind: "blueprint" };
   try {
     selectBlueprint(doc, path ?? undefined);
-    return path;
+    return { path, kind: "blueprint" };
   } catch {
-    return resolveActivePath(doc);
+    return { path: resolveActivePath(doc), kind: "blueprint" };
   }
 }
 
@@ -129,20 +178,25 @@ function initialSelection(): LastView {
     if (builtIn) {
       const decoded = tryDecode(builtIn.value);
       if (decoded) {
-        return { sourceId: builtIn.id, path: resolveStoredPath(decoded.doc, last.path) };
+        const resolved = resolveStoredSelection(decoded.doc, last.path, last.kind);
+        return { sourceId: builtIn.id, ...resolved };
       }
     }
   }
-  return { sourceId: DEFAULT_SAMPLE.id, path: null };
+  return { sourceId: DEFAULT_SAMPLE.id, path: null, kind: "blueprint" };
 }
 
 export function App() {
   const [selectedSourceId, setSelectedSourceId] = useState(() => initialSelection().sourceId);
   const [selectedPath, setSelectedPath] = useState<number[] | null>(() => initialSelection().path);
+  const [selectedKind, setSelectedKind] = useState<SidebarSelectableKind>(
+    () => initialSelection().kind,
+  );
   const [selectionReady, setSelectionReady] = useState(false);
   const [customSources, setCustomSources] = useState<SidebarSource[]>([]);
   const [decodeStatsBySource, setDecodeStatsBySource] = useState<Record<string, DecodeStats>>({});
   const [manualOpen, setManualOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [manualDraft, setManualDraft] = useState("");
   const [tab, setTab] = useState<Tab>("preview");
   const [tileSize, setTileSize] = useState("—");
@@ -207,8 +261,10 @@ export function App() {
             testSources.find((s) => s.id === last.sourceId) ??
             sources.find((s) => s.id === last.sourceId);
           if (source) {
+            const resolved = resolveStoredSelection(source.doc, last.path, last.kind);
             setSelectedSourceId(source.id);
-            setSelectedPath(resolveStoredPath(source.doc, last.path));
+            setSelectedPath(resolved.path);
+            setSelectedKind(resolved.kind);
           }
         }
       } catch (e) {
@@ -226,8 +282,8 @@ export function App() {
 
   useEffect(() => {
     if (!selectionReady) return;
-    writeLastView({ sourceId: selectedSourceId, path: selectedPath });
-  }, [selectionReady, selectedSourceId, selectedPath]);
+    writeLastView({ sourceId: selectedSourceId, path: selectedPath, kind: selectedKind });
+  }, [selectionReady, selectedSourceId, selectedPath, selectedKind]);
 
   const activeDoc = useMemo(() => {
     return (
@@ -238,8 +294,17 @@ export function App() {
     );
   }, [selectedSourceId, sampleSources, testSources, customSources]);
 
+  const selectedBook: BlueprintBook | null = useMemo(() => {
+    if (!activeDoc || selectedKind !== "book") return null;
+    try {
+      return selectBook(activeDoc, selectedPath ?? undefined);
+    } catch {
+      return null;
+    }
+  }, [activeDoc, selectedKind, selectedPath]);
+
   const selectedBlueprint: Blueprint | null = useMemo(() => {
-    if (!activeDoc) return null;
+    if (!activeDoc || selectedKind !== "blueprint") return null;
     try {
       if (activeDoc.blueprint) return activeDoc.blueprint;
       if (activeDoc.blueprint_book) {
@@ -249,7 +314,7 @@ export function App() {
     } catch {
       return null;
     }
-  }, [activeDoc, selectedPath]);
+  }, [activeDoc, selectedKind, selectedPath]);
 
   useEffect(() => {
     setTileSize("—");
@@ -277,6 +342,7 @@ export function App() {
       setDecodeStatsBySource((prev) => ({ ...prev, [record.id]: stats }));
       setSelectedSourceId(record.id);
       setSelectedPath(resolveActivePath(decoded));
+      setSelectedKind("blueprint");
       toast.success("Blueprint added", { description: label });
       return true;
     } catch (e) {
@@ -310,24 +376,37 @@ export function App() {
       if (wasCustom) {
         setSelectedSourceId(DEFAULT_SAMPLE.id);
         setSelectedPath(null);
+        setSelectedKind("blueprint");
       }
     } catch (e) {
       toast.error(decodeErrorMessage(e));
     }
   }, [customSources, selectedSourceId]);
 
-  const onTreeSelect = (sourceId: string, path: number[]) => {
+  const onTreeSelect = (sourceId: string, path: number[], kind: SidebarSelectableKind) => {
     const normalizedPath = path.length === 0 ? null : path;
-    if (sourceId !== selectedSourceId || !sameRenderPath(normalizedPath, selectedPath)) {
-      setRenderProgress({
-        sourceId,
-        path: normalizedPath,
-        value: 1,
-        label: "Queued",
-      });
+    if (
+      sourceId !== selectedSourceId ||
+      !sameRenderPath(normalizedPath, selectedPath) ||
+      kind !== selectedKind
+    ) {
+      if (kind === "blueprint") {
+        setRenderProgress({
+          sourceId,
+          path: normalizedPath,
+          value: 1,
+          label: "Queued",
+        });
+      } else {
+        setRenderProgress(null);
+      }
     }
     setSelectedSourceId(sourceId);
     setSelectedPath(normalizedPath);
+    setSelectedKind(kind);
+    if (kind === "blueprint") {
+      setSidebarOpen(false);
+    }
   };
 
   const onRenderProgress = useCallback(
@@ -344,82 +423,65 @@ export function App() {
 
   const isGoldenSelected = SAMPLES.some((sample) => sample.id === selectedSourceId);
 
+  const allSources = useMemo(
+    () => [...sampleSources, ...testSources, ...customSources],
+    [sampleSources, testSources, customSources],
+  );
+
+  const sidebarSelection = useMemo(
+    () => resolveSidebarSelection(allSources, selectedSourceId, selectedPath),
+    [allSources, selectedSourceId, selectedPath],
+  );
+
+  const sidebarPanelProps = {
+    sampleSources,
+    testSources,
+    customSources,
+    selectedSourceId,
+    selectedPath,
+    selectedKind,
+    renderProgress,
+    onSelect: onTreeSelect,
+    onPaste: () => void handlePaste(),
+    onManualOpen: () => {
+      setManualDraft("");
+      setManualOpen(true);
+    },
+    onClearAllCustoms: () => void clearAllCustoms(),
+  };
+
   return (
-    <div className="grid h-svh overflow-hidden grid-rows-[minmax(0,45%)_minmax(0,1fr)] md:grid-rows-none md:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="grid h-svh overflow-hidden grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-[320px_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col overflow-hidden">
-        <h1 className="text-lg font-semibold tracking-tight px-4 pt-4">FPSR Demo</h1>
+        <h1 className="text-lg font-semibold tracking-tight px-4 pt-4">
+          <Logo />
+          <span className="sr-only">FPSR Demo</span>
+        </h1>
 
-        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
-          <div className="flex flex-col gap-4 py-4 pl-4 pr-3">
-            <section className="flex flex-col gap-2">
-              <p className="text-muted-foreground text-sm">Demos</p>
-              <SidebarTree
-                sources={sampleSources}
-                selectedSourceId={selectedSourceId}
-                selectedPath={selectedPath}
-                renderProgress={renderProgress}
-                onSelect={onTreeSelect}
-              />
-            </section>
+        <div className="mx-2 pt-3 md:hidden">
+          <Drawer
+            open={sidebarOpen}
+            onOpenChange={setSidebarOpen}
+            showSwipeHandle
+            swipeDirection="down"
+          >
+            <DrawerTrigger render={<SidebarSelectionTrigger selection={sidebarSelection} />} />
+            <DrawerContent className="[--drawer-content-height:min(70vh,600px)]">
+              <DrawerHeader>
+                <DrawerTitle>Blueprints</DrawerTitle>
+                <DrawerDescription className="sr-only">
+                  Select a blueprint or blueprint book
+                </DrawerDescription>
+              </DrawerHeader>
+              <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+                <SidebarPanels {...sidebarPanelProps} />
+              </ScrollArea>
+            </DrawerContent>
+          </Drawer>
+        </div>
 
-            <section className="flex flex-col gap-2">
-              <p className="text-muted-foreground text-sm">Tests</p>
-              <SidebarTree
-                sources={testSources}
-                selectedSourceId={selectedSourceId}
-                selectedPath={selectedPath}
-                renderProgress={renderProgress}
-                onSelect={onTreeSelect}
-              />
-            </section>
-
-            <section className="flex flex-col gap-2">
-              <div className="flex items-center gap-1">
-                <p className="min-w-0 flex-1 text-muted-foreground text-sm">Custom</p>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Paste blueprint string"
-                  onClick={() => void handlePaste()}
-                >
-                  <ClipboardIcon />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-                    <EllipsisVerticalIcon />
-                    <span className="sr-only">Custom options</span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-40">
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setManualDraft("");
-                          setManualOpen(true);
-                        }}
-                      >
-                        Enter manually
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        disabled={customSources.length === 0}
-                        onClick={() => void clearAllCustoms()}
-                      >
-                        Delete all
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              <SidebarTree
-                sources={customSources}
-                selectedSourceId={selectedSourceId}
-                selectedPath={selectedPath}
-                renderProgress={renderProgress}
-                onSelect={onTreeSelect}
-              />
-            </section>
-          </div>
+        <ScrollArea className="hidden min-h-0 flex-1 md:flex" viewportClassName="scroll-fade">
+          <SidebarPanels {...sidebarPanelProps} />
         </ScrollArea>
       </aside>
 
@@ -450,65 +512,98 @@ export function App() {
         </DialogContent>
       </Dialog>
 
-      <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card border ml-2 mr-3 my-3 rounded-xl">
-        {selectedBlueprint ? (
-          <BlueprintSummary
-            blueprint={selectedBlueprint}
-            tileSize={tileSize}
-            sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
-          />
-        ) : (
-          <div className="shrink-0 px-4 pt-4 pb-4">
-            <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
-              Decode a blueprint to preview rendering.
-            </div>
-          </div>
-        )}
+      <main className="m-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card md:ml-2 md:mr-3 md:my-3">
+        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+          <div className="flex min-h-full flex-col">
+            {selectedBook ? (
+              <>
+                <BookSummary
+                  book={selectedBook}
+                  sourceBytes={
+                    activeDoc?.blueprint_book && selectedPath == null
+                      ? activeDecodeStats?.inputChars
+                      : undefined
+                  }
+                />
+                <div className="flex min-h-[480px] flex-1 flex-col items-center justify-center border-t px-4 py-4 text-sm text-muted-foreground">
+                  Select a blueprint in the sidebar to view it
+                </div>
+              </>
+            ) : (
+              <>
+                {selectedBlueprint ? (
+                  <BlueprintSummary
+                    blueprint={selectedBlueprint}
+                    tileSize={tileSize}
+                    sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
+                  />
+                ) : (
+                  <div className="shrink-0 px-4 pt-4 pb-4">
+                    <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
+                      Decode a blueprint to preview rendering.
+                    </div>
+                  </div>
+                )}
 
-        <Tabs
-          value={tab}
-          onValueChange={(value) => setTab(value as Tab)}
-          className="flex min-h-0 flex-1 flex-col border-t"
-        >
-          <TabsList variant="line" className="mx-1 mt-1">
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-            <TabsTrigger value="process">Process</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="compare">Compare</TabsTrigger>
-          </TabsList>
+                <Tabs
+                  value={tab}
+                  onValueChange={(value) => setTab(value as Tab)}
+                  className="flex min-h-[480px] flex-1 flex-col border-t"
+                >
+                  <TabsList variant="line" className="mx-1 mt-1">
+                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                    <TabsTrigger value="process">Process</TabsTrigger>
+                    <TabsTrigger value="performance">Performance</TabsTrigger>
+                    <TabsTrigger value="compare">Compare</TabsTrigger>
+                  </TabsList>
 
-          <TabsContent
-            value="preview"
-            keepMounted
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <PreviewPane
-              doc={activeDoc}
-              blueprint={selectedBlueprint}
-              blueprintPath={selectedPath}
-              decodeStats={activeDecodeStats}
-              onTileSizeChange={setTileSize}
-              onPerfReport={setPerfReport}
-              onRenderProgress={onRenderProgress}
-            />
-          </TabsContent>
+                  <TabsContent
+                    value="preview"
+                    keepMounted
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                  >
+                    <PreviewPane
+                      doc={activeDoc}
+                      blueprint={selectedBlueprint}
+                      blueprintPath={selectedPath}
+                      decodeStats={activeDecodeStats}
+                      onTileSizeChange={setTileSize}
+                      onPerfReport={setPerfReport}
+                      onRenderProgress={onRenderProgress}
+                    />
+                  </TabsContent>
 
-          <TabsContent value="compare" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {tab === "compare" && (
-              <ScrollArea className="min-h-0 flex-1">
-                <ComparePane caseName={isGoldenSelected ? selectedSourceId : null} />
-              </ScrollArea>
+                  <TabsContent
+                    value="compare"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                  >
+                    {tab === "compare" && (
+                      <ScrollArea className="min-h-0 flex-1">
+                        <ComparePane caseName={isGoldenSelected ? selectedSourceId : null} />
+                      </ScrollArea>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent
+                    value="process"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                  >
+                    {tab === "process" && (
+                      <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent
+                    value="performance"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                  >
+                    {tab === "performance" && <PerformancePane report={perfReport} />}
+                  </TabsContent>
+                </Tabs>
+              </>
             )}
-          </TabsContent>
-
-          <TabsContent value="process" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {tab === "process" && <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />}
-          </TabsContent>
-
-          <TabsContent value="performance" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {tab === "performance" && <PerformancePane report={perfReport} />}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </ScrollArea>
       </main>
     </div>
   );
