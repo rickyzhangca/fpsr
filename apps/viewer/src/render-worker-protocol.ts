@@ -8,17 +8,14 @@ import type {
   RenderProgressEvent,
   TileFrame,
 } from "fpsr";
-
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
-
 export interface PreviewRenderProgress {
   value: number;
   label: string;
   /** Final render wall time; present only after the render completes. */
   durationMs?: number;
 }
-
-export function toPreviewRenderProgress(event: RenderProgressEvent): PreviewRenderProgress {
+export const toPreviewRenderProgress = (event: RenderProgressEvent): PreviewRenderProgress => {
   switch (event.stage) {
     case "planning":
       return { value: 12, label: "Planning" };
@@ -37,8 +34,7 @@ export function toPreviewRenderProgress(event: RenderProgressEvent): PreviewRend
     case "complete":
       return { value: 100, label: "Complete" };
   }
-}
-
+};
 export type RenderWorkerRequest =
   | {
       type: "measure";
@@ -74,7 +70,6 @@ export type RenderWorkerRequest =
       surfaceId: string;
       options: RenderImageOptions;
     };
-
 export type RenderWorkerResponse =
   | {
       type: "measured";

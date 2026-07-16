@@ -13,19 +13,15 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BlueprintIcons } from "./blueprint-icons";
 import { FactorioItemIcon } from "./factorio-item-icon";
 import { FactorioRichText } from "./factorio-rich-text";
-
 const INDENT_PX = 12;
 const ROOT_ID = "root";
-
 const KIND_ICON_KEY: Record<BookTreeItemKind, string> = {
   book: "item/blueprint-book",
   blueprint: "item/blueprint",
   upgrade_planner: "item/upgrade-planner",
   deconstruction_planner: "item/deconstruction-planner",
 };
-
 export type SidebarSourceId = string;
-
 export interface SidebarTreeItem {
   id: string;
   sourceId: SidebarSourceId;
@@ -35,13 +31,11 @@ export interface SidebarTreeItem {
   icons?: Icon[];
   children: string[];
 }
-
 export interface SidebarSource {
   id: SidebarSourceId;
   label: string;
   doc: BlueprintDocument;
 }
-
 export interface SidebarRenderProgress {
   sourceId: SidebarSourceId;
   path: number[] | null;
@@ -49,22 +43,19 @@ export interface SidebarRenderProgress {
   label: string;
   durationMs?: number;
 }
-
-export function selectionId(sourceId: SidebarSourceId, path: number[] | null): string {
+export const selectionId = (sourceId: SidebarSourceId, path: number[] | null): string => {
   if (!path || path.length === 0) return sourceId;
   return `${sourceId}:${path.join(".")}`;
-}
-
-function ancestorIdsForSelection(sourceId: SidebarSourceId, path: number[] | null): string[] {
+};
+const ancestorIdsForSelection = (sourceId: SidebarSourceId, path: number[] | null): string[] => {
   const ids = [ROOT_ID, sourceId];
   if (!path || path.length === 0) return ids;
   for (let i = 1; i < path.length; i++) {
     ids.push(`${sourceId}:${path.slice(0, i).join(".")}`);
   }
   return ids;
-}
-
-export function docToSidebarItems(source: SidebarSource): Record<string, SidebarTreeItem> {
+};
+export const docToSidebarItems = (source: SidebarSource): Record<string, SidebarTreeItem> => {
   const book = buildBookTree(source.doc);
   if (book) {
     const items: Record<string, SidebarTreeItem> = {};
@@ -93,7 +84,6 @@ export function docToSidebarItems(source: SidebarSource): Record<string, Sidebar
     }
     return items;
   }
-
   if (source.doc.blueprint) {
     return {
       [source.id]: {
@@ -107,7 +97,6 @@ export function docToSidebarItems(source: SidebarSource): Record<string, Sidebar
       },
     };
   }
-
   // Planner-only or empty docs: show as muted non-selectable leaf.
   return {
     [source.id]: {
@@ -119,17 +108,14 @@ export function docToSidebarItems(source: SidebarSource): Record<string, Sidebar
       children: [],
     },
   };
-}
-
-function buildSidebarItems(sources: SidebarSource[]): Record<string, SidebarTreeItem> {
+};
+const buildSidebarItems = (sources: SidebarSource[]): Record<string, SidebarTreeItem> => {
   const items: Record<string, SidebarTreeItem> = {};
   const rootChildren: string[] = [];
-
   for (const source of sources) {
     Object.assign(items, docToSidebarItems(source));
     rootChildren.push(source.id);
   }
-
   items[ROOT_ID] = {
     id: ROOT_ID,
     sourceId: ROOT_ID,
@@ -138,11 +124,9 @@ function buildSidebarItems(sources: SidebarSource[]): Record<string, SidebarTree
     kind: "book",
     children: rootChildren,
   };
-
   return items;
-}
-
-export function TreeItemKindIcon({ kind, icons }: { kind: BookTreeItemKind; icons?: Icon[] }) {
+};
+export const TreeItemKindIcon = ({ kind, icons }: { kind: BookTreeItemKind; icons?: Icon[] }) => {
   if (kind === "blueprint" || kind === "book") {
     return (
       <BlueprintIcons
@@ -152,7 +136,6 @@ export function TreeItemKindIcon({ kind, icons }: { kind: BookTreeItemKind; icon
       />
     );
   }
-
   return (
     <FactorioItemIcon
       iconKey={KIND_ICON_KEY[kind]}
@@ -160,20 +143,17 @@ export function TreeItemKindIcon({ kind, icons }: { kind: BookTreeItemKind; icon
       title={kind.replaceAll("_", " ")}
     />
   );
-}
-
-function formatRenderDuration(durationMs: number): string {
-  if (durationMs < 1_000) return `${Math.max(0, Math.round(durationMs))} ms`;
-  if (durationMs < 60_000) return `${(durationMs / 1_000).toFixed(1)} s`;
-  const totalSeconds = Math.round(durationMs / 1_000);
+};
+const formatRenderDuration = (durationMs: number): string => {
+  if (durationMs < 1000) return `${Math.max(0, Math.round(durationMs))} ms`;
+  if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)} s`;
+  const totalSeconds = Math.round(durationMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}m ${seconds}s`;
-}
-
+};
 export type SidebarSelectableKind = "book" | "blueprint";
-
-export function SidebarTree({
+export const SidebarTree = ({
   sources,
   selectedSourceId,
   selectedPath,
@@ -187,17 +167,15 @@ export function SidebarTree({
   selectedKind?: SidebarSelectableKind;
   renderProgress?: SidebarRenderProgress | null;
   onSelect: (sourceId: SidebarSourceId, path: number[], kind: SidebarSelectableKind) => void;
-}) {
+}) => {
   const items = useMemo(() => buildSidebarItems(sources), [sources]);
   const selectedItemId = selectionId(selectedSourceId, selectedPath);
   const progressItemId = renderProgress
     ? selectionId(renderProgress.sourceId, renderProgress.path)
     : null;
-
   const [expandedItems, setExpandedItems] = useState<string[]>(() =>
     ancestorIdsForSelection(selectedSourceId, selectedPath),
   );
-
   useEffect(() => {
     setExpandedItems((prev) => {
       const next = new Set(prev.filter((id) => id in items));
@@ -211,13 +189,11 @@ export function SidebarTree({
       return [...next];
     });
   }, [selectedSourceId, selectedPath, selectedKind, selectedItemId, items]);
-
   // Drop stale expansions before the tree reads them (e.g. after Delete all).
   const safeExpandedItems = useMemo(
     () => expandedItems.filter((id) => id in items),
     [expandedItems, items],
   );
-
   const emptyItem = useMemo<SidebarTreeItem>(
     () => ({
       id: "",
@@ -229,7 +205,6 @@ export function SidebarTree({
     }),
     [],
   );
-
   const tree = useTree<SidebarTreeItem>({
     rootItemId: ROOT_ID,
     indent: INDENT_PX,
@@ -263,13 +238,11 @@ export function SidebarTree({
     },
     features: [syncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
   });
-
   const treeRef = useRef(tree);
   treeRef.current = tree;
   useLayoutEffect(() => {
     treeRef.current.rebuildTree();
   }, [items]);
-
   return (
     <Tree {...tree.getContainerProps("Blueprints")}>
       {tree.getItems().map((item) => {
@@ -277,13 +250,11 @@ export function SidebarTree({
         if (id === ROOT_ID) return null;
         const data = items[id];
         if (!data) return null;
-
         const isFolder = item.isFolder();
         const progress = id === progressItemId ? renderProgress : null;
         const renderedDuration =
           progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
         const isPlanner = data.kind === "upgrade_planner" || data.kind === "deconstruction_planner";
-
         return (
           <TreeItem key={id}>
             <TreeItemButton
@@ -332,4 +303,4 @@ export function SidebarTree({
       })}
     </Tree>
   );
-}
+};

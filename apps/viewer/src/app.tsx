@@ -40,36 +40,32 @@ import elevatedRailsTestsBp from "../../../fixtures/visual-tests/official-mods/e
 import qualityTestsBp from "../../../fixtures/visual-tests/official-mods/quality.bp.txt?raw";
 import recyclerTestsBp from "../../../fixtures/visual-tests/official-mods/recycler.bp.txt?raw";
 import spaceAgeTestsBp from "../../../fixtures/visual-tests/official-mods/space-age.bp.txt?raw";
-import { BlueprintSummary } from "./BlueprintSummary";
-import { BookSummary } from "./BookSummary";
-import { ComparePane } from "./ComparePane";
+import { BlueprintSummary } from "./blueprint-summary";
+import { BookSummary } from "./book-summary";
+import { ComparePane } from "./compare-pane";
 import { Logo } from "./components/logo";
-import { addCustom, clearCustoms, listCustoms } from "./customBlueprintsDb";
-import { PerformancePane } from "./PerformancePane";
-import type { PerfReport } from "./perfReport";
-import { PreviewPane } from "./PreviewPane";
-import type { PreviewRenderProgress } from "./previewRenderer";
-import { ProcessPane } from "./ProcessPane";
+import { addCustom, clearCustoms, listCustoms } from "./custom-blueprints-db";
+import { PerformancePane } from "./performance-pane";
+import type { PerfReport } from "./perf-report";
+import { PreviewPane } from "./preview-pane";
+import type { PreviewRenderProgress } from "./preview-renderer";
+import { ProcessPane } from "./process-pane";
 import {
   type ActiveRenderProgress,
   sameRenderPath,
   updateActiveRenderProgress,
-} from "./renderProgressState";
-import { SidebarPanels } from "./SidebarPanels";
-import { resolveSidebarSelection } from "./sidebarSelection";
-import { SidebarSelectionTrigger } from "./SidebarSelectionTrigger";
-import { type SidebarSelectableKind, type SidebarSource } from "./SidebarTree";
-
+} from "./render-progress-state";
+import { SidebarPanels } from "./sidebar-panels";
+import { resolveSidebarSelection } from "./sidebar-selection";
+import { SidebarSelectionTrigger } from "./sidebar-selection-trigger";
+import { type SidebarSelectableKind, type SidebarSource } from "./sidebar-tree";
 type Tab = "preview" | "process" | "performance" | "compare";
-
 const LAST_VIEW_KEY = "fpsr-viewer:last-view";
-
 const SAMPLES = [
   { id: "smoke", label: "Smoke", value: smokeBp.trim() },
   { id: "belt-ring", label: "Belt ring", value: beltRingBp.trim() },
   { id: "pipe-plant", label: "Pipe plant", value: pipePlantBp.trim() },
 ] as const;
-
 const TEST_BOOKS = [
   { id: "tests-base-game-2.1.11", label: "base items 2.1.11", value: baseGameTestsBp.trim() },
   {
@@ -93,18 +89,14 @@ const TEST_BOOKS = [
     value: recyclerTestsBp.trim(),
   },
 ] as const;
-
 const BUILT_IN_SOURCES = [...SAMPLES, ...TEST_BOOKS];
-
 const DEFAULT_SAMPLE = SAMPLES[0];
-
 interface LastView {
   sourceId: string;
   path: number[] | null;
   kind: SidebarSelectableKind;
 }
-
-function readLastView(): LastView | null {
+const readLastView = (): LastView | null => {
   try {
     const raw = localStorage.getItem(LAST_VIEW_KEY);
     if (!raw) return null;
@@ -119,37 +111,40 @@ function readLastView(): LastView | null {
   } catch {
     return null;
   }
-}
-
-function writeLastView(view: LastView): void {
+};
+const writeLastView = (view: LastView): void => {
   localStorage.setItem(LAST_VIEW_KEY, JSON.stringify(view));
-}
-
-function tryDecode(source: string): { doc: BlueprintDocument; stats: DecodeStats } | null {
+};
+const tryDecode = (
+  source: string,
+): {
+  doc: BlueprintDocument;
+  stats: DecodeStats;
+} | null => {
   try {
     return decodeWithStats(source);
   } catch {
     return null;
   }
-}
-
-function sourceLabel(doc: BlueprintDocument, fallback: string): string {
+};
+const sourceLabel = (doc: BlueprintDocument, fallback: string): string => {
   if (doc.blueprint?.label) return doc.blueprint.label;
   if (doc.blueprint_book?.label) return doc.blueprint_book.label;
   return fallback;
-}
-
-function decodeErrorMessage(e: unknown): string {
+};
+const decodeErrorMessage = (e: unknown): string => {
   if (e instanceof BlueprintDecodeError) return e.reason;
   if (e instanceof Error) return e.message;
   return "unknown error";
-}
-
-function resolveStoredSelection(
+};
+const resolveStoredSelection = (
   doc: BlueprintDocument,
   path: number[] | null,
   kind: SidebarSelectableKind,
-): { path: number[] | null; kind: SidebarSelectableKind } {
+): {
+  path: number[] | null;
+  kind: SidebarSelectableKind;
+} => {
   if (kind === "book") {
     if (!doc.blueprint_book) {
       return { path: resolveActivePath(doc), kind: "blueprint" };
@@ -161,7 +156,6 @@ function resolveStoredSelection(
       return { path: null, kind: "book" };
     }
   }
-
   if (!doc.blueprint_book) return { path: null, kind: "blueprint" };
   try {
     selectBlueprint(doc, path ?? undefined);
@@ -169,9 +163,8 @@ function resolveStoredSelection(
   } catch {
     return { path: resolveActivePath(doc), kind: "blueprint" };
   }
-}
-
-function initialSelection(): LastView {
+};
+const initialSelection = (): LastView => {
   const last = readLastView();
   if (last) {
     const builtIn = BUILT_IN_SOURCES.find((source) => source.id === last.sourceId);
@@ -184,9 +177,8 @@ function initialSelection(): LastView {
     }
   }
   return { sourceId: DEFAULT_SAMPLE.id, path: null, kind: "blueprint" };
-}
-
-export function App() {
+};
+export const App = () => {
   const [selectedSourceId, setSelectedSourceId] = useState(() => initialSelection().sourceId);
   const [selectedPath, setSelectedPath] = useState<number[] | null>(() => initialSelection().path);
   const [selectedKind, setSelectedKind] = useState<SidebarSelectableKind>(
@@ -202,7 +194,6 @@ export function App() {
   const [tileSize, setTileSize] = useState("—");
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
   const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
-
   const sampleSources: SidebarSource[] = useMemo(
     () =>
       SAMPLES.flatMap((sample) => {
@@ -212,7 +203,6 @@ export function App() {
       }),
     [],
   );
-
   const testSources: SidebarSource[] = useMemo(
     () =>
       TEST_BOOKS.flatMap((testBook) => {
@@ -222,7 +212,6 @@ export function App() {
       }),
     [],
   );
-
   // Publish built-in decode stats on mount.
   useEffect(() => {
     const stats: Record<string, DecodeStats> = {};
@@ -232,7 +221,6 @@ export function App() {
     }
     setDecodeStatsBySource((prev) => ({ ...stats, ...prev }));
   }, []);
-
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -253,7 +241,6 @@ export function App() {
         }
         setCustomSources(sources);
         setDecodeStatsBySource((prev) => ({ ...prev, ...stats }));
-
         const last = readLastView();
         if (last) {
           const source =
@@ -279,12 +266,10 @@ export function App() {
       cancelled = true;
     };
   }, [sampleSources, testSources]);
-
   useEffect(() => {
     if (!selectionReady) return;
     writeLastView({ sourceId: selectedSourceId, path: selectedPath, kind: selectedKind });
   }, [selectionReady, selectedSourceId, selectedPath, selectedKind]);
-
   const activeDoc = useMemo(() => {
     return (
       sampleSources.find((s) => s.id === selectedSourceId)?.doc ??
@@ -293,7 +278,6 @@ export function App() {
       null
     );
   }, [selectedSourceId, sampleSources, testSources, customSources]);
-
   const selectedBook: BlueprintBook | null = useMemo(() => {
     if (!activeDoc || selectedKind !== "book") return null;
     try {
@@ -302,7 +286,6 @@ export function App() {
       return null;
     }
   }, [activeDoc, selectedKind, selectedPath]);
-
   const selectedBlueprint: Blueprint | null = useMemo(() => {
     if (!activeDoc || selectedKind !== "blueprint") return null;
     try {
@@ -315,14 +298,11 @@ export function App() {
       return null;
     }
   }, [activeDoc, selectedKind, selectedPath]);
-
   useEffect(() => {
     setTileSize("—");
     setPerfReport(null);
   }, [selectedBlueprint]);
-
   const activeDecodeStats = decodeStatsBySource[selectedSourceId] ?? null;
-
   const addCustomFromString = useCallback(async (source: string) => {
     const trimmed = source.trim();
     if (!trimmed) {
@@ -350,7 +330,6 @@ export function App() {
       return false;
     }
   }, []);
-
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -359,7 +338,6 @@ export function App() {
       toast.error(e instanceof Error ? e.message : "Could not read clipboard.");
     }
   }, [addCustomFromString]);
-
   const handleManualSubmit = useCallback(async () => {
     const ok = await addCustomFromString(manualDraft);
     if (ok) {
@@ -367,7 +345,6 @@ export function App() {
       setManualOpen(false);
     }
   }, [addCustomFromString, manualDraft]);
-
   const clearAllCustoms = useCallback(async () => {
     try {
       await clearCustoms();
@@ -382,7 +359,6 @@ export function App() {
       toast.error(decodeErrorMessage(e));
     }
   }, [customSources, selectedSourceId]);
-
   const onTreeSelect = (sourceId: string, path: number[], kind: SidebarSelectableKind) => {
     const normalizedPath = path.length === 0 ? null : path;
     if (
@@ -408,7 +384,6 @@ export function App() {
       setSidebarOpen(false);
     }
   };
-
   const onRenderProgress = useCallback(
     (progress: PreviewRenderProgress | null) => {
       setRenderProgress((previous) =>
@@ -420,19 +395,15 @@ export function App() {
     },
     [selectedSourceId, selectedPath],
   );
-
   const isGoldenSelected = SAMPLES.some((sample) => sample.id === selectedSourceId);
-
   const allSources = useMemo(
     () => [...sampleSources, ...testSources, ...customSources],
     [sampleSources, testSources, customSources],
   );
-
   const sidebarSelection = useMemo(
     () => resolveSidebarSelection(allSources, selectedSourceId, selectedPath),
     [allSources, selectedSourceId, selectedPath],
   );
-
   const sidebarPanelProps = {
     sampleSources,
     testSources,
@@ -449,7 +420,6 @@ export function App() {
     },
     onClearAllCustoms: () => void clearAllCustoms(),
   };
-
   return (
     <div className="grid h-svh overflow-hidden grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-[320px_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col overflow-hidden">
@@ -607,4 +577,4 @@ export function App() {
       </main>
     </div>
   );
-}
+};

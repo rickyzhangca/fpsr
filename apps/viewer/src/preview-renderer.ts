@@ -13,7 +13,6 @@ import {
   type RenderWorkerResponse,
   type WorkerRenderOptions,
 } from "./render-worker-protocol";
-
 export interface PreviewRenderResult {
   width: number;
   height: number;
@@ -25,13 +24,10 @@ export interface PreviewRenderResult {
   toImageBlob(options: RenderImageOptions): Promise<Blob>;
   toPngBlob(): Promise<Blob>;
 }
-
 export type { PreviewRenderProgress } from "./render-worker-protocol";
-
 export type PreviewRenderOptions = Omit<RenderOptions, "canvas" | "onProgress"> & {
   onProgress?: (progress: PreviewRenderProgress) => void;
 };
-
 interface PendingRender {
   kind: "render";
   surfaceId: string;
@@ -40,25 +36,20 @@ interface PendingRender {
   cleanup(): void;
   onProgress?: (progress: PreviewRenderProgress) => void;
 }
-
 interface PendingExport {
   kind: "export";
   resolve(blob: Blob): void;
   reject(error: Error): void;
 }
-
 interface PendingMeasure {
   kind: "measure";
   resolve(measurement: RenderMeasurement): void;
   reject(error: Error): void;
 }
-
 type PendingRequest = PendingRender | PendingExport | PendingMeasure;
-
-function abortError(): DOMException {
+const abortError = (): DOMException => {
   return new DOMException("The render was aborted", "AbortError");
-}
-
+};
 export class PreviewRenderWorkerClient {
   private readonly surfaces = new WeakMap<HTMLCanvasElement, string>();
   private readonly pending = new Map<number, PendingRequest>();
@@ -68,7 +59,6 @@ export class PreviewRenderWorkerClient {
   private failure?: Error;
   private nextRequestId = 1;
   private nextSurfaceId = 1;
-
   constructor(private readonly worker: Worker) {
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
@@ -84,7 +74,6 @@ export class PreviewRenderWorkerClient {
       this.fail(new Error(event.message || "Render worker failed"));
     });
   }
-
   async render(
     canvas: HTMLCanvasElement,
     doc: BlueprintDocument,
@@ -92,7 +81,6 @@ export class PreviewRenderWorkerClient {
   ): Promise<PreviewRenderResult> {
     options.onProgress?.({ value: 2, label: "Starting worker" });
     await this.waitUntilReady(options.signal);
-
     let surfaceId = this.surfaces.get(canvas);
     if (!surfaceId) {
       surfaceId = `preview-${this.nextSurfaceId++}`;
@@ -103,7 +91,6 @@ export class PreviewRenderWorkerClient {
       const attach: RenderWorkerRequest = { type: "attach", surfaceId, canvas: offscreen };
       this.worker.postMessage(attach, [offscreen]);
     }
-
     const requestId = this.nextRequestId++;
     const signal = options.signal;
     return new Promise<PreviewRenderResult>((resolve, reject) => {
@@ -137,7 +124,6 @@ export class PreviewRenderWorkerClient {
       this.worker.postMessage(request);
     });
   }
-
   async measure(doc: BlueprintDocument, options: WorkerRenderOptions): Promise<RenderMeasurement> {
     await this.waitUntilReady();
     const requestId = this.nextRequestId++;
@@ -147,7 +133,6 @@ export class PreviewRenderWorkerClient {
       this.worker.postMessage(request);
     });
   }
-
   clear(canvas: HTMLCanvasElement): boolean {
     const surfaceId = this.surfaces.get(canvas);
     if (!surfaceId) return false;
@@ -155,7 +140,6 @@ export class PreviewRenderWorkerClient {
     this.worker.postMessage(request);
     return true;
   }
-
   private export(surfaceId: string, renderId: number, options: RenderImageOptions): Promise<Blob> {
     const requestId = this.nextRequestId++;
     return new Promise<Blob>((resolve, reject) => {
@@ -170,7 +154,6 @@ export class PreviewRenderWorkerClient {
       this.worker.postMessage(request);
     });
   }
-
   private handleMessage(response: RenderWorkerResponse): void {
     if (response.type === "ready") {
       if (!this.failure) this.resolveReady();
@@ -212,7 +195,6 @@ export class PreviewRenderWorkerClient {
       toPngBlob: () => this.export(pending.surfaceId, response.requestId, { type: "image/png" }),
     });
   }
-
   private waitUntilReady(signal?: AbortSignal): Promise<void> {
     if (this.failure) return Promise.reject(this.failure);
     if (signal?.aborted) return Promise.reject(abortError());
@@ -221,7 +203,6 @@ export class PreviewRenderWorkerClient {
         if (this.failure) throw this.failure;
       });
     }
-
     return new Promise<void>((resolve, reject) => {
       const onAbort = () => {
         cleanup();
@@ -242,7 +223,6 @@ export class PreviewRenderWorkerClient {
       );
     });
   }
-
   private fail(error: Error): void {
     if (!this.failure) this.failure = error;
     this.rejectReady(this.failure);
@@ -253,42 +233,37 @@ export class PreviewRenderWorkerClient {
     this.pending.clear();
   }
 }
-
 let workerClient: PreviewRenderWorkerClient | undefined;
-
-function getWorkerClient(): PreviewRenderWorkerClient {
+const getWorkerClient = (): PreviewRenderWorkerClient => {
   if (!workerClient) {
     const worker = new Worker(new URL("./render.worker.ts", import.meta.url), { type: "module" });
     workerClient = new PreviewRenderWorkerClient(worker);
   }
   return workerClient;
-}
-
-export async function renderPreview(
+};
+export const renderPreview = async (
   canvas: HTMLCanvasElement,
   doc: BlueprintDocument,
   options: PreviewRenderOptions,
-): Promise<PreviewRenderResult> {
+): Promise<PreviewRenderResult> => {
   if (typeof Worker === "undefined" || typeof canvas.transferControlToOffscreen !== "function") {
     throw new Error(
       "Preview rendering requires a browser with Web Workers and OffscreenCanvas support.",
     );
   }
   return getWorkerClient().render(canvas, doc, options);
-}
-
-export async function measurePreview(
+};
+export const measurePreview = async (
   doc: BlueprintDocument,
   options: WorkerRenderOptions,
-): Promise<RenderMeasurement> {
+): Promise<RenderMeasurement> => {
   if (typeof Worker === "undefined") {
     throw new Error("Preview measurement requires a browser with Web Workers support.");
   }
   return getWorkerClient().measure(doc, options);
-}
-
-export function clearPreview(canvas: HTMLCanvasElement): void {
+};
+export const clearPreview = (canvas: HTMLCanvasElement): void => {
   if (workerClient?.clear(canvas)) return;
   canvas.width = 0;
   canvas.height = 0;
-}
+};

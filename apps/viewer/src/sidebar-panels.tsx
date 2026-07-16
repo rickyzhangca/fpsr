@@ -14,8 +14,7 @@ import {
   type SidebarSourceId,
   SidebarTree,
 } from "./sidebar-tree";
-
-export function SidebarPanels({
+export const SidebarPanels = ({
   sampleSources,
   testSources,
   customSources,
@@ -39,7 +38,7 @@ export function SidebarPanels({
   onPaste: () => void;
   onManualOpen: () => void;
   onClearAllCustoms: () => void;
-}) {
+}) => {
   return (
     <div className="flex flex-col gap-4 py-4 pl-4 pr-3">
       <section className="flex flex-col gap-2">
@@ -108,4 +107,4 @@ export function SidebarPanels({
       </section>
     </div>
   );
-}
+};

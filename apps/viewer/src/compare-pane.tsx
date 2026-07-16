@@ -13,33 +13,28 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { renderPreview } from "./preview-renderer";
 import { PreviewCanvasFrame } from "./preview-canvas-frame";
-
 const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
-
 interface GoldenCase {
   name: string;
   bp: string;
   ppt: number;
   alt?: boolean;
 }
-
-function isAssetsError(message: string): boolean {
+const isAssetsError = (message: string): boolean => {
   return (
     message.includes("Failed to fetch") ||
     message.includes("404") ||
     message.includes("Not found") ||
     message.includes("ENOENT")
   );
-}
-
-export function ComparePane({ caseName }: { caseName: string | null }) {
+};
+export const ComparePane = ({ caseName }: { caseName: string | null }) => {
   const liveCanvasRef = useRef<HTMLCanvasElement>(null);
   const goldenCanvasRef = useRef<HTMLCanvasElement>(null);
   const groundTruthCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayGoldenRef = useRef<HTMLCanvasElement>(null);
   const overlayLiveRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
-
   const [cases, setCases] = useState<GoldenCase[]>([]);
   const [loadingCases, setLoadingCases] = useState(true);
   const [loadingRender, setLoadingRender] = useState(false);
@@ -50,11 +45,12 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
   const [groundTruthMissing, setGroundTruthMissing] = useState(false);
   const [overlayOpacity, setOverlayOpacity] = useState(50);
   const [showDifference, setShowDifference] = useState(false);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [dimensions, setDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [blueprintString, setBlueprintString] = useState<string | null>(null);
-
   const selectedCase = caseName ? (cases.find((c) => c.name === caseName) ?? null) : null;
-
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -76,7 +72,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       cancelled = true;
     };
   }, []);
-
   useEffect(() => {
     if (!selectedCase) {
       setGoldenUrl(null);
@@ -86,13 +81,10 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       setBlueprintString(null);
       return;
     }
-
     setBlueprintString(null);
-
     setGoldenUrl(`/golden/${selectedCase.name}.png`);
     setGroundTruthMissing(false);
     setGroundTruthUrl(null);
-
     void (async () => {
       const gtUrl = `/ground-truth/${selectedCase.name}.game.png`;
       try {
@@ -107,16 +99,13 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       }
     })();
   }, [selectedCase]);
-
   useEffect(() => {
     if (!selectedCase) return;
-
     const gen = ++renderGenRef.current;
     const controller = new AbortController();
     setLoadingRender(true);
     setError(null);
     setAssetsMissing(false);
-
     void (async () => {
       try {
         const bpRes = await fetch(`/golden/${selectedCase.bp}`);
@@ -124,7 +113,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
         const source = (await bpRes.text()).trim();
         if (gen !== renderGenRef.current) return;
         setBlueprintString(source);
-
         let doc: BlueprintDocument;
         try {
           doc = decode(source);
@@ -137,7 +125,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
                 : "decode failed";
           throw new Error(`Decode error: ${reason}`);
         }
-
         const liveCanvas = liveCanvasRef.current;
         const overlayCanvas = overlayLiveRef.current;
         if (!liveCanvas || !overlayCanvas) return;
@@ -169,10 +156,8 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
     })();
     return () => controller.abort();
   }, [selectedCase]);
-
   useEffect(() => {
     if (!goldenUrl || !selectedCase) return;
-
     const img = new Image();
     img.onload = () => {
       const width = img.naturalWidth;
@@ -186,10 +171,8 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
     };
     img.src = goldenUrl;
   }, [goldenUrl, selectedCase]);
-
   useEffect(() => {
     if (!groundTruthUrl || !selectedCase) return;
-
     const img = new Image();
     img.onload = () => {
       const canvas = groundTruthCanvasRef.current;
@@ -200,7 +183,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
     };
     img.src = groundTruthUrl;
   }, [groundTruthUrl, selectedCase]);
-
   if (loadingCases) {
     return (
       <div className="flex min-h-0 flex-col gap-4">
@@ -210,7 +192,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       </div>
     );
   }
-
   if (cases.length === 0) {
     return (
       <div className="flex min-h-0 flex-col gap-4">
@@ -220,7 +201,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       </div>
     );
   }
-
   if (!caseName) {
     return (
       <div className="flex min-h-0 flex-col gap-4">
@@ -230,7 +210,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       </div>
     );
   }
-
   if (!selectedCase) {
     return (
       <div className="flex min-h-0 flex-col gap-4">
@@ -240,7 +219,6 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       </div>
     );
   }
-
   return (
     <div className="flex min-h-0 flex-col gap-4">
       <Alert>
@@ -407,4 +385,4 @@ export function ComparePane({ caseName }: { caseName: string | null }) {
       </div>
     </div>
   );
-}
+};

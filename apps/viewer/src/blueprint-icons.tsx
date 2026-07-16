@@ -1,13 +1,7 @@
 import { planBlueprintIcons, type BlueprintIconVariant, type Icon } from "fpsr";
 import { FactorioItemIcon } from "./factorio-item-icon";
-
 export type { BlueprintIconVariant };
-
-/**
- * Renders blueprint preview icons composited onto the blue blueprint item tile,
- * matching Factorio's inventory thumbnail sizes and count-based layout.
- */
-export function BlueprintIcons({
+export const BlueprintIcons = ({
   icons,
   size,
   backgroundKey,
@@ -20,9 +14,8 @@ export function BlueprintIcons({
   backgroundKey?: string;
   /** Blueprint paper vs book cover sizing. Inferred from backgroundKey when omitted. */
   variant?: BlueprintIconVariant;
-}) {
+}) => {
   const plan = planBlueprintIcons(icons, { variant, backgroundKey, tileSize: size });
-
   return (
     <div
       className="relative shrink-0 overflow-hidden"
@@ -56,4 +49,4 @@ export function BlueprintIcons({
       })}
     </div>
   );
-}
+};

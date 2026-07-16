@@ -3,7 +3,6 @@ import type { Blueprint, BlueprintDocument } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-
 const mocks = vi.hoisted(() => ({
   renderPreview: vi.fn(),
   measurePreview: vi.fn(),
@@ -12,13 +11,10 @@ const mocks = vi.hoisted(() => ({
   createObjectURL: vi.fn(() => "blob:test-export"),
   revokeObjectURL: vi.fn(),
 }));
-
 class ClipboardItemMock {
   static supports = vi.fn(() => true);
-
   constructor(readonly items: Record<string, Blob>) {}
 }
-
 vi.mock("./preview-renderer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./preview-renderer")>();
   return {
@@ -28,14 +24,12 @@ vi.mock("./preview-renderer", async (importOriginal) => {
     clearPreview: mocks.clearPreview,
   };
 });
-
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
     return <span data-testid="entity-icon" data-icon-key={key} data-quality={quality ?? ""} />;
   },
 }));
-
 vi.mock("./preview-canvas-frame", () => ({
   PreviewCanvasFrame: ({
     children,
@@ -53,11 +47,9 @@ vi.mock("./preview-canvas-frame", () => ({
     </>
   ),
 }));
-
 import { PreviewPane } from "./preview-pane";
 import type { PreviewRenderProgress, PreviewRenderResult } from "./preview-renderer";
-
-function result(): PreviewRenderResult {
+const result = (): PreviewRenderResult => {
   return {
     width: 32,
     height: 32,
@@ -69,13 +61,15 @@ function result(): PreviewRenderResult {
     toImageBlob: vi.fn(async (options) => new Blob([new Uint8Array(2048)], { type: options.type })),
     toPngBlob: vi.fn(async () => new Blob()),
   };
-}
-
+};
 describe("PreviewPane alt-mode toggle", () => {
   let host: HTMLDivElement;
-
   beforeEach(() => {
-    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as {
+        IS_REACT_ACT_ENVIRONMENT?: boolean;
+      }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     globalThis.ResizeObserver = class ResizeObserver {
       observe(): void {}
       unobserve(): void {}
@@ -112,12 +106,10 @@ describe("PreviewPane alt-mode toggle", () => {
       value: { write: mocks.clipboardWrite },
     });
   });
-
   afterEach(() => {
     vi.unstubAllGlobals();
     host.remove();
   });
-
   it("rerenders when alt mode is toggled and exposes the latest result", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -156,7 +148,6 @@ describe("PreviewPane alt-mode toggle", () => {
       showCheckerboard: true,
       signal: expect.any(AbortSignal),
     });
-
     const toggle = host.querySelector<HTMLButtonElement>("#alt-mode");
     expect(toggle).toBeTruthy();
     act(() => {
@@ -180,10 +171,8 @@ describe("PreviewPane alt-mode toggle", () => {
       (button) => button.textContent === "Copy WebP",
     );
     expect(copy?.disabled).toBe(false);
-
     await act(async () => root.unmount());
   });
-
   it("rerenders when checkerboard is toggled", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -201,7 +190,6 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({ showCheckerboard: true });
-
     const toggle = host.querySelector<HTMLButtonElement>("#checkerboard");
     expect(toggle).toBeTruthy();
     act(() => {
@@ -212,10 +200,8 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
     expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({ showCheckerboard: false });
-
     await act(async () => root.unmount());
   });
-
   it("prepares the selected format once for sized downloads and matching clipboard copies", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -241,7 +227,6 @@ describe("PreviewPane alt-mode toggle", () => {
       [...host.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === text,
       );
-
     act(() => {
       root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
     });
@@ -254,7 +239,6 @@ describe("PreviewPane alt-mode toggle", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
-
     const formatInput = host.querySelector<HTMLInputElement>("#export-format");
     const formatSwitch = host.querySelector<HTMLButtonElement>(
       '[data-slot="switch"][aria-label="Use WebP image format"]',
@@ -265,7 +249,6 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(copyWebp).toBeTruthy();
     expect(toImageBlob).toHaveBeenCalledTimes(1);
     expect(toImageBlob).toHaveBeenLastCalledWith({ type: "image/webp", quality: 0.9 });
-
     await act(async () => {
       copyWebp?.click();
     });
@@ -275,7 +258,6 @@ describe("PreviewPane alt-mode toggle", () => {
       | undefined;
     expect(webpClipboardItem?.items["image/webp"]?.type).toBe("image/webp");
     expect(toImageBlob).toHaveBeenCalledTimes(1);
-
     act(() => {
       formatSwitch?.click();
     });
@@ -295,7 +277,6 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(findButton("Copy PNG")).toBeTruthy();
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(toImageBlob).toHaveBeenCalledTimes(2);
-
     act(() => {
       formatSwitch?.click();
     });
@@ -306,10 +287,8 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(findButton("Download 2.0 KB")?.disabled).toBe(false);
     expect(findButton("Copy WebP")).toBeTruthy();
     expect(toImageBlob).toHaveBeenCalledTimes(2);
-
     await act(async () => root.unmount());
   });
-
   it("preflights an oversized full-resolution render before painting", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -329,7 +308,6 @@ describe("PreviewPane alt-mode toggle", () => {
       capped: false,
     });
     const root = createRoot(host);
-
     act(() => {
       root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
     });
@@ -337,7 +315,6 @@ describe("PreviewPane alt-mode toggle", () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
-
     const limitSwitch = host.querySelector<HTMLButtonElement>("#limit-to-4k");
     act(() => {
       limitSwitch?.click();
@@ -345,7 +322,6 @@ describe("PreviewPane alt-mode toggle", () => {
     await act(async () => {
       await Promise.resolve();
     });
-
     expect(mocks.measurePreview).toHaveBeenCalledTimes(1);
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("Large full-resolution render");
@@ -354,14 +330,12 @@ describe("PreviewPane alt-mode toggle", () => {
       (button) => button.textContent === "Proceed with full res",
     );
     expect(proceed).toBeTruthy();
-
     act(() => {
       proceed?.click();
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
-
     expect(mocks.measurePreview).toHaveBeenCalledTimes(2);
     expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
     expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({
@@ -369,7 +343,6 @@ describe("PreviewPane alt-mode toggle", () => {
       maxOutputSize: undefined,
     });
     expect(host.textContent).not.toContain("Large full-resolution render");
-
     await act(async () => root.unmount());
   });
 });

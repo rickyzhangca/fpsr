@@ -1,7 +1,6 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PerfReport } from "./perf-report";
-
-function fmtMs(ms: number): string {
+const fmtMs = (ms: number): string => {
   if (!Number.isFinite(ms)) return "—";
   const abs = Math.abs(ms);
   let body: string;
@@ -11,34 +10,29 @@ function fmtMs(ms: number): string {
   else if (abs < 100) body = `${abs.toFixed(1)}ms`;
   else body = `${Math.round(abs)}ms`;
   return ms < 0 && abs >= 0.005 ? `-${body}` : body;
-}
-
-function fmtBytes(bytes: number): string {
+};
+const fmtBytes = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function fmtRate(numer: number, denomMs: number, unit: string): string {
+};
+const fmtRate = (numer: number, denomMs: number, unit: string): string => {
   if (denomMs <= 0) return `— ${unit}`;
   const perSec = (numer / denomMs) * 1000;
-  if (perSec >= 1_000_000) return `${(perSec / 1_000_000).toFixed(2)}M ${unit}`;
+  if (perSec >= 1000000) return `${(perSec / 1000000).toFixed(2)}M ${unit}`;
   if (perSec >= 1000) return `${(perSec / 1000).toFixed(1)}k ${unit}`;
   return `${perSec.toFixed(0)} ${unit}`;
-}
-
-function bar(fraction: number, width = 20): string {
+};
+const bar = (fraction: number, width = 20): string => {
   const clamped = Math.max(0, Math.min(1, fraction));
   const filled = Math.round(clamped * width);
   return "█".repeat(filled) + "░".repeat(width - filled);
-}
-
-function stageLine(label: string, ms: number, totalMs: number): string {
+};
+const stageLine = (label: string, ms: number, totalMs: number): string => {
   const pct = totalMs > 0 ? ms / totalMs : 0;
   return `  ${label.padEnd(14)} ${fmtMs(ms).padStart(8)}  ${bar(pct)}  ${(pct * 100).toFixed(1)}%`;
-}
-
-function formatLayerHistogram(hist: Record<string, number>): string {
+};
+const formatLayerHistogram = (hist: Record<string, number>): string => {
   const entries = Object.entries(hist)
     .map(([layer, count]) => ({ layer: Number(layer), count }))
     .sort((a, b) => b.count - a.count || a.layer - b.layer);
@@ -51,21 +45,20 @@ function formatLayerHistogram(hist: Record<string, number>): string {
       return `  layer ${String(layer).padStart(3)}  ${String(count).padStart(5)}  ${bar(pct, 12)}`;
     })
     .join("\n");
-}
-
-/** Format a PerfReport as plain monospace text. */
-export function formatPerfReport(report: PerfReport): string {
+};
+export const formatPerfReport = (report: PerfReport): string => {
   const { profile, decode, blueprint, assetDetails } = report;
   const lines: string[] = [];
-
   lines.push("═══════════════════════════════════════════════════════════");
   lines.push(
     ` FPSR PERFORMANCE  ·  ${report.cold ? "COLD" : "WARM"}  ·  ${new Date(report.at).toLocaleTimeString()}`,
   );
   lines.push("═══════════════════════════════════════════════════════════");
   lines.push("");
-
-  const stages: { label: string; ms: number }[] = [];
+  const stages: {
+    label: string;
+    ms: number;
+  }[] = [];
   if (decode) stages.push({ label: "decode", ms: decode.timings.totalMs });
   stages.push({ label: "select", ms: profile.selectMs });
   stages.push({ label: "plan", ms: profile.plan.totalMs });
@@ -73,7 +66,6 @@ export function formatPerfReport(report: PerfReport): string {
   stages.push({ label: "icon bake", ms: profile.iconBakeMs });
   stages.push({ label: "frame", ms: profile.frameMs });
   stages.push({ label: "paint", ms: profile.paintMs });
-
   lines.push("STAGE TIMINGS");
   lines.push("───────────────────────────────────────────────────────────");
   for (const s of stages) {
@@ -84,7 +76,6 @@ export function formatPerfReport(report: PerfReport): string {
     `  ${"profile".padEnd(14)} ${fmtMs(profile.totalMs).padStart(8)}  (inside renderer.render)`,
   );
   lines.push("");
-
   lines.push("PLAN PHASES");
   lines.push("───────────────────────────────────────────────────────────");
   const plan = profile.plan;
@@ -101,7 +92,6 @@ export function formatPerfReport(report: PerfReport): string {
   }
   lines.push(`  ${"plan total".padEnd(14)} ${fmtMs(plan.totalMs).padStart(8)}`);
   lines.push("");
-
   lines.push("INPUT");
   lines.push("───────────────────────────────────────────────────────────");
   if (decode) {
@@ -128,7 +118,6 @@ export function formatPerfReport(report: PerfReport): string {
     lines.push("  (no decode stats — blueprint was already decoded)");
   }
   lines.push("");
-
   lines.push("BLUEPRINT");
   lines.push("───────────────────────────────────────────────────────────");
   lines.push(`  version           ${blueprint.version}`);
@@ -142,7 +131,6 @@ export function formatPerfReport(report: PerfReport): string {
     }
   }
   lines.push("");
-
   const dl = profile.drawList;
   lines.push("DRAW LIST");
   lines.push("───────────────────────────────────────────────────────────");
@@ -158,7 +146,6 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push("  layers:");
   lines.push(formatLayerHistogram(dl.layerHistogram));
   lines.push("");
-
   lines.push("ASSETS");
   lines.push("───────────────────────────────────────────────────────────");
   lines.push(
@@ -188,7 +175,7 @@ export function formatPerfReport(report: PerfReport): string {
       const tag = ev.cached ? "cache" : "fetch";
       const extra =
         detail && !ev.cached
-          ? `  fetch ${fmtMs(detail.fetchMs ?? 0)}  queue ${fmtMs(detail.queueMs ?? 0)}  decode ${fmtMs(detail.decodeMs ?? 0)}  ${((detail.decodedPixels ?? 0) / 1_000_000).toFixed(2)} MP  ${fmtBytes(detail.bytes ?? 0)}`
+          ? `  fetch ${fmtMs(detail.fetchMs ?? 0)}  queue ${fmtMs(detail.queueMs ?? 0)}  decode ${fmtMs(detail.decodeMs ?? 0)}  ${((detail.decodedPixels ?? 0) / 1000000).toFixed(2)} MP  ${fmtBytes(detail.bytes ?? 0)}`
           : "";
       lines.push(`  atlas ${String(ev.index).padStart(2)}  [${tag}]  ${fmtMs(ev.totalMs)}${extra}`);
     }
@@ -210,7 +197,7 @@ export function formatPerfReport(report: PerfReport): string {
     0,
   );
   if (referencedPixels > 0) {
-    lines.push(`  referenced pixels ${(referencedPixels / 1_000_000).toFixed(2)} MP`);
+    lines.push(`  referenced pixels ${(referencedPixels / 1000000).toFixed(2)} MP`);
   }
   const overlapping = assetDetails.filter(
     (event) =>
@@ -223,7 +210,7 @@ export function formatPerfReport(report: PerfReport): string {
   if (overlapping.length > 0) {
     const overlappingBytes = overlapping.reduce((sum, event) => sum + (event.bytes ?? 0), 0);
     lines.push(
-      `  overlapping loads  ${overlapping.length} atlases · ${(overlappingPixels / 1_000_000).toFixed(2)} MP · ${fmtBytes(overlappingBytes)}`,
+      `  overlapping loads  ${overlapping.length} atlases · ${(overlappingPixels / 1000000).toFixed(2)} MP · ${fmtBytes(overlappingBytes)}`,
     );
   }
   lines.push(`  session total      ${fmtBytes(report.sessionBytes)} blob bytes processed`);
@@ -237,11 +224,10 @@ export function formatPerfReport(report: PerfReport): string {
     `  silhouette cache   ${profile.silhouetteCacheHits} hits · ${profile.silhouetteCacheMisses} misses`,
   );
   lines.push("");
-
   const out = profile.output;
   const tilesW = out.tileFrame.maxX - out.tileFrame.minX;
   const tilesH = out.tileFrame.maxY - out.tileFrame.minY;
-  const screens4k = out.megapixels / ((3840 * 2160) / 1_000_000);
+  const screens4k = out.megapixels / ((3840 * 2160) / 1000000);
   lines.push("OUTPUT");
   lines.push("───────────────────────────────────────────────────────────");
   lines.push(`  canvas            ${out.width} × ${out.height} px`);
@@ -254,13 +240,12 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push(`  tile frame        ${tilesW} × ${tilesH} tiles`);
   lines.push(`  vs 4K screen      ${screens4k.toFixed(2)}×`);
   lines.push(
-    `  shadow scratch   ${(profile.shadow.peakScratchPixels / 1_000_000).toFixed(2)} MP peak`,
+    `  shadow scratch   ${(profile.shadow.peakScratchPixels / 1000000).toFixed(2)} MP peak`,
   );
   lines.push(
-    `  shadow work      ${profile.shadow.runs} runs · ${profile.shadow.tiles} tiles · ${(profile.shadow.compositedPixels / 1_000_000).toFixed(2)} MP composited`,
+    `  shadow work      ${profile.shadow.runs} runs · ${profile.shadow.tiles} tiles · ${(profile.shadow.compositedPixels / 1000000).toFixed(2)} MP composited`,
   );
   lines.push("");
-
   const spriteCount = dl.byKind.sprite ?? 0;
   const entityCount = Math.max(1, blueprint.entityCount);
   lines.push("THROUGHPUT");
@@ -275,11 +260,9 @@ export function formatPerfReport(report: PerfReport): string {
   lines.push(`  commands/entity    ${(dl.commandCount / entityCount).toFixed(2)}`);
   lines.push("");
   lines.push("Tip: open DevTools → Performance to see fpsr-* marks/measures.");
-
   return lines.join("\n");
-}
-
-export function PerformancePane({ report }: { report: PerfReport | null }) {
+};
+export const PerformancePane = ({ report }: { report: PerfReport | null }) => {
   if (!report) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center text-muted-foreground text-sm">
@@ -287,9 +270,7 @@ export function PerformancePane({ report }: { report: PerfReport | null }) {
       </div>
     );
   }
-
   const text = formatPerfReport(report);
-
   return (
     <ScrollArea className="min-h-0 flex-1">
       <pre className="whitespace-pre p-4 font-mono text-xs leading-relaxed text-foreground">
@@ -297,4 +278,4 @@ export function PerformancePane({ report }: { report: PerfReport | null }) {
       </pre>
     </ScrollArea>
   );
-}
+};

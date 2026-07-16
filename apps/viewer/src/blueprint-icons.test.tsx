@@ -3,29 +3,27 @@ import type { Icon } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
     return <span data-testid="entity-icon" data-icon-key={key} data-quality={quality ?? ""} />;
   },
 }));
-
 import { BlueprintIcons } from "./blueprint-icons";
-
 describe("BlueprintIcons", () => {
   let host: HTMLDivElement;
-
   beforeEach(() => {
-    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as {
+        IS_REACT_ACT_ENVIRONMENT?: boolean;
+      }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     host = document.createElement("div");
     document.body.append(host);
   });
-
   afterEach(() => {
     host.remove();
   });
-
   it("composites signal icons onto the blueprint paper background", () => {
     const icons: Icon[] = [
       { signal: { name: "fast-transport-belt" }, index: 1 },
@@ -35,7 +33,6 @@ describe("BlueprintIcons", () => {
     act(() => {
       root.render(<BlueprintIcons icons={icons} />);
     });
-
     const rendered = [...host.querySelectorAll("[data-testid=entity-icon]")];
     expect(rendered.map((el) => el.getAttribute("data-icon-key"))).toEqual([
       "item/blueprint",
@@ -43,10 +40,8 @@ describe("BlueprintIcons", () => {
       "item/transport-belt",
     ]);
     expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
-
     act(() => root.unmount());
   });
-
   it("renders quality on signal overlays and shows blank blueprint when empty", () => {
     const root = createRoot(host);
     act(() => {
@@ -67,7 +62,6 @@ describe("BlueprintIcons", () => {
       "virtual-signal/signal-2",
     ]);
     expect(rendered[1]?.getAttribute("data-quality")).toBe("rare");
-
     act(() => {
       root.render(<BlueprintIcons icons={[]} />);
     });
@@ -76,10 +70,8 @@ describe("BlueprintIcons", () => {
     expect(host.querySelector("[data-testid=entity-icon]")?.getAttribute("data-icon-key")).toBe(
       "item/blueprint",
     );
-
     act(() => root.unmount());
   });
-
   it("uses book cover sizing when background is blueprint-book", () => {
     const icons: Icon[] = [
       { signal: { name: "iron-plate" }, index: 1 },
@@ -89,7 +81,6 @@ describe("BlueprintIcons", () => {
     act(() => {
       root.render(<BlueprintIcons icons={icons} backgroundKey="item/blueprint-book" />);
     });
-
     const tile = host.querySelector('[aria-label="Blueprint icons"]') as HTMLElement;
     expect(tile).toBeTruthy();
     expect(tile.style.width).toBe("64px");
@@ -101,7 +92,6 @@ describe("BlueprintIcons", () => {
       expect(span.style.height).toBe("18px");
       expect(span.style.top).toBe(`${32 - 9 - 5}px`);
     }
-
     act(() => root.unmount());
   });
 });

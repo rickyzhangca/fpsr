@@ -1,26 +1,23 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-
 const DB_NAME = "fpsr-viewer";
 const DB_VERSION = 1;
 const STORE_NAME = "custom-blueprints";
-
 export interface CustomBlueprintRecord {
   id: string;
   raw: string;
   createdAt: number;
 }
-
 interface FpsrViewerDb extends DBSchema {
   [STORE_NAME]: {
     key: string;
     value: CustomBlueprintRecord;
-    indexes: { "by-createdAt": number };
+    indexes: {
+      "by-createdAt": number;
+    };
   };
 }
-
 let dbPromise: Promise<IDBPDatabase<FpsrViewerDb>> | null = null;
-
-function getDb(): Promise<IDBPDatabase<FpsrViewerDb>> {
+const getDb = (): Promise<IDBPDatabase<FpsrViewerDb>> => {
   if (!dbPromise) {
     dbPromise = openDB<FpsrViewerDb>(DB_NAME, DB_VERSION, {
       upgrade(db) {
@@ -30,14 +27,12 @@ function getDb(): Promise<IDBPDatabase<FpsrViewerDb>> {
     });
   }
   return dbPromise;
-}
-
-export async function listCustoms(): Promise<CustomBlueprintRecord[]> {
+};
+export const listCustoms = async (): Promise<CustomBlueprintRecord[]> => {
   const db = await getDb();
   return db.getAllFromIndex(STORE_NAME, "by-createdAt");
-}
-
-export async function addCustom(raw: string): Promise<CustomBlueprintRecord> {
+};
+export const addCustom = async (raw: string): Promise<CustomBlueprintRecord> => {
   const record: CustomBlueprintRecord = {
     id: crypto.randomUUID(),
     raw,
@@ -46,9 +41,8 @@ export async function addCustom(raw: string): Promise<CustomBlueprintRecord> {
   const db = await getDb();
   await db.put(STORE_NAME, record);
   return record;
-}
-
-export async function clearCustoms(): Promise<void> {
+};
+export const clearCustoms = async (): Promise<void> => {
   const db = await getDb();
   await db.clear(STORE_NAME);
-}
+};

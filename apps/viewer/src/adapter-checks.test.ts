@@ -1,23 +1,20 @@
 import { type Blueprint, type BlueprintEntity, decodeVersion } from "fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { getAdapterChecks } from "./adapter-checks";
-
-function bp1x(entities: Blueprint["entities"]): Blueprint {
+const bp1x = (entities: Blueprint["entities"]): Blueprint => {
   return {
     item: "blueprint",
     version: 1 * 2 ** 48,
     entities,
   };
-}
-
-function bp2x(entities: Blueprint["entities"]): Blueprint {
+};
+const bp2x = (entities: Blueprint["entities"]): Blueprint => {
   return {
     item: "blueprint",
     version: 2 * 2 ** 48,
     entities,
   };
-}
-
+};
 describe("getAdapterChecks", () => {
   it("returns all adapters unchecked for null blueprint", () => {
     const checks = getAdapterChecks(null);
@@ -26,7 +23,6 @@ describe("getAdapterChecks", () => {
       { id: "items-object-to-array", used: false },
     ]);
   });
-
   it("returns all adapters unchecked for Factorio 2.x blueprints", () => {
     const checks = getAdapterChecks(
       bp2x([
@@ -40,7 +36,6 @@ describe("getAdapterChecks", () => {
     );
     expect(checks.every((c) => !c.used)).toBe(true);
   });
-
   it("marks scale-legacy-directions when 1.x directions are present", () => {
     const checks = getAdapterChecks(
       bp1x([
@@ -55,7 +50,6 @@ describe("getAdapterChecks", () => {
     expect(checks.find((c) => c.id === "scale-legacy-directions")?.used).toBe(true);
     expect(checks.find((c) => c.id === "items-object-to-array")?.used).toBe(false);
   });
-
   it("marks items-object-to-array when legacy items object is present", () => {
     const checks = getAdapterChecks(
       bp1x([
@@ -69,7 +63,6 @@ describe("getAdapterChecks", () => {
     );
     expect(checks.find((c) => c.id === "items-object-to-array")?.used).toBe(true);
   });
-
   it("reports version major 2 as skipped", () => {
     const bp = bp2x([]);
     expect(decodeVersion(bp.version ?? 0).major).toBe(2);

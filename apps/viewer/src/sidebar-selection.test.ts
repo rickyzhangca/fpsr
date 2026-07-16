@@ -2,8 +2,7 @@ import type { BlueprintDocument } from "fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { resolveSidebarSelection } from "./sidebar-selection";
 import type { SidebarSource } from "./sidebar-tree";
-
-function blueprintSource(id: string, label: string, blueprintLabel?: string): SidebarSource {
+const blueprintSource = (id: string, label: string, blueprintLabel?: string): SidebarSource => {
   const doc: BlueprintDocument = {
     blueprint: {
       item: "blueprint",
@@ -13,9 +12,8 @@ function blueprintSource(id: string, label: string, blueprintLabel?: string): Si
     },
   };
   return { id, label, doc };
-}
-
-function bookSource(id: string, label: string): SidebarSource {
+};
+const bookSource = (id: string, label: string): SidebarSource => {
   const doc: BlueprintDocument = {
     blueprint_book: {
       item: "blueprint-book",
@@ -56,8 +54,7 @@ function bookSource(id: string, label: string): SidebarSource {
     },
   };
   return { id, label, doc };
-}
-
+};
 describe("resolveSidebarSelection", () => {
   it("resolves a single blueprint source", () => {
     const sources = [blueprintSource("smoke", "Smoke", "Smoke Lab")];
@@ -67,12 +64,10 @@ describe("resolveSidebarSelection", () => {
       icons: undefined,
     });
   });
-
   it("falls back to catalog label when blueprint has no label", () => {
     const sources = [blueprintSource("smoke", "Smoke")];
     expect(resolveSidebarSelection(sources, "smoke", null).label).toBe("Smoke");
   });
-
   it("resolves a book root selection", () => {
     const sources = [bookSource("tests", "base items")];
     expect(resolveSidebarSelection(sources, "tests", null)).toMatchObject({
@@ -80,7 +75,6 @@ describe("resolveSidebarSelection", () => {
       kind: "book",
     });
   });
-
   it("resolves a nested blueprint path", () => {
     const sources = [bookSource("tests", "base items")];
     expect(resolveSidebarSelection(sources, "tests", [0])).toMatchObject({
@@ -88,7 +82,6 @@ describe("resolveSidebarSelection", () => {
       kind: "blueprint",
     });
   });
-
   it("resolves a nested book path", () => {
     const sources = [bookSource("tests", "base items")];
     expect(resolveSidebarSelection(sources, "tests", [1])).toMatchObject({
@@ -96,14 +89,12 @@ describe("resolveSidebarSelection", () => {
       kind: "book",
     });
   });
-
   it("falls back for unknown source", () => {
     expect(resolveSidebarSelection([], "missing", null)).toEqual({
       label: "Select blueprint",
       kind: "blueprint",
     });
   });
-
   it("falls back to catalog label for unknown path within a source", () => {
     const sources = [bookSource("tests", "base items")];
     expect(resolveSidebarSelection(sources, "tests", [99])).toEqual({

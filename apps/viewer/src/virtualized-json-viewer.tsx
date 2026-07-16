@@ -15,22 +15,18 @@ import {
   jsonPageCode,
   jsonPagesForRange,
 } from "./json-lines";
-
 const LINE_HEIGHT_PX = 20;
 const RANGE_SETTLE_MS = 50;
 const MAX_CACHED_PAGES = 32;
 const EMPTY_PAGES = new Map<number, JsonHighlightToken[][]>();
-
 interface PageCache {
   code: string;
   pages: Map<number, JsonHighlightToken[][]>;
 }
-
 type VirtualizedJsonScrollerProps = ScrollerProps & {
   "aria-label"?: string;
   className?: string;
 };
-
 const VirtualizedJsonScroller = forwardRef<HTMLDivElement, VirtualizedJsonScrollerProps>(
   ({ children, className, style, ...props }, ref) => (
     <ScrollAreaRoot className={className}>
@@ -43,18 +39,15 @@ const VirtualizedJsonScroller = forwardRef<HTMLDivElement, VirtualizedJsonScroll
     </ScrollAreaRoot>
   ),
 );
-
 const VIRTUOSO_COMPONENTS = { Scroller: VirtualizedJsonScroller };
-
-function trimPageCache(pages: Map<number, JsonHighlightToken[][]>): void {
+const trimPageCache = (pages: Map<number, JsonHighlightToken[][]>): void => {
   while (pages.size > MAX_CACHED_PAGES) {
     const oldest = pages.keys().next().value;
     if (oldest === undefined) return;
     pages.delete(oldest);
   }
-}
-
-function HighlightedLine({ tokens }: { tokens: JsonHighlightToken[] }) {
+};
+const HighlightedLine = ({ tokens }: { tokens: JsonHighlightToken[] }) => {
   return tokens.map((token, index) => (
     <span
       key={`${index}:${token.content}`}
@@ -63,9 +56,8 @@ function HighlightedLine({ tokens }: { tokens: JsonHighlightToken[] }) {
       {token.content}
     </span>
   ));
-}
-
-export function VirtualizedJsonViewer({ code }: { code: string }) {
+};
+export const VirtualizedJsonViewer = ({ code }: { code: string }) => {
   const lineStarts = useMemo(() => buildLineStarts(code), [code]);
   const [cache, setCache] = useState<PageCache>(() => ({ code, pages: new Map() }));
   const pendingPagesRef = useRef(new Set<string>());
@@ -74,15 +66,12 @@ export function VirtualizedJsonViewer({ code }: { code: string }) {
   const timerRef = useRef<number | undefined>(undefined);
   const codeRef = useRef(code);
   const generationRef = useRef(0);
-
   if (codeRef.current !== code) {
     codeRef.current = code;
     generationRef.current++;
     pendingPagesRef.current.clear();
   }
-
   const pages = cache.code === code ? cache.pages : EMPTY_PAGES;
-
   const requestRange = useCallback(
     (range: ListRange) => {
       const generation = generationRef.current;
@@ -95,7 +84,6 @@ export function VirtualizedJsonViewer({ code }: { code: string }) {
         const pendingKey = `${generation}:${pageIndex}`;
         if (pendingPagesRef.current.has(pendingKey)) continue;
         pendingPagesRef.current.add(pendingKey);
-
         const pageCode = jsonPageCode(code, lineStarts, pageIndex);
         void highlightJsonPage(pageCode)
           .then((lines) => {
@@ -118,7 +106,6 @@ export function VirtualizedJsonViewer({ code }: { code: string }) {
     },
     [code, lineStarts, pages],
   );
-
   const scheduleRange = useCallback(
     (delay = RANGE_SETTLE_MS) => {
       if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
@@ -130,14 +117,12 @@ export function VirtualizedJsonViewer({ code }: { code: string }) {
     },
     [requestRange],
   );
-
   useEffect(
     () => () => {
       if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
     },
     [],
   );
-
   return (
     <Virtuoso
       aria-label="JSON source"
@@ -169,4 +154,4 @@ export function VirtualizedJsonViewer({ code }: { code: string }) {
       }}
     />
   );
-}
+};

@@ -1,14 +1,12 @@
 import { cn } from "@/lib/utils";
 import { parseRichText, richTextIconKeys, richTextIconQuality, type RichTextToken } from "fpsr";
 import { FactorioItemIcon } from "./factorio-item-icon";
-
 const SIZE_PX = {
   lg: 20,
   sm: 16,
   xs: 14,
 } as const;
-
-export function FactorioRichText({
+export const FactorioRichText = ({
   text,
   fallback,
   size = "sm",
@@ -18,16 +16,14 @@ export function FactorioRichText({
   fallback?: string;
   size?: keyof typeof SIZE_PX;
   className?: string;
-}) {
+}) => {
   const trimmed = text?.trim();
   if (!trimmed) {
     if (fallback === undefined) return null;
     return <span className={className}>{fallback}</span>;
   }
-
   const tokens = parseRichText(trimmed);
   const iconSize = SIZE_PX[size];
-
   return (
     <span className={cn("inline", className)}>
       {tokens.map((token, index) => (
@@ -35,18 +31,15 @@ export function FactorioRichText({
       ))}
     </span>
   );
-}
-
-function tokenKey(token: RichTextToken): string {
+};
+const tokenKey = (token: RichTextToken): string => {
   if (token.kind === "text") return token.value;
   return token.raw;
-}
-
-function RichTextTokenView({ token, iconSize }: { token: RichTextToken; iconSize: number }) {
+};
+const RichTextTokenView = ({ token, iconSize }: { token: RichTextToken; iconSize: number }) => {
   if (token.kind === "text") {
     return <>{token.value}</>;
   }
-
   return (
     <span
       className="mx-px inline-block align-middle leading-none"
@@ -61,4 +54,4 @@ function RichTextTokenView({ token, iconSize }: { token: RichTextToken; iconSize
       />
     </span>
   );
-}
+};

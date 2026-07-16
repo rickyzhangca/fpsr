@@ -28,56 +28,46 @@ import {
   type PreviewRenderProgress,
   type PreviewRenderResult,
 } from "./preview-renderer";
-
 const FULL_PIXELS_PER_TILE = 64;
 const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
 const WEBP_QUALITY = 0.9;
 const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
-
 type ExportFormat = "webp" | "png";
-
 const EXPORT_OPTIONS = {
   webp: { type: "image/webp", quality: WEBP_QUALITY },
   png: { type: "image/png" },
 } as const;
-
-function exportFormatLabel(format: ExportFormat): "WebP" | "PNG" {
+const exportFormatLabel = (format: ExportFormat): "WebP" | "PNG" => {
   return format === "webp" ? "WebP" : "PNG";
-}
-
-function formatExportSize(bytes: number): string {
+};
+const formatExportSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatSurfaceMemory(width: number, height: number): string {
+};
+const formatSurfaceMemory = (width: number, height: number): string => {
   const bytes = width * height * 4;
   return bytes < 1024 * 1024 * 1024
     ? `${(bytes / 1024 / 1024).toFixed(0)} MB`
     : `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
-
-function isAssetsError(message: string): boolean {
+};
+const isAssetsError = (message: string): boolean => {
   return (
     message.includes("Failed to fetch") ||
     message.includes("404") ||
     message.includes("Not found") ||
     message.includes("ENOENT")
   );
-}
-
-function resultPixelsPerTile(result: PreviewRenderResult): number {
+};
+const resultPixelsPerTile = (result: PreviewRenderResult): number => {
   const tilesX = result.tileFrame.maxX - result.tileFrame.minX;
   return tilesX > 0 ? result.width / tilesX : 32;
-}
-
-function formatTileSize(result: PreviewRenderResult | null): string {
+};
+const formatTileSize = (result: PreviewRenderResult | null): string => {
   if (!result) return "—";
   const { tileFrame } = result;
   return `${tileFrame.maxX - tileFrame.minX}×${tileFrame.maxY - tileFrame.minY} tiles`;
-}
-
-export function PreviewPane({
+};
+export const PreviewPane = ({
   doc,
   blueprint,
   blueprintPath,
@@ -93,14 +83,13 @@ export function PreviewPane({
   onTileSizeChange?: (tileSize: string) => void;
   onPerfReport?: (report: PerfReport | null) => void;
   onRenderProgress?: (progress: PreviewRenderProgress | null) => void;
-}) {
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
   const exportPromisesRef = useRef<{
     result: PreviewRenderResult;
     promises: Partial<Record<ExportFormat, Promise<Blob>>>;
   } | null>(null);
-
   const [limitTo4k, setLimitTo4k] = useState(true);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("webp");
   const [altMode, setAltMode] = useState(true);
@@ -110,7 +99,10 @@ export function PreviewPane({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assetsMissing, setAssetsMissing] = useState(false);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [dimensions, setDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [lastResult, setLastResult] = useState<PreviewRenderResult | null>(null);
   const [fullResWarning, setFullResWarning] = useState<{
     blueprint: Blueprint;
@@ -123,7 +115,15 @@ export function PreviewPane({
   } | null>(null);
   const [preparedExports, setPreparedExports] = useState<{
     result: PreviewRenderResult;
-    formats: Partial<Record<ExportFormat, { blob?: Blob; error?: string }>>;
+    formats: Partial<
+      Record<
+        ExportFormat,
+        {
+          blob?: Blob;
+          error?: string;
+        }
+      >
+    >;
   } | null>(null);
   const [_hoverTile, setHoverTile] = useState<{
     cellX: number;
@@ -131,30 +131,25 @@ export function PreviewPane({
     tx: number;
     ty: number;
   } | null>(null);
-
   useEffect(() => {
     onTileSizeChange?.(formatTileSize(lastResult));
   }, [lastResult, onTileSizeChange]);
-
   useEffect(() => {
     if (!lastResult) {
       exportPromisesRef.current = null;
       setPreparedExports(null);
       return;
     }
-
     let cache = exportPromisesRef.current;
     if (cache?.result !== lastResult) {
       cache = { result: lastResult, promises: {} };
       exportPromisesRef.current = cache;
     }
-
     let promise = cache.promises[exportFormat];
     if (!promise) {
       promise = lastResult.toImageBlob(EXPORT_OPTIONS[exportFormat]);
       cache.promises[exportFormat] = promise;
     }
-
     let stale = false;
     setPreparedExports((current) =>
       current?.result === lastResult ? current : { result: lastResult, formats: {} },
@@ -185,12 +180,10 @@ export function PreviewPane({
         }
       },
     );
-
     return () => {
       stale = true;
     };
   }, [lastResult, exportFormat]);
-
   const currentExport =
     preparedExports?.result === lastResult ? preparedExports.formats[exportFormat] : undefined;
   const exportBlob = currentExport?.blob;
@@ -199,7 +192,6 @@ export function PreviewPane({
   const controlsDisabled = preflighting || loading || exportPreparing;
   const downloadPendingLabel =
     !lastResult || preflighting || loading ? "Rendering" : exportPreparing ? "Encoding" : null;
-
   useEffect(() => {
     if (!doc || !blueprint) {
       setDimensions(null);
@@ -219,13 +211,11 @@ export function PreviewPane({
       }
       return;
     }
-
     const gen = ++renderGenRef.current;
     const controller = new AbortController();
     setError(null);
     setAssetsMissing(false);
     if (!showCoords) setHoverTile(null);
-
     let timer: number | undefined;
     const renderOptions = {
       blueprintPath: blueprintPath ?? undefined,
@@ -237,7 +227,6 @@ export function PreviewPane({
       showCoordinates: showCoords,
       profile: true,
     } as const;
-
     const startRender = () => {
       setPreflighting(false);
       setFullResWarning(null);
@@ -256,7 +245,6 @@ export function PreviewPane({
               onProgress: onRenderProgress,
             });
             if (gen !== renderGenRef.current) return;
-
             const profile = result.profile;
             if (profile) {
               const report: PerfReport = {
@@ -277,7 +265,6 @@ export function PreviewPane({
               };
               onPerfReport?.(report);
             }
-
             setDimensions({ width: result.width, height: result.height });
             setLastResult(result);
             completed = true;
@@ -305,7 +292,6 @@ export function PreviewPane({
         })();
       }, 150);
     };
-
     if (limitTo4k) {
       startRender();
     } else {
@@ -338,7 +324,6 @@ export function PreviewPane({
         },
       );
     }
-
     return () => {
       if (timer != null) window.clearTimeout(timer);
       controller.abort();
@@ -357,7 +342,6 @@ export function PreviewPane({
     onRenderProgress,
     fullResApproval,
   ]);
-
   const handleDownload = useCallback(() => {
     if (!exportBlob) return;
     const filename = `${stripRichText(blueprint?.label).replace(/[^\w.-]+/g, "_") || "blueprint"}.${exportFormat}`;
@@ -374,7 +358,6 @@ export function PreviewPane({
       toast.error(message);
     }
   }, [exportBlob, blueprint?.label, exportFormat, exportLabel]);
-
   const handleCopy = useCallback(async () => {
     if (!exportBlob) return;
     try {
@@ -389,7 +372,6 @@ export function PreviewPane({
       toast.error(message);
     }
   }, [exportBlob, exportFormat, exportLabel]);
-
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       if (!showCoords || !lastResult) {
@@ -423,15 +405,12 @@ export function PreviewPane({
     },
     [showCoords, lastResult],
   );
-
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);
   }, []);
-
   if (!doc || !blueprint) {
     return null;
   }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-2 pb-3">
@@ -533,7 +512,7 @@ export function PreviewPane({
                 {(
                   (fullResWarning.measurement.requestedWidth *
                     fullResWarning.measurement.requestedHeight) /
-                  1_000_000
+                  1000000
                 ).toFixed(1)}{" "}
                 MP). One RGBA surface alone is about{" "}
                 {formatSurfaceMemory(
@@ -604,4 +583,4 @@ export function PreviewPane({
       </PreviewCanvasFrame>
     </div>
   );
-}
+};

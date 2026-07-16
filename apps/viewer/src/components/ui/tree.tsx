@@ -1,8 +1,7 @@
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import type * as React from "react";
-
-function Tree({ className, ...props }: React.ComponentProps<"div">) {
+const Tree = ({ className, ...props }: React.ComponentProps<"div">) => {
   return (
     <div
       data-slot="tree"
@@ -11,9 +10,8 @@ function Tree({ className, ...props }: React.ComponentProps<"div">) {
       {...props}
     />
   );
-}
-
-function TreeItem({ className, ...props }: React.ComponentProps<"div">) {
+};
+const TreeItem = ({ className, ...props }: React.ComponentProps<"div">) => {
   return (
     <div
       data-slot="tree-item"
@@ -21,13 +19,14 @@ function TreeItem({ className, ...props }: React.ComponentProps<"div">) {
       {...props}
     />
   );
-}
-
-function TreeItemButton({
+};
+const TreeItemButton = ({
   className,
   indent = 0,
   ...props
-}: React.ComponentProps<"button"> & { indent?: number }) {
+}: React.ComponentProps<"button"> & {
+  indent?: number;
+}) => {
   return (
     <button
       data-slot="tree-item-button"
@@ -44,9 +43,8 @@ function TreeItemButton({
       {...props}
     />
   );
-}
-
-function TreeExpandIcon({ expanded, className }: { expanded?: boolean; className?: string }) {
+};
+const TreeExpandIcon = ({ expanded, className }: { expanded?: boolean; className?: string }) => {
   return (
     <ChevronRight
       data-slot="tree-expand-icon"
@@ -57,9 +55,8 @@ function TreeExpandIcon({ expanded, className }: { expanded?: boolean; className
       )}
     />
   );
-}
-
-function TreeItemIconSlot({ className, ...props }: React.ComponentProps<"span">) {
+};
+const TreeItemIconSlot = ({ className, ...props }: React.ComponentProps<"span">) => {
   return (
     <span
       data-slot="tree-item-icon"
@@ -67,6 +64,5 @@ function TreeItemIconSlot({ className, ...props }: React.ComponentProps<"span">)
       {...props}
     />
   );
-}
-
+};
 export { Tree, TreeExpandIcon, TreeItem, TreeItemButton, TreeItemIconSlot };

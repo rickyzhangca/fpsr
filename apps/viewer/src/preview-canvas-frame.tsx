@@ -11,7 +11,6 @@ import {
   type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from "react";
-
 const ZOOM_MIN = 0.05;
 const ZOOM_MAX = 16;
 /** Initial fit never exceeds true size — only zoom out to fit, never zoom in. */
@@ -23,24 +22,18 @@ const PINCH_ZOOM_STEP = 0.01;
 const RUBBERBAND_DISTANCE = 100;
 /** Matches react-viewer-pan-zoom spring.transition. */
 const SPRING_TRANSITION = "transform 0.1s ease-out";
-
-type View = { zoom: number; panX: number; panY: number };
-
-function clampZoom(zoom: number): number {
+type View = {
+  zoom: number;
+  panX: number;
+  panY: number;
+};
+const clampZoom = (zoom: number): number => {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
-}
-
-function fitZoomFor(shellW: number, shellH: number, contentW: number, contentH: number): number {
+};
+const fitZoomFor = (shellW: number, shellH: number, contentW: number, contentH: number): number => {
   return Math.min(shellW / contentW, shellH / contentH, FIT_ZOOM_MAX);
-}
-
-/**
- * Hard pan bounds, matching react-viewer-pan-zoom:
- * - Content smaller than the frame on an axis → pan locked to 0 on that axis
- * - Content larger → pan only enough that the content still covers the frame
- *   (max |pan| = (scaledSize - shellSize) / 2 with center-origin transforms)
- */
-function clampPan(
+};
+const clampPan = (
   zoom: number,
   panX: number,
   panY: number,
@@ -48,7 +41,10 @@ function clampPan(
   shellH: number,
   contentW: number,
   contentH: number,
-): { panX: number; panY: number } {
+): {
+  panX: number;
+  panY: number;
+} => {
   const scaledW = contentW * zoom;
   const scaledH = contentH * zoom;
   const maxX = Math.max(0, (scaledW - shellW) / 2);
@@ -57,10 +53,8 @@ function clampPan(
     panX: Math.min(maxX, Math.max(-maxX, panX)),
     panY: Math.min(maxY, Math.max(-maxY, panY)),
   };
-}
-
-/** Allow overscroll past hard pan bounds by `distance` (rubberband while dragging). */
-function rubberbandPan(
+};
+const rubberbandPan = (
   zoom: number,
   panX: number,
   panY: number,
@@ -69,15 +63,17 @@ function rubberbandPan(
   contentW: number,
   contentH: number,
   distance: number,
-): { panX: number; panY: number } {
+): {
+  panX: number;
+  panY: number;
+} => {
   const hard = clampPan(zoom, panX, panY, shellW, shellH, contentW, contentH);
   return {
     panX: Math.min(hard.panX + distance, Math.max(hard.panX - distance, panX)),
     panY: Math.min(hard.panY + distance, Math.max(hard.panY - distance, panY)),
   };
-}
-
-function ViewerToolbar({
+};
+const ViewerToolbar = ({
   zoom,
   onZoomOut,
   onZoomIn,
@@ -87,7 +83,7 @@ function ViewerToolbar({
   onZoomOut: () => void;
   onZoomIn: () => void;
   onReset: () => void;
-}) {
+}) => {
   return (
     <div
       data-no-pan
@@ -109,10 +105,8 @@ function ViewerToolbar({
       </ButtonGroup>
     </div>
   );
-}
-
-/** Bounded frame for rendered canvases. 100% zoom = true pixel size of the render. */
-export function PreviewCanvasFrame({
+};
+export const PreviewCanvasFrame = ({
   className,
   actions,
   overlay,
@@ -127,7 +121,7 @@ export function PreviewCanvasFrame({
   actions?: ReactNode;
   overlay?: ReactNode;
   children: ReactNode;
-}) {
+}) => {
   const shellRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const fitZoomRef = useRef(1);
@@ -140,24 +134,19 @@ export function PreviewCanvasFrame({
     panX: number;
     panY: number;
   } | null>(null);
-
   const [fitKey, setFitKey] = useState<string | null>(null);
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
   const [dragging, setDragging] = useState(false);
   /** Spring enabled only after the initial fit has painted — avoids zoom-in flash. */
   const [spring, setSpring] = useState(false);
-
   const contentKey =
     width != null && height != null && width > 0 && height > 0 ? `${width}x${height}` : null;
   const ready = contentKey != null && fitKey === contentKey;
-
   sizeRef.current = { width: width ?? 0, height: height ?? 0 };
-
   const commitView = useCallback((next: View) => {
     viewRef.current = next;
     setView(next);
   }, []);
-
   const applyZoomAt = useCallback(
     (nextZoom: number, originX: number, originY: number) => {
       const shell = shellRef.current;
@@ -174,7 +163,6 @@ export function PreviewCanvasFrame({
     },
     [commitView],
   );
-
   useLayoutEffect(() => {
     if (!contentKey || width == null || height == null) {
       fitZoomRef.current = 1;
@@ -183,10 +171,8 @@ export function PreviewCanvasFrame({
       commitView({ zoom: 1, panX: 0, panY: 0 });
       return;
     }
-
     const el = shellRef.current;
     if (!el) return;
-
     const measure = (): boolean => {
       if (fitKey === contentKey) return true;
       const { clientWidth, clientHeight } = el;
@@ -199,16 +185,13 @@ export function PreviewCanvasFrame({
       setFitKey(contentKey);
       return true;
     };
-
     if (measure()) return;
-
     const ro = new ResizeObserver(() => {
       if (measure()) ro.disconnect();
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [contentKey, width, height, fitKey, commitView]);
-
   // Turn spring on after the fitted frame is on screen (double rAF ≈ after paint).
   useEffect(() => {
     if (!ready) {
@@ -226,7 +209,6 @@ export function PreviewCanvasFrame({
       cancelAnimationFrame(id);
     };
   }, [ready, fitKey]);
-
   // Re-clamp pan if the shell size changes, but never re-fit zoom.
   useEffect(() => {
     const el = shellRef.current;
@@ -251,7 +233,6 @@ export function PreviewCanvasFrame({
     ro.observe(el);
     return () => ro.disconnect();
   }, [ready, width, height, commitView]);
-
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "r" || event.key === "R") {
@@ -278,18 +259,15 @@ export function PreviewCanvasFrame({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [commitView]);
-
   // Native pointer listeners so dragging works even when the canvas is the event target.
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || !ready) return;
-
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
       // Ignore drags that start on overlay controls.
       const target = event.target as HTMLElement | null;
       if (target?.closest("button, a, input, [data-no-pan]")) return;
-
       event.preventDefault();
       dragRef.current = {
         pointerId: event.pointerId,
@@ -305,7 +283,6 @@ export function PreviewCanvasFrame({
         // Synthetic / non-active pointers (tests) may reject capture; drag still works via bubbling.
       }
     };
-
     const onPointerMove = (event: PointerEvent) => {
       const drag = dragRef.current;
       const shell = shellRef.current;
@@ -329,7 +306,6 @@ export function PreviewCanvasFrame({
       );
       commitView({ zoom: viewRef.current.zoom, ...pan });
     };
-
     const onPointerUp = (event: PointerEvent) => {
       if (dragRef.current?.pointerId !== event.pointerId) return;
       dragRef.current = null;
@@ -337,7 +313,6 @@ export function PreviewCanvasFrame({
       if (viewport.hasPointerCapture(event.pointerId)) {
         viewport.releasePointerCapture(event.pointerId);
       }
-
       // Snap back from rubberband overscroll with spring transition.
       const shell = shellRef.current;
       const { width: contentW, height: contentH } = sizeRef.current;
@@ -356,7 +331,6 @@ export function PreviewCanvasFrame({
         commitView({ zoom: prev.zoom, ...pan });
       }
     };
-
     viewport.addEventListener("pointerdown", onPointerDown);
     viewport.addEventListener("pointermove", onPointerMove);
     viewport.addEventListener("pointerup", onPointerUp);
@@ -368,13 +342,11 @@ export function PreviewCanvasFrame({
       viewport.removeEventListener("pointercancel", onPointerUp);
     };
   }, [ready, commitView]);
-
   const onWheel = useCallback(
     (event: ReactWheelEvent<HTMLDivElement>) => {
       if (!ready) return;
       // Trackpad pinch sets ctrlKey; two-finger scroll should bubble to the page.
       if (!event.ctrlKey) return;
-
       event.preventDefault();
       const shell = shellRef.current;
       if (!shell) return;
@@ -386,20 +358,16 @@ export function PreviewCanvasFrame({
     },
     [applyZoomAt, ready],
   );
-
   const zoomBy = useCallback(
     (delta: number) => {
       applyZoomAt(viewRef.current.zoom + delta, 0, 0);
     },
     [applyZoomAt],
   );
-
   const onReset = useCallback(() => {
     commitView({ zoom: fitZoomRef.current, panX: 0, panY: 0 });
   }, [commitView]);
-
   const transition = spring && !dragging ? SPRING_TRANSITION : "none";
-
   return (
     <div
       ref={shellRef}
@@ -451,4 +419,4 @@ export function PreviewCanvasFrame({
       )}
     </div>
   );
-}
+};

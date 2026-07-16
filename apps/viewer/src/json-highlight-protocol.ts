@@ -2,13 +2,11 @@ export interface JsonHighlightToken {
   content: string;
   color?: string;
 }
-
 export type JsonHighlightWorkerRequest = {
   type: "highlight";
   requestId: number;
   code: string;
 };
-
 export type JsonHighlightWorkerResponse =
   | {
       type: "highlighted";

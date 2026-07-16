@@ -1,6 +1,5 @@
 import type { Blueprint } from "fpsr";
 import { describe, expect, it, vi } from "vite-plus/test";
-
 vi.mock("fpsr", () => ({
   decodeVersion: (v: number) => ({
     major: Math.floor(v / 2 ** 48) % 2 ** 16,
@@ -9,7 +8,6 @@ vi.mock("fpsr", () => ({
   }),
   encode: () => "0" + "x".repeat(99),
 }));
-
 import {
   countBlueprintComponentsByName,
   countEntitiesByName,
@@ -20,17 +18,14 @@ import {
   formatGameVersion,
   formatSnapping,
 } from "./blueprint-meta";
-
 describe("blueprintMeta", () => {
   it("formats game version", () => {
     const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
     expect(formatGameVersion(version)).toBe("2.1.11");
   });
-
   it("formats snapping as none when unset", () => {
     expect(formatSnapping({ item: "blueprint", version: 0 })).toBe("None");
   });
-
   it("formats absolute snapping with grid and offset", () => {
     const bp: Blueprint = {
       item: "blueprint",
@@ -41,7 +36,6 @@ describe("blueprintMeta", () => {
     };
     expect(formatSnapping(bp)).toBe("absolute · grid 2×2 · offset 0,0");
   });
-
   it("counts entities by name sorted by count then name", () => {
     expect(
       countEntitiesByName([
@@ -56,7 +50,6 @@ describe("blueprintMeta", () => {
       { name: "inserter", count: 1 },
     ]);
   });
-
   it("counts tiles alongside entities for blueprint components", () => {
     expect(
       countBlueprintComponentsByName(
@@ -71,7 +64,6 @@ describe("blueprintMeta", () => {
       { name: "wooden-chest", count: 1 },
     ]);
   });
-
   it("merges hazard-concrete left/right tiles by placing item", () => {
     const tileItemByName = {
       "hazard-concrete-left": "hazard-concrete",
@@ -89,7 +81,6 @@ describe("blueprintMeta", () => {
       ),
     ).toEqual([{ name: "hazard-concrete", count: 3 }]);
   });
-
   it("remaps stone-path to stone-brick via placing item", () => {
     expect(
       countBlueprintComponentsByName(
@@ -102,7 +93,6 @@ describe("blueprintMeta", () => {
       ),
     ).toEqual([{ name: "stone-brick", count: 2 }]);
   });
-
   it("keeps tile prototype name when no placing-item map entry", () => {
     expect(
       countBlueprintComponentsByName(
@@ -112,7 +102,6 @@ describe("blueprintMeta", () => {
       ),
     ).toEqual([{ name: "refined-concrete", count: 1 }]);
   });
-
   it("formats contents and byte size", () => {
     expect(formatContents(undefined)).toBe("none");
     expect(

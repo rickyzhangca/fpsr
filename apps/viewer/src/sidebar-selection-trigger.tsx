@@ -4,13 +4,12 @@ import type { ComponentProps } from "react";
 import { FactorioRichText } from "./factorio-rich-text";
 import type { SidebarSelectionInfo } from "./sidebar-selection";
 import { TreeItemKindIcon } from "./sidebar-tree";
-
-export function SidebarSelectionTrigger({
+export const SidebarSelectionTrigger = ({
   selection,
   ...props
 }: {
   selection: SidebarSelectionInfo;
-} & ComponentProps<typeof Button>) {
+} & ComponentProps<typeof Button>) => {
   return (
     <Button
       variant="outline"
@@ -26,4 +25,4 @@ export function SidebarSelectionTrigger({
       <ChevronDownIcon data-icon="inline-end" className="text-muted-foreground" />
     </Button>
   );
-}
+};

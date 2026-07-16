@@ -1,8 +1,6 @@
 import * as ResizablePrimitive from "react-resizable-panels";
-
 import { cn } from "@/lib/utils";
-
-function ResizablePanelGroup({ className, ...props }: ResizablePrimitive.GroupProps) {
+const ResizablePanelGroup = ({ className, ...props }: ResizablePrimitive.GroupProps) => {
   return (
     <ResizablePrimitive.Group
       data-slot="resizable-panel-group"
@@ -10,13 +8,11 @@ function ResizablePanelGroup({ className, ...props }: ResizablePrimitive.GroupPr
       {...props}
     />
   );
-}
-
-function ResizablePanel({ ...props }: ResizablePrimitive.PanelProps) {
+};
+const ResizablePanel = ({ ...props }: ResizablePrimitive.PanelProps) => {
   return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />;
-}
-
-function ResizableHandle({
+};
+const ResizableHandle = ({
   withHandle,
   handleOnly,
   className,
@@ -26,7 +22,7 @@ function ResizableHandle({
   withHandle?: boolean;
   /** Restrict dragging to the visible grip instead of the full separator edge. */
   handleOnly?: boolean;
-}) {
+}) => {
   return (
     <ResizablePrimitive.Separator
       data-slot="resizable-handle"
@@ -50,6 +46,5 @@ function ResizableHandle({
       )}
     </ResizablePrimitive.Separator>
   );
-}
-
+};
 export { ResizableHandle, ResizablePanel, ResizablePanelGroup };

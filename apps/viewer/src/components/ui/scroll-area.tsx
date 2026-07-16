@@ -1,8 +1,6 @@
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 import * as React from "react";
-
 import { cn } from "@/lib/utils";
-
 const ScrollAreaRoot = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Root.Props>(
   ({ className, ...props }, ref) => (
     <ScrollAreaPrimitive.Root
@@ -13,7 +11,6 @@ const ScrollAreaRoot = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Root
     />
   ),
 );
-
 const ScrollAreaViewport = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Viewport.Props>(
   ({ className, ...props }, ref) => (
     <ScrollAreaPrimitive.Viewport
@@ -27,17 +24,17 @@ const ScrollAreaViewport = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.
     />
   ),
 );
-
-function ScrollAreaCorner(props: ScrollAreaPrimitive.Corner.Props) {
+const ScrollAreaCorner = (props: ScrollAreaPrimitive.Corner.Props) => {
   return <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" {...props} />;
-}
-
-function ScrollArea({
+};
+const ScrollArea = ({
   className,
   viewportClassName,
   children,
   ...props
-}: ScrollAreaPrimitive.Root.Props & { viewportClassName?: string }) {
+}: ScrollAreaPrimitive.Root.Props & {
+  viewportClassName?: string;
+}) => {
   return (
     <ScrollAreaRoot className={className} {...props}>
       <ScrollAreaViewport className={viewportClassName}>{children}</ScrollAreaViewport>
@@ -45,13 +42,12 @@ function ScrollArea({
       <ScrollAreaCorner />
     </ScrollAreaRoot>
   );
-}
-
-function ScrollBar({
+};
+const ScrollBar = ({
   className,
   orientation = "vertical",
   ...props
-}: ScrollAreaPrimitive.Scrollbar.Props) {
+}: ScrollAreaPrimitive.Scrollbar.Props) => {
   return (
     <ScrollAreaPrimitive.Scrollbar
       data-slot="scroll-area-scrollbar"
@@ -69,6 +65,5 @@ function ScrollBar({
       />
     </ScrollAreaPrimitive.Scrollbar>
   );
-}
-
+};
 export { ScrollArea, ScrollAreaCorner, ScrollAreaRoot, ScrollAreaViewport, ScrollBar };

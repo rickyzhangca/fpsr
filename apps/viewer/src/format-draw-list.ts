@@ -1,5 +1,4 @@
 import type { DrawCmd, DrawList } from "fpsr";
-
 type SortGroup = {
   layer: number;
   sortY: number;
@@ -7,14 +6,12 @@ type SortGroup = {
   entity: number;
   sub: number;
 };
-
 type DisplayDrawList = {
   schema: DrawList["schema"];
   bounds: DrawList["bounds"];
   commands: Record<string, unknown>[];
 };
-
-function sortGroup(cmd: DrawCmd): SortGroup {
+const sortGroup = (cmd: DrawCmd): SortGroup => {
   return {
     layer: cmd.layer,
     sortY: cmd.sortY,
@@ -22,19 +19,16 @@ function sortGroup(cmd: DrawCmd): SortGroup {
     entity: cmd.entity,
     sub: cmd.sub,
   };
-}
-
-function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+};
+const omitUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
   const out: Partial<T> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value !== undefined) out[key as keyof T] = value as T[keyof T];
   }
   return out;
-}
-
-export function formatDrawCmd(cmd: DrawCmd): Record<string, unknown> {
+};
+export const formatDrawCmd = (cmd: DrawCmd): Record<string, unknown> => {
   const sort = sortGroup(cmd);
-
   switch (cmd.kind) {
     case "rect":
       return {
@@ -87,12 +81,11 @@ export function formatDrawCmd(cmd: DrawCmd): Record<string, unknown> {
         rotation: cmd.rotation,
       });
   }
-}
-
-export function formatDrawList(list: DrawList): DisplayDrawList {
+};
+export const formatDrawList = (list: DrawList): DisplayDrawList => {
   return {
     schema: list.schema,
     bounds: list.bounds,
     commands: list.commands.map(formatDrawCmd),
   };
-}
+};

@@ -14,10 +14,8 @@ import {
   type RenderWorkerRequest,
   type RenderWorkerResponse,
 } from "./render-worker-protocol";
-
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
-
 const assets = cdnAssets(ASSETS_BASE, {
   maxConcurrentDecodes: MAX_CONCURRENT_ASSET_DECODES,
   onAssetEvent(event) {
@@ -25,9 +23,8 @@ const assets = cdnAssets(ASSETS_BASE, {
     if (!event.cached && event.bytes != null) sessionBlobBytes += event.bytes;
   },
 });
-
 const rendererPromises = new Map<AssetTier, Promise<Renderer>>();
-function getRenderer(tier: AssetTier): Promise<Renderer> {
+const getRenderer = (tier: AssetTier): Promise<Renderer> => {
   let pending = rendererPromises.get(tier);
   if (!pending) {
     pending = createRenderer({ assets, assetTier: tier }).catch((error) => {
@@ -37,21 +34,24 @@ function getRenderer(tier: AssetTier): Promise<Renderer> {
     rendererPromises.set(tier, pending);
   }
   return pending;
-}
-
+};
 interface SurfaceState {
   canvas: OffscreenCanvas;
-  active?: { requestId: number; controller: AbortController };
-  result?: { requestId: number; result: RenderResult };
+  active?: {
+    requestId: number;
+    controller: AbortController;
+  };
+  result?: {
+    requestId: number;
+    result: RenderResult;
+  };
 }
-
 const surfaces = new Map<string, SurfaceState>();
 const workerScope = self as unknown as {
   postMessage(message: RenderWorkerResponse): void;
   onmessage: ((event: MessageEvent<RenderWorkerRequest>) => void) | null;
 };
-
-function postError(requestId: number, error: unknown): void {
+const postError = (requestId: number, error: unknown): void => {
   const value = error instanceof Error ? error : new Error(String(error));
   workerScope.postMessage({
     type: "error",
@@ -59,20 +59,24 @@ function postError(requestId: number, error: unknown): void {
     name: value.name,
     message: value.message,
   });
-}
-
-async function render(request: Extract<RenderWorkerRequest, { type: "render" }>): Promise<void> {
+};
+const render = async (
+  request: Extract<
+    RenderWorkerRequest,
+    {
+      type: "render";
+    }
+  >,
+): Promise<void> => {
   const surface = surfaces.get(request.surfaceId);
   if (!surface) {
     postError(request.requestId, new Error(`Unknown render surface: ${request.surfaceId}`));
     return;
   }
-
   surface.active?.controller.abort();
   const controller = new AbortController();
   surface.active = { requestId: request.requestId, controller };
   const detailStart = assetEvents.length;
-
   try {
     workerScope.postMessage({
       type: "progress",
@@ -106,7 +110,6 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
     });
     const wallMs = nowMs() - wallStart;
     if (controller.signal.aborted || surface.active?.requestId !== request.requestId) return;
-
     surface.result = { requestId: request.requestId, result };
     workerScope.postMessage({
       type: "rendered",
@@ -125,9 +128,15 @@ async function render(request: Extract<RenderWorkerRequest, { type: "render" }>)
   } finally {
     if (surface.active?.requestId === request.requestId) surface.active = undefined;
   }
-}
-
-async function measure(request: Extract<RenderWorkerRequest, { type: "measure" }>): Promise<void> {
+};
+const measure = async (
+  request: Extract<
+    RenderWorkerRequest,
+    {
+      type: "measure";
+    }
+  >,
+): Promise<void> => {
   try {
     const renderer = await getRenderer("2x");
     const measurement = renderer.measure(request.doc, request.options);
@@ -135,11 +144,15 @@ async function measure(request: Extract<RenderWorkerRequest, { type: "measure" }
   } catch (error) {
     postError(request.requestId, error);
   }
-}
-
-async function exportImage(
-  request: Extract<RenderWorkerRequest, { type: "export" }>,
-): Promise<void> {
+};
+const exportImage = async (
+  request: Extract<
+    RenderWorkerRequest,
+    {
+      type: "export";
+    }
+  >,
+): Promise<void> => {
   const surface = surfaces.get(request.surfaceId);
   if (!surface?.result || surface.result.requestId !== request.renderId) {
     postError(request.requestId, new Error("The requested render is no longer available"));
@@ -151,8 +164,7 @@ async function exportImage(
   } catch (error) {
     postError(request.requestId, error);
   }
-}
-
+};
 workerScope.onmessage = (event) => {
   const request = event.data;
   switch (request.type) {
@@ -185,7 +197,6 @@ workerScope.onmessage = (event) => {
       break;
   }
 };
-
 // Signal only after the module has initialized its asset store and message handler.
 // The main thread must receive this before transferring ownership of a canvas.
 workerScope.postMessage({ type: "ready" });

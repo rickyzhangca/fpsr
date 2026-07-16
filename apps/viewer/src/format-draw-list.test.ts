@@ -1,7 +1,6 @@
 import type { DrawCmd, DrawList } from "fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { formatDrawCmd, formatDrawList } from "./format-draw-list";
-
 const list: DrawList = {
   schema: 1,
   bounds: { minX: 0, minY: 0, maxX: 2, maxY: 1 },
@@ -35,10 +34,14 @@ const list: DrawList = {
     },
   ],
 };
-
 describe("formatDrawCmd", () => {
   it("groups sprite sort keys and geometry", () => {
-    const cmd = list.commands[0] as Extract<DrawCmd, { kind: "sprite" }>;
+    const cmd = list.commands[0] as Extract<
+      DrawCmd,
+      {
+        kind: "sprite";
+      }
+    >;
     expect(formatDrawCmd(cmd)).toEqual({
       kind: "sprite",
       sort: { layer: 39, sortY: 1.5, sortX: 0.5, entity: 1, sub: 0 },
@@ -47,9 +50,13 @@ describe("formatDrawCmd", () => {
       flags: { shadow: true },
     });
   });
-
   it("groups wire endpoints under line", () => {
-    const cmd = list.commands[1] as Extract<DrawCmd, { kind: "wire" }>;
+    const cmd = list.commands[1] as Extract<
+      DrawCmd,
+      {
+        kind: "wire";
+      }
+    >;
     expect(formatDrawCmd(cmd)).toEqual({
       kind: "wire",
       sort: { layer: 46, sortY: 0, sortX: 0, entity: 0, sub: 0 },
@@ -58,7 +65,6 @@ describe("formatDrawCmd", () => {
     });
   });
 });
-
 describe("formatDrawList", () => {
   it("preserves list metadata and formats every command", () => {
     const formatted = formatDrawList(list);

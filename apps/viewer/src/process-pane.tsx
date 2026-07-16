@@ -10,8 +10,7 @@ import { formatDrawList } from "./format-draw-list";
 import { JsonViewer } from "./json-viewer";
 import { cn } from "./lib/utils";
 import { viewerAssets } from "./viewer-assets";
-
-function ProcessPanel({
+const ProcessPanel = ({
   title,
   index,
   maxIndex,
@@ -25,7 +24,7 @@ function ProcessPanel({
   headerRight?: ReactNode;
   scrollContent?: boolean;
   children: ReactNode;
-}) {
+}) => {
   return (
     <div
       className={cn(
@@ -46,11 +45,9 @@ function ProcessPanel({
       )}
     </div>
   );
-}
-
-function ChecksPanel({ blueprint }: { blueprint: Blueprint | null }) {
+};
+const ChecksPanel = ({ blueprint }: { blueprint: Blueprint | null }) => {
   const checks = useMemo(() => getAdapterChecks(blueprint), [blueprint]);
-
   return (
     <ul className="flex flex-col gap-1 p-3">
       {checks.map(({ id, used }) => (
@@ -65,28 +62,24 @@ function ChecksPanel({ blueprint }: { blueprint: Blueprint | null }) {
       ))}
     </ul>
   );
-}
-
-export function ProcessPane({
+};
+export const ProcessPane = ({
   doc,
   blueprint,
 }: {
   doc: BlueprintDocument | null;
   blueprint: Blueprint | null;
-}) {
+}) => {
   const planGenRef = useRef(0);
-
   const [drawList, setDrawList] = useState<DrawList | null>(null);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [drawLoading, setDrawLoading] = useState(false);
   const [organizeDrawCommands, setOrganizeDrawCommands] = useState(true);
-
   const decodedValue = blueprint ?? doc;
   const drawValue = useMemo(() => {
     if (drawError || !drawList) return null;
     return organizeDrawCommands ? formatDrawList(drawList) : drawList;
   }, [drawError, drawList, organizeDrawCommands]);
-
   useEffect(() => {
     if (!blueprint) {
       setDrawList(null);
@@ -94,20 +87,16 @@ export function ProcessPane({
       setDrawLoading(false);
       return;
     }
-
     const gen = ++planGenRef.current;
     setDrawLoading(true);
     setDrawError(null);
     setDrawList(null);
-
     void (async () => {
       try {
         const db = await viewerAssets.loadRenderDb();
         if (gen !== planGenRef.current) return;
-
         const list = planDrawList(blueprint, db, { altMode: true });
         if (gen !== planGenRef.current) return;
-
         setDrawList(list);
       } catch (e) {
         if (gen !== planGenRef.current) return;
@@ -121,7 +110,6 @@ export function ProcessPane({
       }
     })();
   }, [blueprint]);
-
   return (
     <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 gap-0.5">
       <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
@@ -171,4 +159,4 @@ export function ProcessPane({
       </ResizablePanel>
     </ResizablePanelGroup>
   );
-}
+};

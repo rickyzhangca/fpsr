@@ -3,36 +3,33 @@ import type { Blueprint } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
     return <span data-testid="entity-icon" data-icon-key={key} data-quality={quality ?? ""} />;
   },
 }));
-
 vi.mock("./viewer-assets", () => ({
   viewerAssets: {
     loadRenderDb: vi.fn().mockResolvedValue({ tiles: {} }),
   },
 }));
-
 import { BlueprintSummary } from "./blueprint-summary";
 import { encodedByteSize, formatByteSize } from "./blueprint-meta";
-
 describe("BlueprintSummary", () => {
   let host: HTMLDivElement;
-
   beforeEach(() => {
-    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as {
+        IS_REACT_ACT_ENVIRONMENT?: boolean;
+      }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     host = document.createElement("div");
     document.body.append(host);
   });
-
   afterEach(() => {
     host.remove();
   });
-
   it("shows blueprint metadata fields", () => {
     const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
     const blueprint: Blueprint = {
@@ -53,7 +50,6 @@ describe("BlueprintSummary", () => {
     act(() => {
       root.render(<BlueprintSummary blueprint={blueprint} tileSize="1×1 tiles" />);
     });
-
     const text = host.textContent ?? "";
     expect(text).toContain("Meta test");
     expect(text).toContain("A test blueprint");
@@ -77,10 +73,8 @@ describe("BlueprintSummary", () => {
     expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
     expect(host.querySelector('[aria-label="wooden-chest"]')).toBeTruthy();
     expect(host.querySelector('[aria-label="inserter"]')).toBeTruthy();
-
     act(() => root.unmount());
   });
-
   it("renders blueprint tile icons beside the title and description", () => {
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -109,7 +103,6 @@ describe("BlueprintSummary", () => {
     act(() => {
       root.render(<BlueprintSummary blueprint={blueprint} tileSize="—" />);
     });
-
     expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
     const icons = [...host.querySelectorAll("[data-testid=entity-icon]")];
     expect(icons.map((el) => el.getAttribute("data-icon-key"))).toEqual([
@@ -126,10 +119,8 @@ describe("BlueprintSummary", () => {
       "rare",
       "legendary",
     ]);
-
     act(() => root.unmount());
   });
-
   it("shows fallback when description is missing", () => {
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -141,10 +132,8 @@ describe("BlueprintSummary", () => {
     act(() => {
       root.render(<BlueprintSummary blueprint={blueprint} tileSize="—" />);
     });
-
     expect(host.textContent).toContain("No description");
     expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
-
     act(() => root.unmount());
   });
 });

@@ -4,7 +4,6 @@ import { App } from "./app";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import "./styles.css";
-
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(

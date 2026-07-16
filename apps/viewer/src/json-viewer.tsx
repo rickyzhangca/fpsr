@@ -1,35 +1,29 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { formatJson } from "./format-json";
-
 const PLACEHOLDER = "// decode a blueprint to inspect JSON";
-const VIRTUALIZE_MIN_CHARS = 200_000;
-
+const VIRTUALIZE_MIN_CHARS = 200000;
 const VirtualizedJsonViewer = lazy(() =>
   import("./virtualized-json-viewer").then((module) => ({ default: module.VirtualizedJsonViewer })),
 );
-
-function JsonScrollArea({ children }: { children: React.ReactNode }) {
+const JsonScrollArea = ({ children }: { children: React.ReactNode }) => {
   return (
     <ScrollArea className="h-full min-h-0">
       {children}
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );
-}
-
-export function JsonViewer({ value }: { value: unknown }) {
+};
+export const JsonViewer = ({ value }: { value: unknown }) => {
   const [code, setCode] = useState<string | null>(null);
   const [html, setHtml] = useState<string | null>(null);
   const genRef = useRef(0);
-
   useEffect(() => {
     if (value === null) {
       setCode(null);
       setHtml(null);
       return;
     }
-
     const gen = ++genRef.current;
     setCode(null);
     setHtml(null);
@@ -37,7 +31,6 @@ export function JsonViewer({ value }: { value: unknown }) {
       const formatted = await formatJson(value);
       if (gen !== genRef.current) return;
       setCode(formatted);
-
       if (formatted.length > VIRTUALIZE_MIN_CHARS) return;
       const { highlightJson } = await import("./highlight-json");
       if (gen !== genRef.current) return;
@@ -46,7 +39,6 @@ export function JsonViewer({ value }: { value: unknown }) {
       setHtml(highlighted);
     })();
   }, [value]);
-
   if (value === null) {
     return (
       <JsonScrollArea>
@@ -54,7 +46,6 @@ export function JsonViewer({ value }: { value: unknown }) {
       </JsonScrollArea>
     );
   }
-
   if (code === null) {
     return (
       <JsonScrollArea>
@@ -62,7 +53,6 @@ export function JsonViewer({ value }: { value: unknown }) {
       </JsonScrollArea>
     );
   }
-
   if (code.length > VIRTUALIZE_MIN_CHARS) {
     return (
       <Suspense
@@ -72,7 +62,6 @@ export function JsonViewer({ value }: { value: unknown }) {
       </Suspense>
     );
   }
-
   if (html === null) {
     return (
       <JsonScrollArea>
@@ -80,7 +69,6 @@ export function JsonViewer({ value }: { value: unknown }) {
       </JsonScrollArea>
     );
   }
-
   return (
     <JsonScrollArea>
       <div
@@ -89,4 +77,4 @@ export function JsonViewer({ value }: { value: unknown }) {
       />
     </JsonScrollArea>
   );
-}
+};
