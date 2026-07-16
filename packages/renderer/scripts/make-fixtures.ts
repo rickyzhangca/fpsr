@@ -192,7 +192,6 @@ const fixtures: Record<string, BlueprintDocument> = {
       ],
     },
   },
-
 };
 
 // This fixture is a large real-world blueprint and its checked-in decoded JSON
