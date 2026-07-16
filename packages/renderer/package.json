@@ -1,7 +1,7 @@
 {
   "name": "fpsr",
   "version": "0.0.0",
-  "description": "Headless Factorio 2.1.9 blueprint string renderer for browser and Node.js",
+  "description": "Headless Factorio 2.1.11 blueprint string renderer for browser and Node.js",
   "keywords": [
     "blueprint",
     "canvas",

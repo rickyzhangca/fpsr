@@ -4,7 +4,7 @@ import type { RenderDb } from "../src/types/render-db.js";
 
 const db: RenderDb = {
   schema: 2,
-  gameVersion: "2.1.9",
+  gameVersion: "2.1.11",
   mods: ["base"],
   atlases: [
     { file: "atlas.a.png", width: 10, height: 20 },
@@ -19,7 +19,7 @@ const db: RenderDb = {
 
 const manifest: AssetManifest = {
   schema: 2,
-  gameVersion: "2.1.9",
+  gameVersion: "2.1.11",
   mods: ["base"],
   tiers: {
     "1x": {
@@ -59,7 +59,7 @@ describe("cdnAssets", () => {
       return new Response(null, { status: 404 });
     }) as unknown as typeof fetch;
 
-    const assets = cdnAssets("https://assets.example/2.1.9", { fetchImpl });
+    const assets = cdnAssets("https://assets.example/2.1.11", { fetchImpl });
     const loaded = await assets.loadRenderDb();
     expect(loaded).toEqual(db);
     await expect(assets.loadRenderDb()).resolves.toBe(loaded);
@@ -74,7 +74,7 @@ describe("cdnAssets", () => {
       return new Response(new Blob([url]), { status: 200 });
     }) as unknown as typeof fetch;
     const decodeImage = vi.fn(async () => ({}) as CanvasImageSource);
-    const assets = cdnAssets("https://assets.example/2.1.9", { fetchImpl, decodeImage });
+    const assets = cdnAssets("https://assets.example/2.1.11", { fetchImpl, decodeImage });
 
     await Promise.all([
       assets.loadRenderDb("1x"),
@@ -103,7 +103,7 @@ describe("cdnAssets", () => {
       active--;
       return {} as CanvasImageSource;
     });
-    const assets = cdnAssets("https://assets.example/2.1.9", {
+    const assets = cdnAssets("https://assets.example/2.1.11", {
       fetchImpl,
       decodeImage,
       maxConcurrentDecodes: 2,
@@ -130,7 +130,7 @@ describe("cdnAssets", () => {
       if (atlasAttempts === 1) return new Response(null, { status: 503 });
       return new Response(new Blob(["ok"]), { status: 200 });
     }) as unknown as typeof fetch;
-    const assets = cdnAssets("https://assets.example/2.1.9", {
+    const assets = cdnAssets("https://assets.example/2.1.11", {
       fetchImpl,
       decodeImage: async () => ({}) as CanvasImageSource,
     });

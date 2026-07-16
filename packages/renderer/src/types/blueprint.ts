@@ -1,6 +1,6 @@
 /**
  * Decoded model for the Factorio 2.x blueprint string format.
- * Reference: https://wiki.factorio.com/Blueprint_string_format and the 2.1.9
+ * Reference: https://wiki.factorio.com/Blueprint_string_format and the 2.1.11
  * runtime docs (BlueprintEntity, BlueprintWire).
  *
  * Design rules:

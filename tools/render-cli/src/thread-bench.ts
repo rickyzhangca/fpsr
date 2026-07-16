@@ -14,7 +14,7 @@ const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const resolveFromRoot = (value: string | undefined, fallback: string) =>
   value == null ? path.join(repoRoot, fallback) : path.resolve(repoRoot, value);
 const input = resolveFromRoot(args[0], "temp.txt");
-const assets = resolveFromRoot(args[1], "assets-out/2.1.9");
+const assets = resolveFromRoot(args[1], "assets-out/2.1.11");
 const pixelsPerTile = 64;
 const iterations = 3;
 const heartbeatMs = 2;

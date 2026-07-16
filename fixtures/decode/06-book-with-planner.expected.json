@@ -2,7 +2,7 @@
   "blueprint_book": {
     "item": "blueprint-book",
     "label": "Book with planner",
-    "version": 562954248978432,
+    "version": 562954249109504,
     "active_index": 0,
     "blueprints": [
       {
@@ -10,7 +10,7 @@
         "blueprint": {
           "item": "blueprint",
           "label": "Only blueprint",
-          "version": 562954248978432,
+          "version": 562954249109504,
           "entities": [
             {
               "entity_number": 1,
@@ -27,7 +27,7 @@
         "index": 1,
         "upgrade_planner": {
           "item": "upgrade-planner",
-          "version": 562954248978432,
+          "version": 562954249109504,
           "settings": {
             "target": "wooden-chest",
             "limit": 100

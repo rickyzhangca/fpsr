@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const DEFAULT_DIR = path.join(REPO_ROOT, "assets-out/2.1.9");
+const DEFAULT_DIR = path.join(REPO_ROOT, "assets-out/2.1.11");
 
 interface Manifest {
   schema: 2;
@@ -40,7 +40,7 @@ function usage(): string {
     "Remote layout: /{gameVersion}/{filename} (gameVersion from manifest.json).",
     "",
     "Options:",
-    "  --dir <path>   Asset directory (default: assets-out/2.1.9 from repo root)",
+    "  --dir <path>   Asset directory (default: assets-out/2.1.11 from repo root)",
     "  --dry-run      List files and sizes without uploading",
     "",
     "Environment:",

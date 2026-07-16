@@ -14,7 +14,7 @@ document. Additive, backward-compatible extensions of kind-specific payloads in
 
 ## Target
 
-Factorio **2.1.9** exactly, vanilla + Space Age + Elevated Rails + Quality + Recycler
+Factorio **2.1.11** exactly, vanilla + Space Age + Elevated Rails + Quality + Recycler
 (the six data packages shipped in `/Applications/factorio.app/Contents/data`).
 
 ## Rendering pipeline (dataflow)

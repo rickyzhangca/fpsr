@@ -7,7 +7,7 @@ import type { EntityRenderDef, LayerGroup, RenderDb } from "fpsr";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const FIXTURE_DB = path.join(REPO_ROOT, "fixtures/render-db/2.1.9.json");
+const FIXTURE_DB = path.join(REPO_ROOT, "fixtures/render-db/2.1.11.json");
 const OUT_DIR = path.join(REPO_ROOT, "fixtures/corpus");
 
 function entityTileSize(def: EntityRenderDef): [number, number] {

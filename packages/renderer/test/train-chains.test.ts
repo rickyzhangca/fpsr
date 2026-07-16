@@ -8,7 +8,7 @@ import type { EntityRenderDef, RenderDb } from "../src/types/render-db.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const db = JSON.parse(
-  readFileSync(path.join(ROOT, "fixtures/render-db/2.1.9.json"), "utf8"),
+  readFileSync(path.join(ROOT, "fixtures/render-db/2.1.11.json"), "utf8"),
 ) as RenderDb;
 
 function trainDef(name: string): EntityRenderDef {

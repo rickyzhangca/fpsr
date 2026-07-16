@@ -27,7 +27,7 @@ describe("viewer asset store", () => {
     const store = await import("./viewerAssets");
     expect(store.viewerAssets).toBe(mocks.source);
     expect(mocks.cdnAssets).toHaveBeenCalledTimes(1);
-    expect(mocks.cdnAssets).toHaveBeenCalledWith("/assets/2.1.9", {
+    expect(mocks.cdnAssets).toHaveBeenCalledWith("/assets/2.1.11", {
       maxConcurrentDecodes: 2,
     });
   });

@@ -3,18 +3,18 @@
  * Run: pnpm -F @fpsr/golden-tests seed
  */
 import type { BlueprintDocument, BlueprintEntity } from "fpsr";
-import { encode } from "fpsr";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { decode, encode } from "fpsr";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../../..");
 const GOLDEN_DIR = join(REPO_ROOT, "fixtures/golden");
-const DECODE_FIXTURE = join(REPO_ROOT, "fixtures/decode/90-real-wiki-example.txt");
+const SMOKE_FIXTURE = join(GOLDEN_DIR, "smoke.bp.txt");
 
-/** Factorio 2.1.9 encoded version: major<<48 | minor<<32 | patch<<16 */
-const V = 2 * 2 ** 48 + 1 * 2 ** 32 + 9 * 2 ** 16;
+/** Factorio 2.1.11 encoded version: major<<48 | minor<<32 | patch<<16 */
+const V = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
 
 function beltRingEntities(): BlueprintEntity[] {
   const belts: { x: number; y: number; direction: number }[] = [
@@ -75,7 +75,10 @@ function blueprintDoc(label: string, entities: BlueprintEntity[]): BlueprintDocu
 
 mkdirSync(GOLDEN_DIR, { recursive: true });
 
-copyFileSync(DECODE_FIXTURE, join(GOLDEN_DIR, "smoke.bp.txt"));
+const smokeDocument = decode(readFileSync(SMOKE_FIXTURE, "utf8"));
+if (!smokeDocument.blueprint) throw new Error("Smoke fixture is not a blueprint");
+smokeDocument.blueprint.version = V;
+writeFileSync(SMOKE_FIXTURE, encode(smokeDocument), "utf8");
 
 writeFileSync(
   join(GOLDEN_DIR, "belt-ring.bp.txt"),

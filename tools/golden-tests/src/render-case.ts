@@ -15,6 +15,7 @@ export async function renderCase(c: GoldenCase, assetsDir: string): Promise<Buff
   const result = await renderer.render(doc, {
     pixelsPerTile: c.ppt,
     altMode: c.alt ?? true,
+    showCheckerboard: false,
     background: null,
   });
 

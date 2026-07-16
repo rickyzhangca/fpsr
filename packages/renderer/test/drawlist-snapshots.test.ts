@@ -16,7 +16,7 @@ import { RENDER_LAYERS, serializeDrawList } from "../src/types/draw-list.js";
 import type { RenderDb } from "../src/types/render-db.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const FIXTURE_DB = path.join(ROOT, "fixtures/render-db/2.1.9.json");
+const FIXTURE_DB = path.join(ROOT, "fixtures/render-db/2.1.11.json");
 const SNAP_DIR = path.join(ROOT, "fixtures/drawlist");
 const UPDATE = process.env.UPDATE_SNAPSHOTS === "1";
 

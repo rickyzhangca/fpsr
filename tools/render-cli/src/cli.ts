@@ -16,7 +16,7 @@ import { assertAssetsDir, localAssets } from "./assets.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const DEFAULT_ASSETS = path.join(REPO_ROOT, "assets-out/2.1.9");
+const DEFAULT_ASSETS = path.join(REPO_ROOT, "assets-out/2.1.11");
 
 interface CliOptions {
   input?: string;
@@ -56,7 +56,7 @@ function usage(): string {
     "  --ppt <number>   Pixels per tile (default: 64)",
     "  --path <i,j,...> Blueprint book path (comma-separated indices)",
     "  --alt            Enable alt-mode rendering (on by default; kept for compatibility)",
-    "  --assets <dir>   Asset directory (default: assets-out/2.1.9 from repo root)",
+    "  --assets <dir>   Asset directory (default: assets-out/2.1.11 from repo root)",
     "  --profile        Collect decode + render stage timings",
     "  --warmup         With --profile: run once cold, then again warm (report both)",
     "  --json           Print machine-readable JSON (agents: use with --profile)",

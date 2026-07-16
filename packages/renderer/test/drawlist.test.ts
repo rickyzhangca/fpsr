@@ -7,7 +7,7 @@ import {
   serializeDrawList,
 } from "../src/types/draw-list.js";
 
-/** Official order from https://lua-api.factorio.com/latest/types/RenderLayer.html (2.1.9). */
+/** Official order from https://lua-api.factorio.com/latest/types/RenderLayer.html (2.1.11). */
 const OFFICIAL_RENDER_LAYERS = [
   "zero",
   "background-transitions",

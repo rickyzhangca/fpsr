@@ -6,7 +6,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /** Monorepo root (fpsr/). */
 export const REPO_ROOT = path.resolve(here, "../../..");
 
-export const GAME_VERSION = "2.1.9";
+export const GAME_VERSION = "2.1.11";
 
 export const FACTORIO_APP = "/Applications/factorio.app/Contents";
 export const FACTORIO_BIN = path.join(FACTORIO_APP, "MacOS/factorio");

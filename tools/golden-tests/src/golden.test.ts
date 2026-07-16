@@ -33,7 +33,7 @@ describe("golden PNG regression", () => {
   for (const c of cases) {
     const hasGolden = existsSync(goldenPngPath(c));
     const skipReason = !hasAssets
-      ? "assets-out/2.1.9 missing"
+      ? "assets-out/2.1.11 missing"
       : !hasGolden
         ? `${c.name}.png missing`
         : null;

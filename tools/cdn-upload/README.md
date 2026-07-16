@@ -4,7 +4,7 @@ Upload pipeline asset directories to BunnyCDN Storage for private hosting of
 render atlases and the render database.
 
 ```bash
-pnpm -F @fpsr/cdn-upload run upload -- [--dir assets-out/2.1.9] [--dry-run]
+pnpm -F @fpsr/cdn-upload run upload -- [--dir assets-out/2.1.11] [--dry-run]
 ```
 
 ## Usage

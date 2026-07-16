@@ -15,9 +15,9 @@ import { Canvas } from "skia-canvas";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const FIXTURE_DB = path.join(REPO_ROOT, "fixtures/render-db/2.1.9.json");
+const FIXTURE_DB = path.join(REPO_ROOT, "fixtures/render-db/2.1.11.json");
 const CORPUS_DIR = path.join(REPO_ROOT, "fixtures/corpus");
-const ASSETS_DIR = path.join(REPO_ROOT, "assets-out/2.1.9");
+const ASSETS_DIR = path.join(REPO_ROOT, "assets-out/2.1.11");
 const PNG_DIR = "/tmp/fpsr-corpus";
 
 interface CorpusIndex {
@@ -76,7 +76,8 @@ async function main(): Promise<void> {
 
       const result = await renderer.render(doc, {
         pixelsPerTile: 16,
-        background: [0.12, 0.12, 0.14, 1],
+        showCheckerboard: false,
+        background: null,
       });
       const png = await result.toPngBuffer();
       await writeFile(path.join(PNG_DIR, `${id}.png`), png);

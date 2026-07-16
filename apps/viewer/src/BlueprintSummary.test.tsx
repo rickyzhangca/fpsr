@@ -28,7 +28,7 @@ describe("BlueprintSummary", () => {
   });
 
   it("shows blueprint metadata fields", () => {
-    const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 9 * 2 ** 16;
+    const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
     const blueprint: Blueprint = {
       item: "blueprint",
       version,
@@ -54,7 +54,7 @@ describe("BlueprintSummary", () => {
     expect(text).toContain("Byte size");
     expect(text).toContain(formatByteSize(encodedByteSize(blueprint)));
     expect(text).toContain("Version");
-    expect(text).toContain("2.1.9");
+    expect(text).toContain("2.1.11");
     expect(text).toContain("Snapping");
     expect(text).toContain("absolute · grid 2×2 · offset 0,0");
     expect(text).toContain("Size");

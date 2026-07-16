@@ -11,7 +11,7 @@ import type { FrameId, RenderLayerName } from "./render-db.js";
 /**
  * Full Factorio `RenderLayer` enum (lowest → highest).
  * Source: https://lua-api.factorio.com/latest/types/RenderLayer.html
- * (same data as Factorio.app `doc-html/prototype-api.json`, 2.1.9).
+ * (same data as Factorio.app `doc-html/prototype-api.json`, 2.1.11).
  * Values are the enum indices; order is the contract.
  */
 export const FACTORIO_RENDER_LAYERS = {

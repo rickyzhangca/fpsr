@@ -1,6 +1,6 @@
 # fpsr
 
-Headless **Factorio 2.1.9** blueprint-string renderer for browser and Node.js.
+Headless **Factorio 2.1.11** blueprint-string renderer for browser and Node.js.
 Decodes compressed blueprint strings, resolves connectivity-aware sprite variants
 (belts, pipes, walls, rails, trains, wires), plans a serializable draw list, and
 executes it on a Canvas2D backend.
@@ -30,7 +30,7 @@ import { cdnAssets, createRenderer, decode } from "fpsr";
 
 const doc = decode(blueprintString);
 const renderer = await createRenderer({
-  assets: cdnAssets("https://your-cdn.example.com/2.1.9"),
+  assets: cdnAssets("https://your-cdn.example.com/2.1.11"),
 });
 
 const { canvas } = await renderer.render(doc);
@@ -50,7 +50,7 @@ import { localAssets } from "fpsr/node";
 
 const doc = decode(blueprintString);
 const renderer = await createRenderer({
-  assets: localAssets("assets-out/2.1.9"),
+  assets: localAssets("assets-out/2.1.11"),
   createCanvas: (w, h) => new Canvas(w, h),
 });
 
@@ -253,7 +253,7 @@ them on private infrastructure (`cdnAssets`) or load from disk (`localAssets`).
 
 - **npm package**: semver via Changesets.
 - **Render database schema**: version `2` (see `RenderDb` in source).
-- **Game target**: Factorio **2.1.9** exactly (vanilla + Space Age + Elevated
+- **Game target**: Factorio **2.1.11** exactly (vanilla + Space Age + Elevated
   Rails + Quality).
 
 A new game version requires regenerating assets and may require a matching

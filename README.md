@@ -1,6 +1,6 @@
 # fpsr
 
-Factorio **2.1.9** blueprint-string renderer — a TypeScript monorepo that decodes
+Factorio **2.1.11** blueprint-string renderer — a TypeScript monorepo that decodes
 compressed blueprint strings, plans connectivity-aware draw lists, and renders
 them to canvas in the browser or Node.js.
 
@@ -99,7 +99,7 @@ vp install
 - never intended for public redistribution.
 
 **Test fixtures** — a distilled **metadata-only** render database
-(`fixtures/render-db/2.1.9.json`: entity definitions, frame coordinates, icon
+(`fixtures/render-db/2.1.11.json`: entity definitions, frame coordinates, icon
 keys — no pixel data) is committed for test reproducibility. **Golden PNGs**
 (`fixtures/golden/*.png`) are **not** committed; generate them locally with
 `pnpm goldens:update` after running the pipeline on a licensed Factorio install.

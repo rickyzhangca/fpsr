@@ -2,7 +2,7 @@
   "blueprint": {
     "item": "blueprint",
     "label": "Tiles + snap",
-    "version": 562954248978432,
+    "version": 562954249109504,
     "snap-to-grid": {
       "x": 0.5,
       "y": 0.5

@@ -2,7 +2,7 @@
   "blueprint_book": {
     "item": "blueprint-book",
     "label": "Main book",
-    "version": 562954248978432,
+    "version": 562954249109504,
     "active_index": 1,
     "blueprints": [
       {
@@ -10,7 +10,7 @@
         "blueprint": {
           "item": "blueprint",
           "label": "First",
-          "version": 562954248978432,
+          "version": 562954249109504,
           "entities": [
             {
               "entity_number": 1,
@@ -28,7 +28,7 @@
         "blueprint": {
           "item": "blueprint",
           "label": "Second (active)",
-          "version": 562954248978432,
+          "version": 562954249109504,
           "entities": [
             {
               "entity_number": 1,
@@ -46,7 +46,7 @@
         "blueprint_book": {
           "item": "blueprint-book",
           "label": "Nested book",
-          "version": 562954248978432,
+          "version": 562954249109504,
           "active_index": 0,
           "blueprints": [
             {
@@ -54,7 +54,7 @@
               "blueprint": {
                 "item": "blueprint",
                 "label": "Nested blueprint",
-                "version": 562954248978432,
+                "version": 562954249109504,
                 "entities": [
                   {
                     "entity_number": 1,

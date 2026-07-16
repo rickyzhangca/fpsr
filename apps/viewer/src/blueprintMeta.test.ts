@@ -22,8 +22,8 @@ import {
 
 describe("blueprintMeta", () => {
   it("formats game version", () => {
-    const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 9 * 2 ** 16;
-    expect(formatGameVersion(version)).toBe("2.1.9");
+    const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
+    expect(formatGameVersion(version)).toBe("2.1.11");
   });
 
   it("formats snapping as none when unset", () => {

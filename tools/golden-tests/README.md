@@ -17,7 +17,7 @@ pnpm -F @fpsr/golden-tests test
 1. Open the viewer **Compare** tab and visually verify each case against ground-truth game screenshots (when available).
 2. After approval, run `pnpm -F @fpsr/golden-tests run update` on a machine with pipeline assets. Golden PNGs are **gitignored** (not redistributed); keep them locally for regression testing.
 
-Goldens are generated on the machine that has `assets-out/2.1.9/` (from `pnpm -F @fpsr/pipeline run pipeline all`). Tests **skip** automatically when assets or golden PNGs are absent so CI stays green on clean checkouts.
+Goldens are generated on the machine that has `assets-out/2.1.11/` (from `pnpm -F @fpsr/pipeline run pipeline all`). Tests **skip** automatically when assets or golden PNGs are absent so CI stays green on clean checkouts.
 
 Cross-platform anti-aliasing differences (if any) are absorbed by the **0.1% pixel
 tolerance** (pixelmatch threshold 0.1). Regenerate with `pnpm goldens:update` on the
