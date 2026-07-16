@@ -61,8 +61,8 @@ describe("Base game visual suite", () => {
   it("builds a deterministic nested book with addressable pages and cells", () => {
     const refs = listBlueprints(suite.document);
     expect(refs).toHaveLength(suite.manifest.pages.length);
-    expect(refs.length).toBeGreaterThan(100);
-    expect(suite.document.blueprint_book?.blueprints).toHaveLength(4);
+    expect(refs.length).toBeGreaterThan(30);
+    expect(suite.document.blueprint_book?.blueprints).toHaveLength(5);
 
     const caseIds = suite.manifest.cells.map((cell) => cell.id);
     expect(new Set(caseIds).size).toBe(caseIds.length);
@@ -73,7 +73,7 @@ describe("Base game visual suite", () => {
       expect(page.cellIds.length).toBeLessThanOrEqual(64);
     }
     for (const cell of suite.manifest.cells) {
-      expect(cell.pagePath.length).toBeGreaterThanOrEqual(3);
+      expect(cell.pagePath.length).toBeGreaterThanOrEqual(1);
       expect(suite.manifest.pages.some((page) => page.id === cell.pageId)).toBe(true);
     }
     for (const cell of suite.manifest.cells.filter((entry) => entry.caseKind !== "tile-patch")) {
@@ -92,7 +92,7 @@ describe("Base game visual suite", () => {
   });
 
   it("packs one-tile entities with a non-overlapping visual gap", () => {
-    const blueprint = selectBlueprint(suite.document, [0, 0, 0]);
+    const blueprint = selectBlueprint(suite.document, [0, 0]);
     const firstRow = blueprint.entities?.slice(0, 4) ?? [];
     expect(firstRow).toHaveLength(4);
     for (const entity of firstRow) {
@@ -100,7 +100,7 @@ describe("Base game visual suite", () => {
       expect(coordinateFraction(entity.position.y)).toBe(0.5);
     }
 
-    const firstPage = suite.manifest.pages.find((page) => page.path.join(".") === "0.0.0");
+    const firstPage = suite.manifest.pages.find((page) => page.path.join(".") === "0.0");
     const firstRowCells = suite.manifest.cells
       .filter((cell) => cell.pageId === firstPage?.id)
       .slice(0, 4);
@@ -115,8 +115,8 @@ describe("Base game visual suite", () => {
   it("snaps generated entities to Factorio placement parity", () => {
     for (const caseId of [
       "pose/inserter/d00",
-      "pose/assembling-machine-1/d00",
-      "connectivity/pipe/mask-00",
+      "production/production/pose/assembling-machine-1/d00",
+      "logistics/electric-fluid-system/pose/small-electric-pole/d00",
       "logistics/rail-signals/pose/rail-signal/d00",
       "logistics/car/pose/car/o00",
     ]) {
@@ -126,7 +126,7 @@ describe("Base game visual suite", () => {
     }
 
     for (const caseId of [
-      "pose/stone-furnace/d00",
+      "production/furnaces/pose/stone-furnace/d00",
       "logistics/rails/pose/straight-rail/d00",
       "logistics/locomotive/pose/locomotive/o00",
     ]) {
@@ -143,7 +143,7 @@ describe("Base game visual suite", () => {
     expect(coordinateFraction(eastSplitter.position.y)).toBe(0);
 
     const tilePage = suite.manifest.pages.find(
-      (page) => page.id === "entity-poses/logistics/tiles",
+      (page) => page.id === "entity-poses/logistics/terrain",
     );
     if (!tilePage) throw new Error("Missing logistics stone-path tile page");
     const tileBlueprint = selectBlueprint(suite.document, tilePage.path);
@@ -154,9 +154,11 @@ describe("Base game visual suite", () => {
   });
 
   it("packs tall entities by non-shadow sprite bounds", () => {
-    const page = suite.manifest.pages.find((entry) => entry.path.join(".") === "0.3.0");
-    if (!page) throw new Error("Missing first power page");
-    const cells = suite.manifest.cells.filter((cell) => cell.pageId === page.id);
+    const page = suite.manifest.pages.find(
+      (entry) => entry.id === "entity-poses/logistics/electric-fluid-system",
+    );
+    if (!page) throw new Error("Missing logistics electric & fluid system page");
+    const cells = suite.manifest.cells.filter((cell) => cell.pageId === page.id).slice(0, 12);
     expect(cells).toHaveLength(12);
 
     const rows = [cells.slice(0, 4), cells.slice(4, 8), cells.slice(8, 12)];
@@ -204,22 +206,15 @@ describe("Base game visual suite", () => {
     }
   });
 
-  it("covers declared direction, orientation, connectivity, and tile matrices", () => {
+  it("covers declared direction, orientation, and tile matrices", () => {
     const poseCells = suite.manifest.cells.filter((cell) => cell.caseKind === "entity-pose");
     expect(poseCells.filter((cell) => cell.entityName === "rail-signal")).toHaveLength(16);
     expect(poseCells.filter((cell) => cell.entityName === "straight-rail")).toHaveLength(8);
     expect(poseCells.filter((cell) => cell.entityName === "locomotive")).toHaveLength(64);
     expect(poseCells.filter((cell) => cell.entityName === "underground-belt")).toHaveLength(8);
 
-    for (const name of ["pipe", "heat-pipe", "stone-wall"]) {
-      const masks = suite.manifest.cells
-        .filter((cell) => cell.caseKind === "adjacency-mask" && cell.entityName === name)
-        .map((cell) => cell.adjacency?.mask);
-      expect(masks).toEqual(Array.from({ length: 16 }, (_, index) => index));
-    }
-
-    expect(suite.manifest.coverage.adjacencyMaskCaseCount).toBe(3 * 16);
-    expect(suite.manifest.coverage.beltNeighborhoodCaseCount).toBe(3 * 4 * 3 ** 4);
+    expect(suite.manifest.coverage.adjacencyMaskCaseCount).toBe(0);
+    expect(suite.manifest.coverage.beltNeighborhoodCaseCount).toBe(0);
     expect(suite.manifest.coverage.tileCaseCount).toBe(BASE_TILE_NAMES.length);
     expect(
       suite.manifest.cells

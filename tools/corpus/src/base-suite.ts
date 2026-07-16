@@ -202,13 +202,6 @@ type GroupBookEntry =
   | { kind: "page"; page: PageDraft }
   | { kind: "book"; id: string; label: string; icons: Icon[]; pages: PageDraft[] };
 
-interface SectionDraft {
-  id: string;
-  label: string;
-  icons: Icon[];
-  groups: GroupDraft[];
-}
-
 interface CaseBounds {
   left: number;
   top: number;
@@ -930,11 +923,151 @@ function entitySubsetCases(
   );
 }
 
-function segmentCases(cases: CaseSpec[], segmentId: string): CaseSpec[] {
+function namespaceCases(cases: CaseSpec[], groupId: string, segmentId: string): CaseSpec[] {
   return cases.map((testCase) => ({
     ...testCase,
-    id: `logistics/${segmentId}/${testCase.id}`,
+    id: `${groupId}/${segmentId}/${testCase.id}`,
   }));
+}
+
+function segmentCases(cases: CaseSpec[], segmentId: string): CaseSpec[] {
+  return namespaceCases(cases, "logistics", segmentId);
+}
+
+const ELECTRICITY_ENTITIES = [
+  "boiler",
+  "steam-engine",
+  "solar-panel",
+  "accumulator",
+  "nuclear-reactor",
+  "heat-pipe",
+  "heat-exchanger",
+  "steam-turbine",
+] as const;
+
+const ELECTRICITY_ENTITY_SET = new Set<string>(ELECTRICITY_ENTITIES);
+
+const RESOURCE_EXTRACTION_ENTITIES = [
+  "burner-mining-drill",
+  "electric-mining-drill",
+  "offshore-pump",
+  "pumpjack",
+] as const;
+
+const RESOURCE_EXTRACTION_ENTITY_SET = new Set<string>(RESOURCE_EXTRACTION_ENTITIES);
+
+const FURNACE_ENTITIES = ["stone-furnace", "steel-furnace", "electric-furnace"] as const;
+
+const PRODUCTION_PRINT_ENTITIES = [
+  "assembling-machine-1",
+  "assembling-machine-2",
+  "assembling-machine-3",
+  "oil-refinery",
+  "chemical-plant",
+  "centrifuge",
+  "lab",
+] as const;
+
+const MODULES_ENTITIES = ["beacon"] as const;
+
+const PLANETSIDE_ENTITIES = ["rocket-silo", "cargo-landing-pad"] as const;
+
+const DEFENSE_PRINT_ENTITIES = ["stone-wall", "gate", "radar", "land-mine"] as const;
+
+const DEFENSE_PRINT_ENTITY_SET = new Set<string>(DEFENSE_PRINT_ENTITIES);
+
+const TURRET_PRINT_ENTITIES = [
+  "gun-turret",
+  "laser-turret",
+  "flamethrower-turret",
+  "artillery-turret",
+] as const;
+
+const PRODUCTION_DEDICATED_ENTITY_SET = new Set<string>([
+  ...RESOURCE_EXTRACTION_ENTITIES,
+  ...FURNACE_ENTITIES,
+  ...PRODUCTION_PRINT_ENTITIES,
+  ...MODULES_ENTITIES,
+  ...PLANETSIDE_ENTITIES,
+  "radar",
+]);
+
+function electricitySourceGroup(
+  name: (typeof ELECTRICITY_ENTITIES)[number],
+): "fluids-heat" | "power" {
+  return name === "solar-panel" || name === "accumulator" ? "power" : "fluids-heat";
+}
+
+function electricityCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return ELECTRICITY_ENTITIES.map((name) =>
+    namespaceCases(
+      entitySubsetCases(renderDb, electricitySourceGroup(name), [name]),
+      "production",
+      "electricity",
+    ),
+  );
+}
+
+function resourceExtractionSourceGroup(
+  name: (typeof RESOURCE_EXTRACTION_ENTITIES)[number],
+): "production" | "fluids-heat" {
+  return name === "offshore-pump" ? "fluids-heat" : "production";
+}
+
+function resourceExtractionCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return RESOURCE_EXTRACTION_ENTITIES.map((name) =>
+    namespaceCases(
+      entitySubsetCases(renderDb, resourceExtractionSourceGroup(name), [name]),
+      "production",
+      "resource-extraction",
+    ),
+  );
+}
+
+function furnaceCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return FURNACE_ENTITIES.map((name) =>
+    namespaceCases(entitySubsetCases(renderDb, "production", [name]), "production", "furnaces"),
+  );
+}
+
+function productionPrintCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return PRODUCTION_PRINT_ENTITIES.map((name) =>
+    namespaceCases(entitySubsetCases(renderDb, "production", [name]), "production", "production"),
+  );
+}
+
+function modulesCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return MODULES_ENTITIES.map((name) =>
+    namespaceCases(entitySubsetCases(renderDb, "production", [name]), "production", "modules"),
+  );
+}
+
+function planetsideCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return PLANETSIDE_ENTITIES.map((name) =>
+    namespaceCases(entitySubsetCases(renderDb, "production", [name]), "space", "planetside"),
+  );
+}
+
+function defensePrintSourceGroup(
+  name: (typeof DEFENSE_PRINT_ENTITIES)[number],
+): "defense" | "production" {
+  return name === "radar" ? "production" : "defense";
+}
+
+function defensePrintCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return DEFENSE_PRINT_ENTITIES.map((name) =>
+    namespaceCases(
+      entitySubsetCases(renderDb, defensePrintSourceGroup(name), [name]),
+      "combat-items",
+      "defense",
+    ),
+  );
+}
+
+function turretsCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return TURRET_PRINT_ENTITIES.map((name) =>
+    namespaceCases(entitySubsetCases(renderDb, "defense", [name]), "combat-items", "turrets"),
+  );
 }
 
 function cardinalPoseCases(
@@ -987,10 +1120,19 @@ interface LogisticsPageSegment {
   buildCaseRows?: (renderDb: RenderDb) => CaseSpec[][];
 }
 
-function fluidCaseRows(renderDb: RenderDb): CaseSpec[][] {
+function fluidCaseRows(renderDb: RenderDb, segmentId: string): CaseSpec[][] {
   const row = (names: readonly string[]) =>
-    segmentCases(entitySubsetCases(renderDb, "fluids-heat", names), "fluid");
+    segmentCases(entitySubsetCases(renderDb, "fluids-heat", names), segmentId);
   return [row(["pipe"]), row(["pipe-to-ground"]), row(["pump"])];
+}
+
+function electricFluidSystemCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  const segmentId = "electric-fluid-system";
+  const electricityCases = segmentCases(
+    entitySubsetCases(renderDb, "power", ELECTRICITY_PAGE_ENTITIES),
+    segmentId,
+  );
+  return [...chunk(electricityCases, CASES_PER_ROW), ...fluidCaseRows(renderDb, segmentId)];
 }
 
 function railsCaseRows(renderDb: RenderDb): CaseSpec[][] {
@@ -1044,20 +1186,20 @@ function circuitNetworkCaseRows(renderDb: RenderDb): CaseSpec[][] {
 
 function tilesCaseRows(): CaseSpec[][] {
   return LOGISTICS_TILE_SEGMENTS.map((segment) =>
-    segmentTileCases(segment.tiles, "logistics/tiles"),
+    segmentTileCases(segment.tiles, "logistics/terrain"),
   );
 }
 
 const LOGISTICS_NESTED_BOOKS = {
-  "belt-systems": {
-    id: "belt-systems",
-    label: "belt systems",
+  "belt-transport-system": {
+    id: "belt-transport-system",
+    label: "belt transport system",
     icons: itemIcons("transport-belt", "underground-belt", "splitter"),
     segmentIds: ["belts", "underground-belts", "splitters"],
   },
-  "rail-systems": {
-    id: "rail-systems",
-    label: "rail systems",
+  railway: {
+    id: "railway",
+    label: "railway",
     icons: itemIcons("rail", "rail-signal", "locomotive"),
     segmentIds: [
       "rails",
@@ -1069,9 +1211,9 @@ const LOGISTICS_NESTED_BOOKS = {
       "artillery-wagon",
     ],
   },
-  vehicles: {
-    id: "vehicles",
-    label: "vehicles",
+  transport: {
+    id: "transport",
+    label: "transport",
     icons: itemIcons("car", "tank", "spidertron"),
     segmentIds: ["car", "tank", "spidertron"],
   },
@@ -1082,22 +1224,21 @@ type LogisticsNestedBookId = keyof typeof LOGISTICS_NESTED_BOOKS;
 const LOGISTICS_LAYOUT: ReadonlyArray<
   { kind: "segment"; id: string } | { kind: "book"; id: LogisticsNestedBookId }
 > = [
-  { kind: "segment", id: "containers" },
-  { kind: "book", id: "belt-systems" },
+  { kind: "segment", id: "storage" },
+  { kind: "book", id: "belt-transport-system" },
   { kind: "segment", id: "inserters" },
-  { kind: "segment", id: "electricity" },
-  { kind: "segment", id: "fluid" },
-  { kind: "book", id: "rail-systems" },
-  { kind: "book", id: "vehicles" },
-  { kind: "segment", id: "robots" },
+  { kind: "segment", id: "electric-fluid-system" },
+  { kind: "book", id: "railway" },
+  { kind: "book", id: "transport" },
+  { kind: "segment", id: "logistic-network" },
   { kind: "segment", id: "circuit-network" },
-  { kind: "segment", id: "tiles" },
+  { kind: "segment", id: "terrain" },
 ];
 
 const LOGISTICS_PAGE_SEGMENTS: LogisticsPageSegment[] = [
   {
-    id: "containers",
-    label: "containers",
+    id: "storage",
+    label: "storage",
     icons: itemIcons("wooden-chest"),
     entities: CONTAINER_ENTITIES,
     buildCases: containerCases,
@@ -1133,19 +1274,11 @@ const LOGISTICS_PAGE_SEGMENTS: LogisticsPageSegment[] = [
     ],
   },
   {
-    id: "electricity",
-    label: "electricity",
-    icons: itemIcons("small-electric-pole"),
-    entities: ELECTRICITY_PAGE_ENTITIES,
-    buildCases: (renderDb) =>
-      segmentCases(entitySubsetCases(renderDb, "power", ELECTRICITY_PAGE_ENTITIES), "electricity"),
-  },
-  {
-    id: "fluid",
-    label: "fluid",
-    icons: itemIcons("pipe"),
-    entities: FLUID_PAGE_ENTITIES,
-    buildCaseRows: fluidCaseRows,
+    id: "electric-fluid-system",
+    label: "electric & fluid system",
+    icons: itemIcons("small-electric-pole", "pipe"),
+    entities: [...ELECTRICITY_PAGE_ENTITIES, ...FLUID_PAGE_ENTITIES],
+    buildCaseRows: electricFluidSystemCaseRows,
   },
   {
     id: "rails",
@@ -1221,8 +1354,8 @@ const LOGISTICS_PAGE_SEGMENTS: LogisticsPageSegment[] = [
       entityPoseCaseRows(renderDb, "vehicles", "spidertron", "spidertron"),
   },
   {
-    id: "robots",
-    label: "robots",
+    id: "logistic-network",
+    label: "logistic network",
     icons: itemIcons("logistic-robot", "construction-robot", "passive-provider-chest", "roboport"),
     entities: ROBOT_PAGE_ENTITIES,
     buildCases: robotCases,
@@ -1235,8 +1368,8 @@ const LOGISTICS_PAGE_SEGMENTS: LogisticsPageSegment[] = [
     buildCaseRows: circuitNetworkCaseRows,
   },
   {
-    id: "tiles",
-    label: "tiles",
+    id: "terrain",
+    label: "terrain",
     icons: itemIcons("stone-brick", "concrete", "landfill"),
     entities: [],
     buildCaseRows: tilesCaseRows,
@@ -1278,6 +1411,347 @@ function buildLogisticsSegmentPage(
       caseRows,
     ),
     caseCount: segmentCases.length,
+  };
+}
+
+function productionGroup(renderDb: RenderDb): GroupDraft {
+  const groupId = "production";
+  const groupLabel = "production items";
+  const { cases: allCases } = entityCases(renderDb, groupId);
+  const electricityRows = electricityCaseRows(renderDb);
+  const electricityCases = electricityRows.flat();
+  const resourceExtractionRows = resourceExtractionCaseRows(renderDb);
+  const resourceExtractionCases = resourceExtractionRows.flat();
+  const furnaceRows = furnaceCaseRows(renderDb);
+  const furnaceCases = furnaceRows.flat();
+  const productionPrintRows = productionPrintCaseRows(renderDb);
+  const productionPrintCases = productionPrintRows.flat();
+  const modulesRows = modulesCaseRows(renderDb);
+  const modulesCases = modulesRows.flat();
+  let caseOffset = 0;
+  const dedicatedCaseCount =
+    electricityCases.length +
+    resourceExtractionCases.length +
+    furnaceCases.length +
+    productionPrintCases.length +
+    modulesCases.length;
+
+  const entries: GroupBookEntry[] = [
+    {
+      kind: "page",
+      page: buildSinglePage(
+        renderDb,
+        "entity-poses",
+        groupId,
+        `entity-poses/${groupId}/electricity`,
+        "electricity",
+        itemIcons("steam-engine"),
+        electricityCases,
+        caseOffset,
+        electricityRows,
+      ),
+    },
+    {
+      kind: "page",
+      page: buildSinglePage(
+        renderDb,
+        "entity-poses",
+        groupId,
+        `entity-poses/${groupId}/resource-extraction`,
+        "resource extraction",
+        itemIcons("burner-mining-drill"),
+        resourceExtractionCases,
+        caseOffset + electricityCases.length,
+        resourceExtractionRows,
+      ),
+    },
+    {
+      kind: "page",
+      page: buildSinglePage(
+        renderDb,
+        "entity-poses",
+        groupId,
+        `entity-poses/${groupId}/furnaces`,
+        "furnaces",
+        itemIcons("stone-furnace"),
+        furnaceCases,
+        caseOffset + electricityCases.length + resourceExtractionCases.length,
+        furnaceRows,
+      ),
+    },
+    {
+      kind: "page",
+      page: buildSinglePage(
+        renderDb,
+        "entity-poses",
+        groupId,
+        `entity-poses/${groupId}/production`,
+        "production",
+        itemIcons("assembling-machine-3"),
+        productionPrintCases,
+        caseOffset + electricityCases.length + resourceExtractionCases.length + furnaceCases.length,
+        productionPrintRows,
+      ),
+    },
+    {
+      kind: "page",
+      page: buildSinglePage(
+        renderDb,
+        "entity-poses",
+        groupId,
+        `entity-poses/${groupId}/modules`,
+        "modules",
+        itemIcons("beacon"),
+        modulesCases,
+        caseOffset +
+          electricityCases.length +
+          resourceExtractionCases.length +
+          furnaceCases.length +
+          productionPrintCases.length,
+        modulesRows,
+      ),
+    },
+    ...buildPages(
+      renderDb,
+      "entity-poses",
+      groupId,
+      groupLabel,
+      itemIcons(...ENTITY_GROUP_ICON_NAMES.production),
+      allCases.filter(
+        (testCase) =>
+          testCase.entityName == null || !PRODUCTION_DEDICATED_ENTITY_SET.has(testCase.entityName),
+      ),
+      {
+        pageNumberOffset: 0,
+        caseOffset: caseOffset + dedicatedCaseCount,
+      },
+    ).map((page) => ({ kind: "page" as const, page })),
+  ];
+
+  return {
+    id: groupId,
+    label: groupLabel,
+    icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.production),
+    entries,
+  };
+}
+
+function spaceGroup(renderDb: RenderDb): GroupDraft {
+  const groupId = "space";
+  const planetsideRows = planetsideCaseRows(renderDb);
+  const planetsideCases = planetsideRows.flat();
+
+  return {
+    id: groupId,
+    label: groupId,
+    icons: itemIcons("rocket-silo"),
+    entries: [
+      {
+        kind: "page",
+        page: buildSinglePage(
+          renderDb,
+          "space",
+          groupId,
+          `space/planetside`,
+          "planetside",
+          itemIcons("rocket-silo"),
+          planetsideCases,
+          0,
+          planetsideRows,
+        ),
+      },
+    ],
+  };
+}
+
+function combatItemsGroup(renderDb: RenderDb): GroupDraft {
+  const groupId = "combat-items";
+  const groupLabel = "combat items";
+  const defenseRows = defensePrintCaseRows(renderDb);
+  const defenseCases = defenseRows.flat();
+  const turretsRows = turretsCaseRows(renderDb);
+  const turretsCases = turretsRows.flat();
+
+  return {
+    id: groupId,
+    label: groupLabel,
+    icons: itemIcons("stone-wall", "gun-turret"),
+    entries: [
+      {
+        kind: "page",
+        page: buildSinglePage(
+          renderDb,
+          "combat-items",
+          groupId,
+          `combat-items/defense`,
+          "defense",
+          itemIcons("stone-wall"),
+          defenseCases,
+          0,
+          defenseRows,
+        ),
+      },
+      {
+        kind: "page",
+        page: buildSinglePage(
+          renderDb,
+          "combat-items",
+          groupId,
+          `combat-items/turrets`,
+          "turrets",
+          itemIcons("gun-turret"),
+          turretsCases,
+          defenseCases.length,
+          turretsRows,
+        ),
+      },
+    ],
+  };
+}
+
+const INTERNAL_LOADER_ENTITIES = ["loader", "fast-loader", "express-loader"] as const;
+const INTERNAL_BELT_ENTITIES = ["lane-splitter", "linked-belt"] as const;
+const INTERNAL_CONTAINER_ENTITIES = [
+  "linked-chest",
+  "infinity-chest",
+  "bottomless-chest",
+  "proxy-container",
+] as const;
+const INTERNAL_FLUID_ENTITIES = [
+  "infinity-pipe",
+  "one-way-valve",
+  "overflow-valve",
+  "top-up-valve",
+] as const;
+const INTERNAL_INTERFACE_ENTITIES = [
+  "electric-energy-interface",
+  "heat-interface",
+  "burner-generator",
+] as const;
+const INTERNAL_SIMPLE_ENTITIES = ["simple-entity-with-force", "simple-entity-with-owner"] as const;
+
+function internalPrintCaseRows(
+  renderDb: RenderDb,
+  entities: readonly string[],
+  segmentId: string,
+): CaseSpec[][] {
+  return entities.map((name) =>
+    namespaceCases(entitySubsetCases(renderDb, "internal", [name]), "internal-legacy", segmentId),
+  );
+}
+
+function internalChunkedCaseRows(
+  renderDb: RenderDb,
+  name: string,
+  segmentId: string,
+): CaseSpec[][] {
+  return chunk(
+    namespaceCases(entitySubsetCases(renderDb, "internal", [name]), "internal-legacy", segmentId),
+    CASES_PER_ROW,
+  );
+}
+
+function legacyRailsCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return [
+    ...internalChunkedCaseRows(renderDb, "legacy-straight-rail", "legacy-rails"),
+    ...internalChunkedCaseRows(renderDb, "legacy-curved-rail", "legacy-rails"),
+  ];
+}
+
+interface InternalPrintDraft {
+  id: string;
+  label: string;
+  icons: Icon[];
+  buildCaseRows: (renderDb: RenderDb) => CaseSpec[][];
+}
+
+const INTERNAL_PRINTS: InternalPrintDraft[] = [
+  {
+    id: "loaders",
+    label: "loaders",
+    icons: itemIcons("loader"),
+    buildCaseRows: (renderDb) =>
+      internalPrintCaseRows(renderDb, INTERNAL_LOADER_ENTITIES, "loaders"),
+  },
+  {
+    id: "belts",
+    label: "belts",
+    icons: itemIcons("linked-belt"),
+    buildCaseRows: (renderDb) => internalPrintCaseRows(renderDb, INTERNAL_BELT_ENTITIES, "belts"),
+  },
+  {
+    id: "containers",
+    label: "containers",
+    icons: itemIcons("infinity-chest"),
+    buildCaseRows: (renderDb) =>
+      internalPrintCaseRows(renderDb, INTERNAL_CONTAINER_ENTITIES, "containers"),
+  },
+  {
+    id: "fluid",
+    label: "fluid",
+    icons: itemIcons("infinity-pipe"),
+    buildCaseRows: (renderDb) => internalPrintCaseRows(renderDb, INTERNAL_FLUID_ENTITIES, "fluid"),
+  },
+  {
+    id: "interfaces",
+    label: "interfaces",
+    icons: itemIcons("electric-energy-interface"),
+    buildCaseRows: (renderDb) =>
+      internalPrintCaseRows(renderDb, INTERNAL_INTERFACE_ENTITIES, "interfaces"),
+  },
+  {
+    id: "infinity-cargo-wagon",
+    label: "infinity cargo wagon",
+    icons: itemIcons("infinity-cargo-wagon"),
+    buildCaseRows: (renderDb) =>
+      internalChunkedCaseRows(renderDb, "infinity-cargo-wagon", "infinity-cargo-wagon"),
+  },
+  {
+    id: "simple-entities",
+    label: "simple entities",
+    icons: itemIcons("simple-entity-with-owner"),
+    buildCaseRows: (renderDb) =>
+      internalPrintCaseRows(renderDb, INTERNAL_SIMPLE_ENTITIES, "simple-entities"),
+  },
+  {
+    id: "legacy-rails",
+    label: "legacy rails",
+    icons: itemIcons("rail"),
+    buildCaseRows: legacyRailsCaseRows,
+  },
+];
+
+function internalLegacyGroup(renderDb: RenderDb): GroupDraft {
+  const groupId = "internal-legacy";
+  const groupLabel = "internal & legacy";
+  let caseOffset = 0;
+  const entries: GroupBookEntry[] = [];
+
+  for (const print of INTERNAL_PRINTS) {
+    const rows = print.buildCaseRows(renderDb);
+    const cases = rows.flat();
+    entries.push({
+      kind: "page",
+      page: buildSinglePage(
+        renderDb,
+        "internal-legacy",
+        groupId,
+        `internal-legacy/${print.id}`,
+        print.label,
+        print.icons,
+        cases,
+        caseOffset,
+        rows,
+      ),
+    });
+    caseOffset += cases.length;
+  }
+
+  return {
+    id: groupId,
+    label: groupLabel,
+    icons: itemIcons("loader", "infinity-chest"),
+    entries,
   };
 }
 
@@ -1383,15 +1857,46 @@ function groupBookEntries(entries: GroupBookEntry[]): BlueprintBook["blueprints"
   });
 }
 
-function sectionBook(section: SectionDraft): BlueprintBook {
-  return makeBook(
-    section.label,
-    section.icons,
-    section.groups.map((entry, groupIndex) => ({
-      index: groupIndex,
-      blueprint_book: makeBook(entry.label, entry.icons, groupBookEntries(entry.entries)),
-    })),
-  );
+function appendGroupPages(
+  group: GroupDraft,
+  pathPrefix: number[],
+  pages: BaseSuitePage[],
+  cells: BaseSuiteCell[],
+): void {
+  for (const [entryIndex, groupEntry] of group.entries.entries()) {
+    if (groupEntry.kind === "page") {
+      const path = [...pathPrefix, entryIndex];
+      for (const cell of groupEntry.page.cells) cell.pagePath = path;
+      pages.push({
+        id: groupEntry.page.id,
+        label: groupEntry.page.label,
+        sectionId: groupEntry.page.sectionId,
+        groupId: groupEntry.page.groupId,
+        path,
+        cellIds: groupEntry.page.cells.map((cell) => cell.id),
+        entityCount: groupEntry.page.blueprint.entities?.length ?? 0,
+        tileCount: groupEntry.page.blueprint.tiles?.length ?? 0,
+      });
+      cells.push(...groupEntry.page.cells);
+      continue;
+    }
+
+    for (const [pageIndex, page] of groupEntry.pages.entries()) {
+      const path = [...pathPrefix, entryIndex, pageIndex];
+      for (const cell of page.cells) cell.pagePath = path;
+      pages.push({
+        id: page.id,
+        label: page.label,
+        sectionId: page.sectionId,
+        groupId: page.groupId,
+        path,
+        cellIds: page.cells.map((cell) => cell.id),
+        entityCount: page.blueprint.entities?.length ?? 0,
+        tileCount: page.blueprint.tiles?.length ?? 0,
+      });
+      cells.push(...page.cells);
+    }
+  }
 }
 
 function entityCases(
@@ -1435,152 +1940,31 @@ function assertRenderMetadataCoverage(renderDb: RenderDb): void {
 export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
   assertRenderMetadataCoverage(renderDb);
 
-  const poseGroups = (
-    ["logistics", "production", "fluids-heat", "power", "circuit", "defense"] as const
-  ).map((groupId) => {
-    if (groupId === "logistics") return logisticsGroup(renderDb);
-    const { cases } = entityCases(renderDb, groupId);
-    return group(
-      renderDb,
-      "entity-poses",
-      groupId,
-      groupId,
-      itemIcons(...ENTITY_GROUP_ICON_NAMES[groupId]),
-      cases,
-    );
-  });
-  const vehicleCases = entityCases(renderDb, "vehicles").cases;
-  const internalCases = entityCases(renderDb, "internal").cases;
+  const logistics = logisticsGroup(renderDb);
+  const production = productionGroup(renderDb);
+  const space = spaceGroup(renderDb);
+  const combat = combatItemsGroup(renderDb);
+  const internalLegacy = internalLegacyGroup(renderDb);
 
-  const sections: SectionDraft[] = [
-    {
-      id: "entity-poses",
-      label: "Entity poses",
-      icons: itemIcons("assembling-machine-3", "transport-belt"),
-      groups: poseGroups,
-    },
-    {
-      id: "connectivity",
-      label: "Connectivity",
-      icons: itemIcons("pipe", "transport-belt"),
-      groups: [
-        group(
-          renderDb,
-          "connectivity",
-          "pipe",
-          "pipe · 16 masks",
-          itemIcons("pipe"),
-          adjacencyCases("pipe"),
-        ),
-        group(
-          renderDb,
-          "connectivity",
-          "heat-pipe",
-          "heat pipe · 16 masks",
-          itemIcons("heat-pipe"),
-          adjacencyCases("heat-pipe"),
-        ),
-        group(
-          renderDb,
-          "connectivity",
-          "stone-wall",
-          "stone wall · 16 masks",
-          itemIcons("stone-wall"),
-          adjacencyCases("stone-wall"),
-        ),
-        ...["transport-belt", "fast-transport-belt", "express-transport-belt"].map((name) =>
-          group(
-            renderDb,
-            "connectivity",
-            name,
-            `${name} · 4 × 3⁴ neighborhoods`,
-            itemIcons(name),
-            beltNeighborhoodCases(name),
-          ),
-        ),
-      ],
-    },
-    {
-      id: "vehicles",
-      label: "Vehicles & orientation",
-      icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.vehicles),
-      groups: [
-        group(
-          renderDb,
-          "vehicles",
-          "vehicles",
-          "vehicle orientations",
-          itemIcons(...ENTITY_GROUP_ICON_NAMES.vehicles),
-          vehicleCases,
-        ),
-      ],
-    },
-    {
-      id: "internal",
-      label: "Internal & legacy",
-      icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.internal),
-      groups: [
-        group(
-          renderDb,
-          "internal",
-          "internal",
-          "internal & legacy poses",
-          itemIcons(...ENTITY_GROUP_ICON_NAMES.internal),
-          internalCases,
-        ),
-      ],
-    },
-  ];
+  const rootGroups = [logistics, production, space, combat, internalLegacy];
 
   const pages: BaseSuitePage[] = [];
   const cells: BaseSuiteCell[] = [];
-  sections.forEach((section, sectionIndex) => {
-    section.groups.forEach((entry, groupIndex) => {
-      for (const [entryIndex, groupEntry] of entry.entries.entries()) {
-        if (groupEntry.kind === "page") {
-          const path = [sectionIndex, groupIndex, entryIndex];
-          for (const cell of groupEntry.page.cells) cell.pagePath = path;
-          pages.push({
-            id: groupEntry.page.id,
-            label: groupEntry.page.label,
-            sectionId: groupEntry.page.sectionId,
-            groupId: groupEntry.page.groupId,
-            path,
-            cellIds: groupEntry.page.cells.map((cell) => cell.id),
-            entityCount: groupEntry.page.blueprint.entities?.length ?? 0,
-            tileCount: groupEntry.page.blueprint.tiles?.length ?? 0,
-          });
-          cells.push(...groupEntry.page.cells);
-          continue;
-        }
+  const rootBlueprintEntries: BlueprintBook["blueprints"] = [];
 
-        for (const [pageIndex, page] of groupEntry.pages.entries()) {
-          const path = [sectionIndex, groupIndex, entryIndex, pageIndex];
-          for (const cell of page.cells) cell.pagePath = path;
-          pages.push({
-            id: page.id,
-            label: page.label,
-            sectionId: page.sectionId,
-            groupId: page.groupId,
-            path,
-            cellIds: page.cells.map((cell) => cell.id),
-            entityCount: page.blueprint.entities?.length ?? 0,
-            tileCount: page.blueprint.tiles?.length ?? 0,
-          });
-          cells.push(...page.cells);
-        }
-      }
+  rootGroups.forEach((group, rootIndex) => {
+    appendGroupPages(group, [rootIndex], pages, cells);
+    rootBlueprintEntries.push({
+      index: rootIndex,
+      blueprint_book: makeBook(group.label, group.icons, groupBookEntries(group.entries)),
     });
   });
 
   const document: BlueprintDocument = {
     blueprint_book: makeBook(
-      `Base game ${BASE_GAME_VERSION}`,
+      `base items ${BASE_GAME_VERSION}`,
       itemIcons("assembling-machine-3", "transport-belt", "rail", "concrete"),
-      sections.map((section, sectionIndex) => ({
-        index: sectionIndex,
-        blueprint_book: sectionBook(section),
-      })),
+      rootBlueprintEntries,
     ),
   };
 
@@ -1611,8 +1995,6 @@ export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
       covered: [
         "Every curated Base 2.1.11 entity prototype, including hidden/internal and legacy prototypes",
         "All declared 16-way, 8-way, cardinal, and 64-step orientation poses",
-        "Every N/E/S/W adjacency mask for pipe, heat-pipe, and stone-wall",
-        "Every four-neighbor absent/inbound/outbound state for all three Base belt tiers and four center directions",
         "A 7×7 patch for every curated Base tile",
         "Cases packed from pose-specific non-shadow sprite/tile bounds with one empty tile between neighboring cases",
       ],
