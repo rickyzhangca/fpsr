@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
 import pipePlantBp from "../../../fixtures/golden/pipe-plant.bp.txt?raw";
 import smokeBp from "../../../fixtures/golden/smoke.bp.txt?raw";
+import baseGameTestsBp from "../../../fixtures/visual-tests/base-game/book.bp.txt?raw";
 import { BlueprintSummary } from "./BlueprintSummary";
 import { ComparePane } from "./ComparePane";
 import { addCustom, clearCustoms, listCustoms } from "./customBlueprintsDb";
@@ -57,6 +58,12 @@ const SAMPLES = [
   { id: "belt-ring", label: "Belt ring", value: beltRingBp.trim() },
   { id: "pipe-plant", label: "Pipe plant", value: pipePlantBp.trim() },
 ] as const;
+
+const TEST_BOOKS = [
+  { id: "tests-base-game-2.1.11", label: "Base game 2.1.11", value: baseGameTestsBp.trim() },
+] as const;
+
+const BUILT_IN_SOURCES = [...SAMPLES, ...TEST_BOOKS];
 
 const DEFAULT_SAMPLE = SAMPLES[0];
 
@@ -118,11 +125,11 @@ function resolveStoredPath(doc: BlueprintDocument, path: number[] | null): numbe
 function initialSelection(): LastView {
   const last = readLastView();
   if (last) {
-    const sample = SAMPLES.find((s) => s.id === last.sourceId);
-    if (sample) {
-      const decoded = tryDecode(sample.value);
+    const builtIn = BUILT_IN_SOURCES.find((source) => source.id === last.sourceId);
+    if (builtIn) {
+      const decoded = tryDecode(builtIn.value);
       if (decoded) {
-        return { sourceId: sample.id, path: resolveStoredPath(decoded.doc, last.path) };
+        return { sourceId: builtIn.id, path: resolveStoredPath(decoded.doc, last.path) };
       }
     }
   }
@@ -152,12 +159,22 @@ export function App() {
     [],
   );
 
-  // Publish sample decode stats on mount.
+  const testSources: SidebarSource[] = useMemo(
+    () =>
+      TEST_BOOKS.flatMap((testBook) => {
+        const decoded = tryDecode(testBook.value);
+        if (!decoded) return [];
+        return [{ id: testBook.id, label: testBook.label, doc: decoded.doc }];
+      }),
+    [],
+  );
+
+  // Publish built-in decode stats on mount.
   useEffect(() => {
     const stats: Record<string, DecodeStats> = {};
-    for (const sample of SAMPLES) {
-      const decoded = tryDecode(sample.value);
-      if (decoded) stats[sample.id] = decoded.stats;
+    for (const source of BUILT_IN_SOURCES) {
+      const decoded = tryDecode(source.value);
+      if (decoded) stats[source.id] = decoded.stats;
     }
     setDecodeStatsBySource((prev) => ({ ...stats, ...prev }));
   }, []);
@@ -187,6 +204,7 @@ export function App() {
         if (last) {
           const source =
             sampleSources.find((s) => s.id === last.sourceId) ??
+            testSources.find((s) => s.id === last.sourceId) ??
             sources.find((s) => s.id === last.sourceId);
           if (source) {
             setSelectedSourceId(source.id);
@@ -204,7 +222,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [sampleSources]);
+  }, [sampleSources, testSources]);
 
   useEffect(() => {
     if (!selectionReady) return;
@@ -214,10 +232,11 @@ export function App() {
   const activeDoc = useMemo(() => {
     return (
       sampleSources.find((s) => s.id === selectedSourceId)?.doc ??
+      testSources.find((s) => s.id === selectedSourceId)?.doc ??
       customSources.find((s) => s.id === selectedSourceId)?.doc ??
       null
     );
-  }, [selectedSourceId, sampleSources, customSources]);
+  }, [selectedSourceId, sampleSources, testSources, customSources]);
 
   const selectedBlueprint: Blueprint | null = useMemo(() => {
     if (!activeDoc) return null;
@@ -323,7 +342,7 @@ export function App() {
     [selectedSourceId, selectedPath],
   );
 
-  const isCustomSelected = customSources.some((s) => s.id === selectedSourceId);
+  const isGoldenSelected = SAMPLES.some((sample) => sample.id === selectedSourceId);
 
   return (
     <div className="grid h-svh overflow-hidden grid-rows-[minmax(0,45%)_minmax(0,1fr)] md:grid-rows-none md:grid-cols-[320px_minmax(0,1fr)]">
@@ -336,6 +355,17 @@ export function App() {
               <p className="text-muted-foreground text-sm">Demos</p>
               <SidebarTree
                 sources={sampleSources}
+                selectedSourceId={selectedSourceId}
+                selectedPath={selectedPath}
+                renderProgress={renderProgress}
+                onSelect={onTreeSelect}
+              />
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <p className="text-muted-foreground text-sm">Tests</p>
+              <SidebarTree
+                sources={testSources}
                 selectedSourceId={selectedSourceId}
                 selectedPath={selectedPath}
                 renderProgress={renderProgress}
@@ -466,7 +496,7 @@ export function App() {
           <TabsContent value="compare" className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {tab === "compare" && (
               <ScrollArea className="min-h-0 flex-1">
-                <ComparePane caseName={isCustomSelected ? null : selectedSourceId} />
+                <ComparePane caseName={isGoldenSelected ? selectedSourceId : null} />
               </ScrollArea>
             )}
           </TabsContent>

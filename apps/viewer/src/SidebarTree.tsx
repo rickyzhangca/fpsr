@@ -14,7 +14,7 @@ import { BlueprintIcons } from "./BlueprintIcons";
 import { FactorioItemIcon } from "./FactorioItemIcon";
 import { FactorioRichText } from "./FactorioRichText";
 
-const INDENT_PX = 16;
+const INDENT_PX = 12;
 const ROOT_ID = "root";
 
 const KIND_ICON_KEY: Record<BookTreeItemKind, string> = {
@@ -273,14 +273,12 @@ export function SidebarTree({
         const renderedDuration =
           progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
         const isPlanner = data.kind === "upgrade_planner" || data.kind === "deconstruction_planner";
-        // Subtract 1 so top-level sources sit flush under the section title.
-        const level = Math.max(0, item.getItemMeta().level - 1);
 
         return (
           <TreeItem key={id}>
             <TreeItemButton
               {...item.getProps()}
-              indent={level * INDENT_PX}
+              indent={item.getItemMeta().level * INDENT_PX}
               data-selected={item.isSelected() || undefined}
               data-focused={item.isFocused() || undefined}
               data-muted={isPlanner || undefined}
