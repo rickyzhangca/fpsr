@@ -4,12 +4,7 @@ import path from "node:path";
 import { packAtlases } from "./atlas.js";
 import { asOffset2, splitBeltFrameMain } from "./belt-connector-split.js";
 import { discoverPlaceableEntities, discoverPlaceableTiles } from "./discover.js";
-import {
-  getPipelinePaths,
-  OFFICIAL_MODS,
-  UNSUPPORTED_ENTITY_PNG,
-  resolveSpritePath,
-} from "./paths.js";
+import { getPipelinePaths, UNSUPPORTED_ENTITY_PNG, resolveSpritePath } from "./paths.js";
 import { fpsrLayer, guessedLayer, officialLayer, railPieceLayerFromDump } from "./render-layers.js";
 import {
   FrameBank,
@@ -75,16 +70,22 @@ const PIPE_MASK_KEYS: Record<string, string> = {
   "0010": "ending_down",
   "0001": "ending_left",
   "1100": "corner_up_right",
-  "1010": "straight_vertical",
+  "1010": "straight_vertical_window",
   "1001": "corner_up_left",
   "0110": "corner_down_right",
-  "0101": "straight_horizontal",
+  "0101": "straight_horizontal_window",
   "0011": "corner_down_left",
   "1110": "t_right",
   "1101": "t_up",
   "1011": "t_left",
   "0111": "t_down",
   "1111": "cross",
+};
+
+/** Straight pipe windows need an opaque backing below the windowed body. */
+const PIPE_WINDOW_BACKGROUND_KEYS: Readonly<Record<string, string>> = {
+  "1010": "vertical_window_background",
+  "0101": "horizontal_window_background",
 };
 
 /** Heat-pipe connection_sprites use different corner names than pipes. */
@@ -1201,9 +1202,20 @@ async function distillDirection4Animation(
 
 async function distillPipe(bank: FrameBank, p: Record<string, unknown>): Promise<EntityRenderDef> {
   const pictures = p.pictures as Record<string, RawSprite>;
+  const backgroundVariants: Record<string, (SpriteVariant | null)[]> = {};
   const objectVariants: Record<string, (SpriteVariant | null)[]> = {};
 
   for (const [mask, key] of Object.entries(PIPE_MASK_KEYS)) {
+    const backgroundKey = PIPE_WINDOW_BACKGROUND_KEYS[mask];
+    const background = backgroundKey ? pictures[backgroundKey] : undefined;
+    if (backgroundKey && !background) throw new Error(`pipe missing picture ${backgroundKey}`);
+    const backgroundLeaf = background
+      ? leafLayers(background).find((leaf) => !leaf.draw_as_shadow)
+      : undefined;
+    backgroundVariants[mask] = backgroundLeaf
+      ? [bank.toVariant(await bank.addSprite(backgroundLeaf, 0, 0))]
+      : [null];
+
     const spr = pictures[key];
     if (!spr) throw new Error(`pipe missing picture ${key}`);
     const leaves = leafLayers(spr);
@@ -1219,6 +1231,11 @@ async function distillPipe(bank: FrameBank, p: Record<string, unknown>): Promise
 
   return withFluidData(
     baseEntity("pipe", "pipe", p, [
+      {
+        layer: guessedLayer("object-under", "pipe window background below pipe body"),
+        indexing: "single",
+        variants: backgroundVariants,
+      },
       {
         layer: guessedLayer("object", "entity body; dump has no render_layer"),
         indexing: "single",
@@ -1973,6 +1990,71 @@ async function distillTrainRotatedLeaf(
       layer: layerName,
       indexing: "resolver",
       variants: { default: variants },
+    },
+  };
+}
+
+async function distillVehicleRotatedLeaf(
+  bank: FrameBank,
+  leaf: RawSprite,
+  layerName: RenderLayerName,
+  frame: number,
+): Promise<{ group: LayerGroup; poseCount: number }> {
+  const poseCount = Math.max(1, leaf.direction_count ?? 1);
+  const variants: (SpriteVariant | null)[] = [];
+  for (let direction = 0; direction < poseCount; direction++) {
+    const info = await bank.addSprite(leaf, frame, direction);
+    variants.push(bank.toVariant(info));
+  }
+  return {
+    poseCount,
+    group: {
+      layer: layerName,
+      indexing: "resolver",
+      variants: { default: variants },
+    },
+  };
+}
+
+/**
+ * Cars and tanks author their body, tint masks, shadows, and turret as direct
+ * 64-way RotatedAnimation poses. Unlike trains these poses use blueprint
+ * orientation through the renderer's vehicle-sheet projection, without
+ * Factorio's rolling-stock-only rail and bogie offsets.
+ */
+async function distillVehicle(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+  protoType: string,
+): Promise<EntityRenderDef> {
+  const groups: LayerGroup[] = [];
+  const colorMaskGroupIndices: number[] = [];
+  let orientationCount: number | undefined;
+
+  for (const sprite of [
+    p.animation as RawSprite | undefined,
+    p.turret_animation as RawSprite | undefined,
+  ]) {
+    for (const leaf of leafLayers(sprite).filter((candidate) => !candidate.draw_as_light)) {
+      const layerName: RenderLayerName = leaf.draw_as_shadow
+        ? fpsrLayer("shadow", "vehicle draw_as_shadow leaf")
+        : guessedLayer("object", "vehicle body, mask, or turret");
+      const frame = Math.min(leaf.still_frame ?? 0, Math.max(0, (leaf.frame_count ?? 1) - 1));
+      const { group, poseCount } = await distillVehicleRotatedLeaf(bank, leaf, layerName, frame);
+      orientationCount = Math.min(orientationCount ?? poseCount, poseCount);
+      if (leaf.apply_runtime_tint === true) colorMaskGroupIndices.push(groups.length);
+      groups.push(group);
+    }
+  }
+
+  const hasColorMask = colorMaskGroupIndices.length > 0;
+  const defaultColor = colorFromProto(p);
+  return {
+    ...baseEntity("vehicle", protoType, p, groups),
+    data: {
+      orientationCount: orientationCount ?? 1,
+      ...(hasColorMask ? { colorMaskGroupIndices } : {}),
+      ...(defaultColor ? { defaultColor } : {}),
     },
   };
 }
@@ -2910,6 +2992,8 @@ async function distillEntity(
         }).then((g) => baseEntity("simple", protoType, p, g));
         break;
       case "car":
+        def = await distillVehicle(bank, p, protoType);
+        break;
       case "spider-vehicle":
         def = await layersFromSprite(
           bank,
@@ -3404,7 +3488,7 @@ export async function distillAndPack(): Promise<RenderDb> {
     const db: RenderDb = {
       schema: 2,
       gameVersion: paths.install.version,
-      mods: [...OFFICIAL_MODS],
+      mods: [...paths.mods],
       assetDensity: density,
       atlases: packed.atlases,
       frames: packed.frames,
@@ -3436,7 +3520,7 @@ export async function distillAndPack(): Promise<RenderDb> {
   const manifest = {
     schema: 2,
     gameVersion: paths.install.version,
-    mods: [...OFFICIAL_MODS],
+    mods: [...paths.mods],
     tiers: { "1x": oneX.manifest, "2x": twoX.manifest },
   };
   await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

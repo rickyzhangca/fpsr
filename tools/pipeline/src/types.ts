@@ -145,6 +145,7 @@ export type EntityKind =
   | "assembler"
   | "rail"
   | "rail-signal"
+  | "vehicle"
   | "train";
 
 export interface EntityRenderDef {
@@ -198,6 +199,8 @@ export interface RawSprite {
   shift?: [number, number];
   scale?: number;
   frame_count?: number;
+  /** RotatedAnimation frame used when the animation is not running. */
+  still_frame?: number;
   /**
    * SpriteNWaySheet: how many direction frames are packed in this sheet
    * (Factorio uses `frames`, not `frame_count`, for storage-tank etc.).
@@ -214,6 +217,12 @@ export interface RawSprite {
   draw_as_shadow?: boolean;
   draw_as_light?: boolean;
   apply_runtime_tint?: boolean;
+  /** RotatedAnimation stripes: direction rows split across one or more files. */
+  stripes?: {
+    filename: string;
+    width_in_frames: number;
+    height_in_frames: number;
+  }[];
   layers?: RawSprite[];
   sheet?: RawSprite;
   sheets?: RawSprite[];

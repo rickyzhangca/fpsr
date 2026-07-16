@@ -9,7 +9,7 @@
 
 import type { FactorioRenderLayerName, RenderLayerName } from "./types.js";
 
-/** All Factorio `RenderLayer` names (2.1.9). */
+/** All Factorio `RenderLayer` names (2.1.11). */
 export const OFFICIAL_RENDER_LAYER_NAMES: ReadonlySet<string> = new Set<string>([
   "zero",
   "background-transitions",

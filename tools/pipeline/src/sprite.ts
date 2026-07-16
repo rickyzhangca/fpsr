@@ -130,6 +130,17 @@ export function frameRect(
     return { x: baseX + col * w, y: baseY + row * h, w, h };
   }
 
+  // RotatedSprite / SpriteNWay with one animation frame packs directions in
+  // a line_length grid. For example a 64-way car turret uses an 8x8 sheet.
+  if (variationCount <= 1 && directionCount > 1 && frameCount === 1 && s.line_length != null) {
+    return {
+      x: baseX + (dir % s.line_length) * w,
+      y: baseY + Math.floor(dir / s.line_length) * h,
+      w,
+      h,
+    };
+  }
+
   const col = frame % lineLength;
   const rowInDir = Math.floor(frame / lineLength);
   const rowsPerDir = Math.ceil(frameCount / lineLength);
@@ -195,12 +206,6 @@ export async function trimRgba(
   if (w === 0 || h === 0) {
     return { rgba, tw: w, th: h, ox: 0, oy: 0 };
   }
-  const { data, info } = await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
-    .trim({ threshold })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  // sharp trim doesn't return offset in all versions via info; recompute.
   let minX = w;
   let minY = h;
   let maxX = -1;
@@ -221,6 +226,24 @@ export async function trimRgba(
   }
   const tw = maxX - minX + 1;
   const th = maxY - minY + 1;
+  // Factorio 2.1.11 uses 1×1 __core__/graphics/empty.png leaves for unused
+  // circuit-connector parts. libvips rejects trim inputs smaller than 3×3;
+  // the manual bounds above are already authoritative for these tiny leaves.
+  if (w < 3 || h < 3) {
+    return {
+      rgba: extractRaw({ data: rgba, width: w, height: h }, minX, minY, tw, th),
+      tw,
+      th,
+      ox: minX,
+      oy: minY,
+    };
+  }
+  const { data, info } = await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
+    .trim({ threshold })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  // sharp trim doesn't return offset in all versions via info; use recomputed bounds.
   // Prefer recomputed trim for ox/oy; use sharp output pixels when sizes match.
   if (info.width === tw && info.height === th) {
     return { rgba: data, tw, th, ox: minX, oy: minY };
@@ -240,6 +263,51 @@ export function resolveSpriteFile(
   dir = 0,
 ): { sprite: RawSprite; frame: number; dir: number } {
   if (s.filename) return { sprite: s, frame, dir };
+  if (s.stripes?.length) {
+    const frameCount = spriteFrameCount(s);
+    let stripeIndex = 0;
+    let directionBase = 0;
+    while (stripeIndex < s.stripes.length) {
+      const first = s.stripes[stripeIndex];
+      if (!first) break;
+      const height = first.height_in_frames;
+      const group: typeof s.stripes = [];
+      let groupWidth = 0;
+      while (stripeIndex < s.stripes.length && groupWidth < frameCount) {
+        const stripe = s.stripes[stripeIndex];
+        if (!stripe || stripe.height_in_frames !== height) break;
+        group.push(stripe);
+        groupWidth += stripe.width_in_frames;
+        stripeIndex++;
+      }
+      if (dir < directionBase + height) {
+        let localFrame = ((frame % frameCount) + frameCount) % frameCount;
+        let selected = group[0];
+        for (const stripe of group) {
+          if (localFrame < stripe.width_in_frames) {
+            selected = stripe;
+            break;
+          }
+          localFrame -= stripe.width_in_frames;
+        }
+        if (!selected) throw new Error(`RotatedAnimation stripe group is empty at direction ${dir}`);
+        return {
+          sprite: {
+            ...s,
+            filename: selected.filename,
+            stripes: undefined,
+            direction_count: height,
+            frame_count: selected.width_in_frames,
+            line_length: selected.width_in_frames,
+          },
+          frame: localFrame,
+          dir: dir - directionBase,
+        };
+      }
+      directionBase += height;
+    }
+    throw new Error(`RotatedAnimation stripes do not cover direction ${dir}`);
+  }
   if (!s.filenames?.length) throw new Error("Sprite missing filename/filenames");
 
   const lineLength = s.line_length ?? spriteFrameCount(s);
@@ -484,14 +552,8 @@ export function leafLayers(s: RawSprite | undefined | null): RawSprite[] {
   if (s.layers) return s.layers.flatMap(leafLayers);
   if (s.sheets) return s.sheets.flatMap(leafLayers);
   if (s.sheet) return leafLayers(s.sheet);
+  if (s.stripes?.length) return [s];
   if (s.filename || s.filenames) return [s];
-  // RotatedAnimation stripes (cars/tanks): use the first stripe file as a static pose.
-  const stripes = (s as { stripes?: { filename?: string }[] }).stripes;
-  if (Array.isArray(stripes) && stripes[0]?.filename) {
-    return [
-      { ...s, filename: stripes[0].filename, direction_count: 1, frame_count: s.frame_count ?? 1 },
-    ];
-  }
   return [];
 }
 
