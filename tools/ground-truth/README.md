@@ -1,10 +1,13 @@
 # @fpsr/ground-truth
 
-Dev-only CLI that screenshots a Factorio blueprint string with the **real** 2.1.9 graphics client. Output is human reference ("ground truth") when approving renderer golden images. **Not for CI.**
+Dev-only CLI that screenshots a Factorio blueprint string with the **real** 2.1.11 graphics client. Output is human reference ("ground truth") when approving renderer golden images. **Not for CI.**
+
+It also owns the manifest-driven Base visual-suite runner: exact-profile audit, Base-only capture,
+page rendering, stable cell crops, and expected-vs-rendered diff reports.
 
 ## Requirements
 
-- macOS Factorio graphics client at `/Applications/factorio.app` (2.1.9)
+- macOS Factorio graphics client at `/Applications/factorio.app` (2.1.11)
 - Only **one** Factorio instance can run at a time (user-data lock)
 - Does **not** touch `~/Library/Application Support/factorio/mods/mod-list.json`
 
@@ -17,6 +20,11 @@ pnpm -F @fpsr/ground-truth run shoot -- <bp-file-or--> [--name out] [--alt] [--p
 # (viewer built-ins: smoke, belt-ring, pipe-plant from fixtures/golden/cases.json)
 # in a **single** Factorio launch.
 pnpm ground-truth:refresh
+
+# Base test book: audit, five-page canary, or the full 166-page suite
+pnpm visual-tests:audit
+pnpm visual-tests:canary
+pnpm visual-tests:all
 ```
 
 Examples:
@@ -29,7 +37,7 @@ pnpm ground-truth:refresh
 ```
 
 Camera size/position is planned by **fpsr** (`planDrawList` → `computeTileFrame`) so each
-shot matches the golden/renderer canvas. Requires a generated `assets-out/2.1.9/`
+shot matches the golden/renderer canvas. Requires a generated `assets-out/2.1.11/`
 schema-2 bundle.
 Fallback (no fpsr view fields in the job) uses entity collision/selection boxes.
 
@@ -57,16 +65,45 @@ Fallback (no fpsr view fields in the job) uses entity collision/selection boxes.
    → `fixtures/ground-truth/<name>.game.png`, SIGTERMs the game (SIGKILL after 5s), deletes the temp mod dir
 6. Hard timeout: **120s** + **30s per extra job**
 
+The Base visual-suite path overrides step 2 with exactly `base` + `fpsr-rig`; the ordinary
+single-blueprint and legacy refresh commands retain the all-official profile.
+
+## Base visual suite
+
+The suite is committed at `fixtures/visual-tests/base-game/` as one nested book plus a manifest.
+The runner extracts selected leaf pages as bare blueprint strings because the Factorio rig does not
+import whole books.
+
+- `visual-tests:audit` validates the suite plus exact Factorio, asset, and reference profiles.
+- `visual-tests:canary` selects five deterministic pages covering cardinal direction, continuous
+  orientation, adjacency masks, belt neighborhoods, and tiles.
+- `visual-tests:all` runs all manifest pages, eight pages per Factorio process by default.
+- References are full-page game PNGs under ignored `fixtures/ground-truth/<suite>/ppt-<n>/`.
+- `index.json` binds every reference to the blueprint hash, PNG hash, manifest path, camera frame,
+  game version, mod list, and pixels-per-tile.
+- Comparison renders once per page, evaluates every manifest crop, and writes JSON plus only failing
+  page/cell expected/actual/diff PNGs under `build/visual-tests/`.
+
+The default required asset directory is `assets-out/2.1.11-base`. Generate it from an exact 2.1.11
+client with:
+
+```bash
+pnpm assets:build:base -- --factorio /path/to/factorio-2.1.11.app
+```
+
+The runner checks `factorio --version` and the asset manifest before launch. It refuses a mismatched
+game version or the all-official asset bundle, preventing mislabeled Base goldens.
+
 ## Scenario flow
 
-1. Create surface `fpsr-rig` with `generate_with_lab_tiles = true` (lab-dark checkerboard), `always_day` / frozen daytime
+1. Create one fixed-seed surface per page with `generate_with_lab_tiles = true` (lab-dark checkerboard), `always_day` / frozen daytime
 2. `request_to_generate_chunks` + `force_generate_chunk_requests` + `force.chart`
-3. For each job in `jobs.lua`:
+3. Build every job in `jobs.lua` during the same tick, settle them together, then request every screenshot during the same tick so animation phase does not depend on batch position:
    1. Recreate a clean lab surface (after the first job)
    2. `game.create_inventory(1)` → `stack.import_stack(bp)` (expects a single blueprint, not a book)
    3. Try `stack.build_blueprint{…}` then revive ghosts; on empty ghosts fall back to `get_blueprint_entities()` + `surface.create_entity`
    4. Destroy any `character`, settle 3 ticks, bbox from selection/collision boxes, `take_screenshot`, print `FPSR_RIG_SHOT:<name>`
-4. Print `FPSR_RIG_DONE` (no scripting `exit_game` in 2.1.9 — launcher SIGTERMs)
+4. Print `FPSR_RIG_DONE` (no scripting `exit_game` in 2.1.11 — launcher SIGTERMs)
 
 ## `take_screenshot` parameters
 
@@ -88,7 +125,7 @@ Fallback (no fpsr view fields in the job) uses entity collision/selection boxes.
 
 - Single Factorio instance (user-dir lock); quit other sessions first
 - Graphics client required (`take_screenshot` is a no-op headless)
-- `factorio_version` in the rig mod must be `"2.1"` (not `"2.0"`) or 2.1.9 rejects the mod
+- `factorio_version` in the rig mod must be `"2.1"` (not `"2.0"`) or 2.1.11 rejects the mod
 - Unpowered entities → idle / frame-0 sprites (intentional for stable reference)
 - `build_blueprint` currently fails open on the script surface; direct `create_entity`
   covers sprites. Wires are restored afterward from the decoded blueprint `wires`

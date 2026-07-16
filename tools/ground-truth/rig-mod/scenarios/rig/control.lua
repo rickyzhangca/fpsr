@@ -50,7 +50,9 @@ end
 
 local function setup_surface(job_index)
   local name = "fpsr-rig-" .. tostring(job_index)
-  local surface = game.create_surface(name)
+  -- A fixed map seed makes tile variants/transitions stable across captures.
+  -- Every job uses its own surface but the same seed and world coordinates.
+  local surface = game.create_surface(name, { seed = 424242 })
   surface.generate_with_lab_tiles = true
   surface.always_day = true
   surface.freeze_daytime = true
@@ -130,6 +132,9 @@ local function place_entities_directly(surface, bp_entities, origin)
     if ent.direction ~= nil then
       params.direction = ent.direction
     end
+    if ent.orientation ~= nil then
+      params.orientation = ent.orientation
+    end
     if ent.quality ~= nil then
       params.quality = ent.quality
     end
@@ -140,6 +145,15 @@ local function place_entities_directly(surface, bp_entities, origin)
     local created = surface.create_entity(params)
     if created and created.valid then
       placed = placed + 1
+      -- Continuous vehicle/rolling-stock poses are part of the visual-suite
+      -- contract. Some prototypes accept orientation during create_entity;
+      -- setting it again covers prototypes that only expose the property after
+      -- creation.
+      if ent.orientation ~= nil then
+        pcall(function()
+          created.orientation = ent.orientation
+        end)
+      end
       if ent.entity_number ~= nil then
         by_number[ent.entity_number] = created
       end
@@ -362,6 +376,20 @@ local function build_blueprint(surface, blueprint_string, wires)
 
   place_tiles(surface, bp_tiles, origin)
   connect_wires(by_number, wires)
+
+  -- A blank/missing prototype must never become an approved golden. Validate
+  -- every numbered blueprint entity after both ghost revival and the direct
+  -- create_entity fallback, and fail the whole page with actionable names.
+  local missing = {}
+  for _, ent in pairs(bp_entities) do
+    if ent.entity_number ~= nil and not by_number[ent.entity_number] then
+      table.insert(missing, tostring(ent.entity_number) .. ":" .. tostring(ent.name))
+    end
+  end
+  if #missing > 0 then
+    fail("page placement incomplete; missing " .. table.concat(missing, ", "))
+    return false
+  end
   return true
 end
 
@@ -507,18 +535,13 @@ local function resolve_bbox(surface, job)
   return bbox
 end
 
-local function current_job()
-  return storage.jobs[storage.job_index]
-end
-
 script.on_init(function()
   storage.phase = "build"
   storage.done = false
   storage.settle_left = SETTLE_TICKS
-  storage.surface_name = nil
+  storage.surface_names = {}
   storage.jobs = jobs_file.jobs or {}
   storage.default_zoom = jobs_file.zoom or 2
-  storage.job_index = 1
   if #storage.jobs == 0 then
     fail("jobs.lua has no jobs")
   else
@@ -533,24 +556,23 @@ script.on_event(defines.events.on_tick, function()
 
   local ok, err = pcall(function()
     if storage.phase == "build" then
-      local job = current_job()
-      if not job then
-        fail("missing job at index " .. tostring(storage.job_index))
-        return
-      end
-      log(
-        string.format(
-          "job %d/%d name=%s",
-          storage.job_index,
-          #storage.jobs,
-          tostring(job.name)
+      -- Build every page during the same simulation tick. After a shared settle
+      -- window, every screenshot is likewise requested in one tick. Animated
+      -- sprites therefore do not depend on page order or batch size.
+      for job_index, job in ipairs(storage.jobs) do
+        log(
+          string.format(
+            "job %d/%d name=%s",
+            job_index,
+            #storage.jobs,
+            tostring(job.name)
+          )
         )
-      )
-      -- Unique surface per job (delete_surface is async; same name cannot be reused immediately).
-      local surface = setup_surface(storage.job_index)
-      storage.surface_name = surface.name
-      if not build_blueprint(surface, job.blueprint, job.wires) then
-        return
+        local surface = setup_surface(job_index)
+        storage.surface_names[job_index] = surface.name
+        if not build_blueprint(surface, job.blueprint, job.wires) then
+          return
+        end
       end
       storage.phase = "settle"
       storage.settle_left = SETTLE_TICKS
@@ -562,14 +584,14 @@ script.on_event(defines.events.on_tick, function()
       if storage.settle_left > 0 then
         return
       end
-      local surface = game.surfaces[storage.surface_name]
-      local bbox = resolve_bbox(surface, current_job())
-      take_shot(surface, bbox, current_job(), storage.default_zoom)
-
-      if storage.job_index < #storage.jobs then
-        storage.job_index = storage.job_index + 1
-        storage.phase = "build"
-        return
+      for job_index, job in ipairs(storage.jobs) do
+        local surface = game.surfaces[storage.surface_names[job_index]]
+        if not surface then
+          fail("missing surface for job " .. tostring(job_index))
+          return
+        end
+        local bbox = resolve_bbox(surface, job)
+        take_shot(surface, bbox, job, storage.default_zoom)
       end
 
       print(SENTINEL_DONE)

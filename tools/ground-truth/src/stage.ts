@@ -18,6 +18,8 @@ export type CaptureJob = {
 export type StageJobsOptions = {
   /** Default zoom for jobs that omit view/zoom. */
   zoom?: number;
+  /** Enabled game mods. Defaults to the existing all-official capture profile. */
+  enabledMods?: readonly string[];
   jobs: CaptureJob[];
 };
 
@@ -76,6 +78,13 @@ export async function stageJobs(opts: StageJobsOptions): Promise<StagedMods> {
     if (!job.name.trim()) throw new Error("Capture job has empty name");
     if (!job.blueprint.trim()) throw new Error(`Capture job "${job.name}" has empty blueprint`);
   }
+  const enabledMods = [...(opts.enabledMods ?? OFFICIAL_MODS)];
+  if (!enabledMods.includes("base")) {
+    throw new Error('stageJobs enabledMods must include "base" (fpsr-rig depends on it)');
+  }
+  if (new Set(enabledMods).size !== enabledMods.length) {
+    throw new Error("stageJobs enabledMods contains duplicates");
+  }
 
   const modDir = `${TEMP_MOD_DIR_PREFIX}-${process.pid}-${Date.now()}`;
   const rigModDir = path.join(modDir, "fpsr-rig");
@@ -88,7 +97,10 @@ export async function stageJobs(opts: StageJobsOptions): Promise<StagedMods> {
 
   const modList = {
     mods: [
-      ...OFFICIAL_MODS.map((name) => ({ name, enabled: true })),
+      ...OFFICIAL_MODS.map((name) => ({ name, enabled: enabledMods.includes(name) })),
+      ...enabledMods
+        .filter((name) => !(OFFICIAL_MODS as readonly string[]).includes(name))
+        .map((name) => ({ name, enabled: true })),
       { name: "fpsr-rig", enabled: true },
     ],
   };

@@ -67,6 +67,7 @@ async function waitForPng(pngSource: string): Promise<boolean> {
 export async function launchAndCapture(opts: {
   modDir: string;
   names: string[];
+  factorioBin?: string;
   /** Override hard timeout (ms). Defaults to HARD_TIMEOUT_MS + 30s per extra job. */
   timeoutMs?: number;
 }): Promise<LaunchResult> {
@@ -85,11 +86,12 @@ export async function launchAndCapture(opts: {
 
   const timeoutMs = opts.timeoutMs ?? HARD_TIMEOUT_MS + Math.max(0, opts.names.length - 1) * 30_000;
 
-  console.log(`ground-truth: launching ${FACTORIO_BIN}`);
+  const factorioBin = opts.factorioBin ?? FACTORIO_BIN;
+  console.log(`ground-truth: launching ${factorioBin}`);
   console.log(`ground-truth: args: ${args.join(" ")}`);
   console.log(`ground-truth: expecting ${opts.names.length} shot(s): ${opts.names.join(", ")}`);
 
-  const child = spawn(FACTORIO_BIN, args, {
+  const child = spawn(factorioBin, args, {
     stdio: ["ignore", "pipe", "pipe"],
   });
 

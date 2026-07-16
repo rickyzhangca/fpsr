@@ -13,11 +13,13 @@ export type ShotView = {
   zoom: number;
 };
 
-let cachedDb: RenderDb | null = null;
+const cachedDbs = new Map<string, RenderDb>();
 
-async function loadRenderDb(): Promise<RenderDb> {
-  if (cachedDb) return cachedDb;
-  const manifestPath = path.join(ASSETS_DIR, "manifest.json");
+async function loadRenderDb(assetsDir: string): Promise<RenderDb> {
+  const root = path.resolve(assetsDir);
+  const cached = cachedDbs.get(root);
+  if (cached) return cached;
+  const manifestPath = path.join(root, "manifest.json");
   try {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
       schema?: unknown;
@@ -27,16 +29,17 @@ async function loadRenderDb(): Promise<RenderDb> {
     if (manifest.schema !== 2 || typeof renderDbFile !== "string") {
       throw new Error("invalid schema-2 manifest");
     }
-    const dbPath = path.join(ASSETS_DIR, renderDbFile);
-    cachedDb = JSON.parse(await readFile(dbPath, "utf8")) as RenderDb;
+    const dbPath = path.join(root, renderDbFile);
+    const db = JSON.parse(await readFile(dbPath, "utf8")) as RenderDb;
+    cachedDbs.set(root, db);
+    return db;
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `Cannot plan shot framing — invalid assets at ${ASSETS_DIR} (${reason}). ` +
+      `Cannot plan shot framing — invalid assets at ${root} (${reason}). ` +
         `Run: pnpm assets:build`,
     );
   }
-  return cachedDb;
 }
 
 /**
@@ -48,8 +51,9 @@ export async function planShotView(opts: {
   pixelsPerTile: number;
   altMode?: boolean;
   padTiles?: number;
+  assetsDir?: string;
 }): Promise<ShotView> {
-  const db = await loadRenderDb();
+  const db = await loadRenderDb(opts.assetsDir ?? ASSETS_DIR);
   const bp = selectBlueprint(decode(opts.blueprint.trim()));
   const list = planDrawList(bp, db, { altMode: opts.altMode ?? true });
   if (!list.bounds) {

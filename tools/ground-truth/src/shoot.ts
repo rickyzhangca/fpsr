@@ -1,7 +1,8 @@
 import { decode, selectBlueprint } from "fpsr";
 import { formatShotView, planShotView } from "./frame.js";
 import { copyToFixtures, launchAndCapture } from "./launch.js";
-import { GROUND_TRUTH_OUT } from "./paths.js";
+import { ASSETS_DIR, FACTORIO_BIN, GAME_VERSION, GROUND_TRUTH_OUT } from "./paths.js";
+import { assertFactorioVersion } from "./profile.js";
 import { type CaptureJob, cleanupMods, stageJobs } from "./stage.js";
 
 export type ShootOptions = {
@@ -36,7 +37,12 @@ function extractWires(blueprint: string): [number, number, number, number][] | u
 
 async function withPlannedViews(
   jobs: CaptureJob[],
-  opts: { pixelsPerTile: number; padTiles?: number; useFpsrView?: boolean },
+  opts: {
+    pixelsPerTile: number;
+    padTiles?: number;
+    useFpsrView?: boolean;
+    assetsDir?: string;
+  },
 ): Promise<CaptureJob[]> {
   const out: CaptureJob[] = [];
   for (const job of jobs) {
@@ -58,6 +64,7 @@ async function withPlannedViews(
       pixelsPerTile: ppt,
       altMode: next.showEntityInfo,
       padTiles: opts.padTiles ?? 0,
+      assetsDir: opts.assetsDir,
     });
     console.log(`ground-truth: ${next.name} frame ${formatShotView(view)}`);
     out.push({ ...next, view });
@@ -72,6 +79,14 @@ export async function shootJobs(
     pixelsPerTile?: number;
     padTiles?: number;
     useFpsrView?: boolean;
+    /** Asset bundle used to plan the exact tile frame. */
+    assetsDir?: string;
+    /** Exact runtime version required before launching. Defaults to 2.1.11. */
+    expectedGameVersion?: string;
+    /** Mods enabled in the isolated staging directory. Defaults to all official mods. */
+    enabledMods?: readonly string[];
+    factorioBin?: string;
+    outputDir?: string;
   },
 ): Promise<string[]> {
   if (jobs.length === 0) throw new Error("shootJobs requires at least one job");
@@ -90,7 +105,11 @@ export async function shootJobs(
     pixelsPerTile,
     padTiles: opts?.padTiles,
     useFpsrView: opts?.useFpsrView,
+    assetsDir: opts?.assetsDir ?? ASSETS_DIR,
   });
+
+  const factorioBin = opts?.factorioBin ?? FACTORIO_BIN;
+  await assertFactorioVersion(opts?.expectedGameVersion ?? GAME_VERSION, factorioBin);
 
   console.log(
     `ground-truth: ${planned.length} job(s) in one Factorio launch — ${planned.map((j) => j.name).join(", ")}`,
@@ -98,6 +117,7 @@ export async function shootJobs(
 
   const staged = await stageJobs({
     zoom: pixelsPerTile / 32,
+    enabledMods: opts?.enabledMods,
     jobs: planned,
   });
   console.log(`ground-truth: staged mods at ${staged.modDir}`);
@@ -106,12 +126,13 @@ export async function shootJobs(
     const { pngSources } = await launchAndCapture({
       modDir: staged.modDir,
       names: staged.names,
+      factorioBin,
     });
     const dests: string[] = [];
     for (const name of staged.names) {
       const src = pngSources.get(name);
       if (!src) throw new Error(`Missing screenshot for ${name}`);
-      dests.push(await copyToFixtures(src, name, GROUND_TRUTH_OUT));
+      dests.push(await copyToFixtures(src, name, opts?.outputDir ?? GROUND_TRUTH_OUT));
     }
     console.log("ground-truth: done");
     return dests;
