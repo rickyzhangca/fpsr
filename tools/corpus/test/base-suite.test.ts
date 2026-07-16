@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   encode,
   listBlueprints,
@@ -10,6 +7,9 @@ import {
   type Icon,
   type RenderDb,
 } from "fpsr";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
 import { BASE_ENTITY_NAMES, BASE_TILE_NAMES } from "../src/base-game-catalog.js";
 import { buildBaseSuite } from "../src/base-suite.js";
@@ -62,7 +62,7 @@ describe("Base game visual suite", () => {
     const refs = listBlueprints(suite.document);
     expect(refs).toHaveLength(suite.manifest.pages.length);
     expect(refs.length).toBeGreaterThan(100);
-    expect(suite.document.blueprint_book?.blueprints).toHaveLength(6);
+    expect(suite.document.blueprint_book?.blueprints).toHaveLength(4);
 
     const caseIds = suite.manifest.cells.map((cell) => cell.id);
     expect(new Set(caseIds).size).toBe(caseIds.length);
@@ -70,10 +70,10 @@ describe("Base game visual suite", () => {
       const blueprint = selectBlueprint(suite.document, page.path);
       expect(blueprint.label).toBe(page.label);
       expect(page.cellIds.length).toBeGreaterThan(0);
-      expect(page.cellIds.length).toBeLessThanOrEqual(12);
+      expect(page.cellIds.length).toBeLessThanOrEqual(64);
     }
     for (const cell of suite.manifest.cells) {
-      expect(cell.pagePath).toHaveLength(3);
+      expect(cell.pagePath.length).toBeGreaterThanOrEqual(3);
       expect(suite.manifest.pages.some((page) => page.id === cell.pageId)).toBe(true);
     }
     for (const cell of suite.manifest.cells.filter((entry) => entry.caseKind !== "tile-patch")) {
@@ -117,8 +117,8 @@ describe("Base game visual suite", () => {
       "pose/inserter/d00",
       "pose/assembling-machine-1/d00",
       "connectivity/pipe/mask-00",
-      "pose/rail-signal/d00",
-      "pose/car/o00",
+      "logistics/rail-signals/pose/rail-signal/d00",
+      "logistics/car/pose/car/o00",
     ]) {
       const entity = focusEntity(caseId);
       expect(coordinateFraction(entity.position.x)).toBe(0.5);
@@ -127,8 +127,8 @@ describe("Base game visual suite", () => {
 
     for (const caseId of [
       "pose/stone-furnace/d00",
-      "pose/straight-rail/d00",
-      "pose/locomotive/o00",
+      "logistics/rails/pose/straight-rail/d00",
+      "logistics/locomotive/pose/locomotive/o00",
     ]) {
       const entity = focusEntity(caseId);
       expect(coordinateFraction(entity.position.x)).toBe(0);
@@ -142,7 +142,11 @@ describe("Base game visual suite", () => {
     expect(coordinateFraction(eastSplitter.position.x)).toBe(0.5);
     expect(coordinateFraction(eastSplitter.position.y)).toBe(0);
 
-    const tileBlueprint = selectBlueprint(suite.document, [5, 0, 0]);
+    const tilePage = suite.manifest.pages.find(
+      (page) => page.id === "entity-poses/logistics/tiles",
+    );
+    if (!tilePage) throw new Error("Missing logistics stone-path tile page");
+    const tileBlueprint = selectBlueprint(suite.document, tilePage.path);
     for (const tile of tileBlueprint.tiles ?? []) {
       expect(Number.isInteger(tile.position.x)).toBe(true);
       expect(Number.isInteger(tile.position.y)).toBe(true);
@@ -221,7 +225,7 @@ describe("Base game visual suite", () => {
       suite.manifest.cells
         .filter((cell) => cell.caseKind === "tile-patch")
         .map((cell) => cell.tileName),
-    ).toEqual(BASE_TILE_NAMES);
+    ).toEqual([...BASE_TILE_NAMES]);
   });
 
   it("plans every generated page without renderer errors", () => {
@@ -234,9 +238,7 @@ describe("Base game visual suite", () => {
 
   it("is pinned to exact Base-only metadata and requires local game references", () => {
     expect(suite.manifest.renderMetadata.baseOnly).toBe(true);
-    expect(suite.manifest.renderMetadata.role).toBe(
-      "exact-base-graphics-and-pose-metadata",
-    );
+    expect(suite.manifest.renderMetadata.role).toBe("exact-base-graphics-and-pose-metadata");
     expect(suite.manifest.renderMetadata.gameVersion).toBe("2.1.11");
     expect(suite.manifest.renderMetadata.mods).toEqual(["base"]);
     expect(suite.manifest.referenceOracle.status).toBe("local-capture-required");

@@ -61,7 +61,7 @@ const OUTBOUND_DIRECTIONS: Record<Side, number> = {
 };
 
 const ENTITY_GROUP_ICON_NAMES: Record<BaseEntityGroupId, string[]> = {
-  logistics: ["transport-belt", "bulk-inserter"],
+  logistics: ["transport-belt", "inserter"],
   production: ["assembling-machine-3", "rocket-silo"],
   "fluids-heat": ["pipe", "nuclear-reactor"],
   power: ["substation", "solar-panel"],
@@ -195,8 +195,12 @@ interface GroupDraft {
   id: string;
   label: string;
   icons: Icon[];
-  pages: PageDraft[];
+  entries: GroupBookEntry[];
 }
+
+type GroupBookEntry =
+  | { kind: "page"; page: PageDraft }
+  | { kind: "book"; id: string; label: string; icons: Icon[]; pages: PageDraft[] };
 
 interface SectionDraft {
   id: string;
@@ -618,6 +622,127 @@ function tileCase(name: string): CaseSpec {
   };
 }
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+  return rows;
+}
+
+function buildSinglePage(
+  renderDb: RenderDb,
+  sectionId: string,
+  groupId: string,
+  pageId: string,
+  label: string,
+  pageIcons: Icon[],
+  cases: CaseSpec[],
+  caseOffset: number,
+  caseRows?: CaseSpec[][],
+): PageDraft {
+  const entities: BlueprintEntity[] = [];
+  const tiles: Tile[] = [];
+  const cells: BaseSuiteCell[] = [];
+  let nextEntityNumber = 1;
+  const rows = caseRows
+    ? caseRows.map((row) => row.map((testCase) => materializeCase(testCase, renderDb)))
+    : chunk(
+        cases.map((testCase) => materializeCase(testCase, renderDb)),
+        CASES_PER_ROW,
+      );
+  let rowTop = 0;
+
+  for (const row of rows) {
+    let previousRight: number | null = null;
+    let rowBottom = rowTop;
+
+    for (const testCase of row) {
+      const minimumLeft = previousRight == null ? 0 : previousRight + CASE_GAP_TILES;
+      const translateX = packedTranslation(minimumLeft, testCase.bounds.left, testCase.lattice.x);
+      const translateY = packedTranslation(rowTop, testCase.bounds.top, testCase.lattice.y);
+      const placedBounds = {
+        left: testCase.bounds.left + translateX,
+        top: testCase.bounds.top + translateY,
+        right: testCase.bounds.right + translateX,
+        bottom: testCase.bounds.bottom + translateY,
+      };
+      previousRight = placedBounds.right;
+      rowBottom = Math.max(rowBottom, placedBounds.bottom);
+
+      const numberMap = new Map<number, number>();
+      for (const entity of testCase.placement.entities ?? []) {
+        const entityNumber = nextEntityNumber++;
+        numberMap.set(entity.entity_number, entityNumber);
+        entities.push({
+          ...entity,
+          entity_number: entityNumber,
+          position: {
+            x: entity.position.x + translateX,
+            y: entity.position.y + translateY,
+          },
+        });
+      }
+      for (const tile of testCase.placement.tiles ?? []) {
+        tiles.push({
+          ...tile,
+          position: {
+            x: tile.position.x + translateX,
+            y: tile.position.y + translateY,
+          },
+        });
+      }
+
+      const spec = testCase.spec;
+      cells.push({
+        id: spec.id,
+        caseKind: spec.caseKind,
+        pageId,
+        pagePath: [],
+        cropTiles: {
+          left: placedBounds.left - CROP_MARGIN_TILES,
+          top: placedBounds.top - CROP_MARGIN_TILES,
+          right: placedBounds.right + CROP_MARGIN_TILES,
+          bottom: placedBounds.bottom + CROP_MARGIN_TILES,
+        },
+        focusEntityNumbers: (testCase.placement.focusEntityNumbers ?? []).flatMap(
+          (entityNumber) => {
+            const mapped = numberMap.get(entityNumber);
+            return mapped == null ? [] : [mapped];
+          },
+        ),
+        ...(spec.entityName ? { entityName: spec.entityName } : {}),
+        ...(spec.tileName ? { tileName: spec.tileName } : {}),
+        ...(spec.pose ? { pose: spec.pose } : {}),
+        ...(spec.adjacency ? { adjacency: spec.adjacency } : {}),
+        ...(spec.beltNeighborhood ? { beltNeighborhood: spec.beltNeighborhood } : {}),
+        ...(spec.tilePatch ? { tilePatch: spec.tilePatch } : {}),
+      });
+    }
+
+    rowTop = rowBottom + CASE_GAP_TILES;
+  }
+
+  const start = caseOffset + 1;
+  const end = caseOffset + cases.length;
+  return {
+    id: pageId,
+    label,
+    sectionId,
+    groupId,
+    cells,
+    blueprint: {
+      item: "blueprint",
+      label,
+      icons: pageIcons,
+      description: `Generated FPSR visual test page. Cases: ${start}–${end}.`,
+      version: BLUEPRINT_VERSION,
+      ...(entities.length > 0 ? { entities } : {}),
+      ...(tiles.length > 0 ? { tiles } : {}),
+    },
+  };
+}
+
 function buildPages(
   renderDb: RenderDb,
   sectionId: string,
@@ -625,109 +750,30 @@ function buildPages(
   groupLabel: string,
   pageIcons: Icon[],
   cases: CaseSpec[],
+  options?: { pageNumberOffset?: number; caseOffset?: number },
 ): PageDraft[] {
   const pages: PageDraft[] = [];
+  const totalPages = Math.ceil(cases.length / CELLS_PER_PAGE);
+  const pageNumberOffset = options?.pageNumberOffset ?? 0;
+  let caseOffset = options?.caseOffset ?? 0;
   for (let offset = 0; offset < cases.length; offset += CELLS_PER_PAGE) {
     const pageCases = cases.slice(offset, offset + CELLS_PER_PAGE);
-    const pageNumber = pages.length + 1;
+    const pageNumber = pages.length + 1 + pageNumberOffset;
     const pageId = `${sectionId}/${groupId}/page-${String(pageNumber).padStart(3, "0")}`;
-    const entities: BlueprintEntity[] = [];
-    const tiles: Tile[] = [];
-    const cells: BaseSuiteCell[] = [];
-    let nextEntityNumber = 1;
-    const materialized = pageCases.map((testCase) => materializeCase(testCase, renderDb));
-    let rowTop = 0;
-
-    for (let rowOffset = 0; rowOffset < materialized.length; rowOffset += CASES_PER_ROW) {
-      const row = materialized.slice(rowOffset, rowOffset + CASES_PER_ROW);
-      let previousRight: number | null = null;
-      let rowBottom = rowTop;
-
-      for (const testCase of row) {
-        const minimumLeft = previousRight == null ? 0 : previousRight + CASE_GAP_TILES;
-        const translateX = packedTranslation(minimumLeft, testCase.bounds.left, testCase.lattice.x);
-        const translateY = packedTranslation(rowTop, testCase.bounds.top, testCase.lattice.y);
-        const placedBounds = {
-          left: testCase.bounds.left + translateX,
-          top: testCase.bounds.top + translateY,
-          right: testCase.bounds.right + translateX,
-          bottom: testCase.bounds.bottom + translateY,
-        };
-        previousRight = placedBounds.right;
-        rowBottom = Math.max(rowBottom, placedBounds.bottom);
-
-        const numberMap = new Map<number, number>();
-        for (const entity of testCase.placement.entities ?? []) {
-          const entityNumber = nextEntityNumber++;
-          numberMap.set(entity.entity_number, entityNumber);
-          entities.push({
-            ...entity,
-            entity_number: entityNumber,
-            position: {
-              x: entity.position.x + translateX,
-              y: entity.position.y + translateY,
-            },
-          });
-        }
-        for (const tile of testCase.placement.tiles ?? []) {
-          tiles.push({
-            ...tile,
-            position: {
-              x: tile.position.x + translateX,
-              y: tile.position.y + translateY,
-            },
-          });
-        }
-
-        const spec = testCase.spec;
-        cells.push({
-          id: spec.id,
-          caseKind: spec.caseKind,
-          pageId,
-          pagePath: [],
-          cropTiles: {
-            left: placedBounds.left - CROP_MARGIN_TILES,
-            top: placedBounds.top - CROP_MARGIN_TILES,
-            right: placedBounds.right + CROP_MARGIN_TILES,
-            bottom: placedBounds.bottom + CROP_MARGIN_TILES,
-          },
-          focusEntityNumbers: (testCase.placement.focusEntityNumbers ?? []).flatMap(
-            (entityNumber) => {
-              const mapped = numberMap.get(entityNumber);
-              return mapped == null ? [] : [mapped];
-            },
-          ),
-          ...(spec.entityName ? { entityName: spec.entityName } : {}),
-          ...(spec.tileName ? { tileName: spec.tileName } : {}),
-          ...(spec.pose ? { pose: spec.pose } : {}),
-          ...(spec.adjacency ? { adjacency: spec.adjacency } : {}),
-          ...(spec.beltNeighborhood ? { beltNeighborhood: spec.beltNeighborhood } : {}),
-          ...(spec.tilePatch ? { tilePatch: spec.tilePatch } : {}),
-        });
-      }
-
-      rowTop = rowBottom + CASE_GAP_TILES;
-    }
-
-    const start = offset + 1;
-    const end = offset + pageCases.length;
-    const label = `${String(pageNumber).padStart(3, "0")} · ${groupLabel} ${String(start).padStart(3, "0")}–${String(end).padStart(3, "0")}`;
-    pages.push({
-      id: pageId,
-      label,
-      sectionId,
-      groupId,
-      cells,
-      blueprint: {
-        item: "blueprint",
+    const label = totalPages === 1 ? groupLabel : `${groupLabel} page ${pageNumber}`;
+    pages.push(
+      buildSinglePage(
+        renderDb,
+        sectionId,
+        groupId,
+        pageId,
         label,
-        icons: pageIcons,
-        description: `Generated FPSR visual test page. Cases: ${start}–${end}.`,
-        version: BLUEPRINT_VERSION,
-        ...(entities.length > 0 ? { entities } : {}),
-        ...(tiles.length > 0 ? { tiles } : {}),
-      },
-    });
+        pageIcons,
+        pageCases,
+        caseOffset,
+      ),
+    );
+    caseOffset += pageCases.length;
   }
   return pages;
 }
@@ -740,7 +786,570 @@ function group(
   icons: Icon[],
   cases: CaseSpec[],
 ): GroupDraft {
-  return { id, label, icons, pages: buildPages(renderDb, sectionId, id, label, icons, cases) };
+  return {
+    id,
+    label,
+    icons,
+    entries: buildPages(renderDb, sectionId, id, label, icons, cases).map((page) => ({
+      kind: "page",
+      page,
+    })),
+  };
+}
+
+const CONTAINER_ENTITIES = ["wooden-chest", "iron-chest", "steel-chest", "storage-tank"] as const;
+
+function containerCases(renderDb: RenderDb): CaseSpec[] {
+  return CONTAINER_ENTITIES.flatMap((name) => {
+    if (renderDb.entities[name] == null) throw new Error(`Missing entity ${name}`);
+    return CARDINAL_DIRECTIONS.map((direction) =>
+      poseCase(name, {
+        axis: "direction",
+        metadataSource: name === "storage-tank" ? "base-only-render-db" : "base-suite-contract",
+        direction,
+      }),
+    );
+  });
+}
+
+const LOGISTICS_CHEST_ENTITIES = [
+  "passive-provider-chest",
+  "active-provider-chest",
+  "storage-chest",
+  "buffer-chest",
+  "requester-chest",
+] as const;
+
+const ROBOT_ENTITIES = ["logistic-robot", "construction-robot"] as const;
+
+const ROBOT_PAGE_ENTITIES = [...LOGISTICS_CHEST_ENTITIES, ...ROBOT_ENTITIES, "roboport"] as const;
+
+const ELECTRICITY_PAGE_ENTITIES = [
+  "small-electric-pole",
+  "medium-electric-pole",
+  "big-electric-pole",
+  "substation",
+] as const;
+
+const FLUID_PAGE_ENTITIES = ["pipe", "pipe-to-ground", "pump"] as const;
+
+/** Mirrors `rail/rail/page-001` and `page-002`, plus half-diagonal from `page-003` (no signals). */
+const RAILS_LOGISTICS_CASE_IDS = [
+  "pose/straight-rail/d00",
+  "pose/straight-rail/d02",
+  "pose/straight-rail/d04",
+  "pose/straight-rail/d06",
+  "pose/straight-rail/d08",
+  "pose/straight-rail/d10",
+  "pose/straight-rail/d12",
+  "pose/straight-rail/d14",
+  "pose/curved-rail-a/d00",
+  "pose/curved-rail-a/d02",
+  "pose/curved-rail-a/d04",
+  "pose/curved-rail-a/d06",
+  "pose/curved-rail-a/d08",
+  "pose/curved-rail-a/d10",
+  "pose/curved-rail-a/d12",
+  "pose/curved-rail-a/d14",
+  "pose/curved-rail-b/d00",
+  "pose/curved-rail-b/d02",
+  "pose/curved-rail-b/d04",
+  "pose/curved-rail-b/d06",
+  "pose/curved-rail-b/d08",
+  "pose/curved-rail-b/d10",
+  "pose/curved-rail-b/d12",
+  "pose/curved-rail-b/d14",
+  "pose/half-diagonal-rail/d00",
+  "pose/half-diagonal-rail/d02",
+  "pose/half-diagonal-rail/d04",
+  "pose/half-diagonal-rail/d06",
+  "pose/half-diagonal-rail/d08",
+  "pose/half-diagonal-rail/d10",
+  "pose/half-diagonal-rail/d12",
+  "pose/half-diagonal-rail/d14",
+] as const;
+
+const RAILS_PAGE_ENTITIES = [
+  "straight-rail",
+  "curved-rail-a",
+  "curved-rail-b",
+  "half-diagonal-rail",
+] as const;
+
+const RAIL_SIGNAL_PAGE_ENTITIES = ["rail-signal", "rail-chain-signal"] as const;
+
+const CIRCUIT_NETWORK_ENTITIES = [
+  "small-lamp",
+  "arithmetic-combinator",
+  "decider-combinator",
+  "selector-combinator",
+  "constant-combinator",
+  "power-switch",
+  "programmable-speaker",
+  "display-panel",
+] as const;
+
+const LOGISTICS_TILE_SEGMENTS = [
+  {
+    id: "stone-path",
+    label: "stone brick",
+    icons: itemIcons("stone-brick"),
+    tiles: ["stone-path"],
+  },
+  { id: "concrete", label: "concrete", icons: itemIcons("concrete"), tiles: ["concrete"] },
+  {
+    id: "hazard-concrete",
+    label: "hazard concrete",
+    icons: itemIcons("hazard-concrete"),
+    tiles: ["hazard-concrete-left", "hazard-concrete-right"],
+  },
+  {
+    id: "refined-concrete",
+    label: "refined concrete",
+    icons: itemIcons("refined-concrete"),
+    tiles: ["refined-concrete"],
+  },
+  {
+    id: "refined-hazard-concrete",
+    label: "refined hazard concrete",
+    icons: itemIcons("refined-hazard-concrete"),
+    tiles: ["refined-hazard-concrete-left", "refined-hazard-concrete-right"],
+  },
+  { id: "landfill", label: "landfill", icons: itemIcons("landfill"), tiles: ["landfill"] },
+] as const;
+
+function entitySubsetCases(
+  renderDb: RenderDb,
+  groupId: BaseEntityGroupId,
+  names: readonly string[],
+): CaseSpec[] {
+  const { cases } = entityCases(renderDb, groupId);
+  const allowed = new Set(names);
+  return cases.filter(
+    (testCase) => testCase.entityName != null && allowed.has(testCase.entityName),
+  );
+}
+
+function segmentCases(cases: CaseSpec[], segmentId: string): CaseSpec[] {
+  return cases.map((testCase) => ({
+    ...testCase,
+    id: `logistics/${segmentId}/${testCase.id}`,
+  }));
+}
+
+function cardinalPoseCases(
+  name: string,
+  metadataSource: NonNullable<CaseSpec["pose"]>["metadataSource"],
+): CaseSpec[] {
+  return CARDINAL_DIRECTIONS.map((direction) =>
+    poseCase(name, {
+      axis: "direction",
+      metadataSource,
+      direction,
+    }),
+  );
+}
+
+function direction16PoseCases(
+  name: string,
+  metadataSource: NonNullable<CaseSpec["pose"]>["metadataSource"],
+): CaseSpec[] {
+  return DIRECTIONS_16.map((direction) =>
+    poseCase(name, {
+      axis: "direction",
+      metadataSource,
+      direction,
+    }),
+  );
+}
+
+function robotCases(renderDb: RenderDb): CaseSpec[] {
+  const cases: CaseSpec[] = [];
+  for (const name of ROBOT_ENTITIES) {
+    if (renderDb.entities[name] == null) throw new Error(`Missing entity ${name}`);
+    cases.push(...direction16PoseCases(name, "base-suite-contract"));
+  }
+  for (const name of LOGISTICS_CHEST_ENTITIES) {
+    if (renderDb.entities[name] == null) throw new Error(`Missing entity ${name}`);
+    cases.push(...cardinalPoseCases(name, "base-suite-contract"));
+  }
+  if (renderDb.entities.roboport == null) throw new Error("Missing entity roboport");
+  cases.push(...cardinalPoseCases("roboport", "base-suite-contract"));
+  return cases;
+}
+
+interface LogisticsPageSegment {
+  id: string;
+  label: string;
+  icons: Icon[];
+  entities: readonly string[];
+  buildCases?: (renderDb: RenderDb) => CaseSpec[];
+  buildCaseRows?: (renderDb: RenderDb) => CaseSpec[][];
+}
+
+function fluidCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  const row = (names: readonly string[]) =>
+    segmentCases(entitySubsetCases(renderDb, "fluids-heat", names), "fluid");
+  return [row(["pipe"]), row(["pipe-to-ground"]), row(["pump"])];
+}
+
+function railsCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  const { cases } = entityCases(renderDb, "rail");
+  const byId = new Map(cases.map((testCase) => [testCase.id, testCase]));
+  const ordered = RAILS_LOGISTICS_CASE_IDS.map((id) => {
+    const testCase = byId.get(id);
+    if (!testCase) throw new Error(`Missing rail case ${id}`);
+    return testCase;
+  });
+  return chunk(segmentCases(ordered, "rails"), CASES_PER_ROW);
+}
+
+function railSignalCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  const cases = (names: readonly string[]) =>
+    segmentCases(entitySubsetCases(renderDb, "rail", names), "rail-signals");
+  return [
+    ...chunk(cases(["rail-signal"]), CASES_PER_ROW),
+    ...chunk(cases(["rail-chain-signal"]), CASES_PER_ROW),
+  ];
+}
+
+function entityPoseCaseRows(
+  renderDb: RenderDb,
+  groupId: BaseEntityGroupId,
+  name: string,
+  segmentId: string,
+): CaseSpec[][] {
+  return chunk(
+    segmentCases(entitySubsetCases(renderDb, groupId, [name]), segmentId),
+    CASES_PER_ROW,
+  );
+}
+
+function rollingStockCaseRows(renderDb: RenderDb, name: string, segmentId: string): CaseSpec[][] {
+  return entityPoseCaseRows(renderDb, "rail", name, segmentId);
+}
+
+function segmentTileCases(names: readonly string[], pageIdPrefix: string): CaseSpec[] {
+  return names.map((name) => ({
+    ...tileCase(name),
+    id: `${pageIdPrefix}/tile/${name}`,
+  }));
+}
+
+function circuitNetworkCaseRows(renderDb: RenderDb): CaseSpec[][] {
+  return CIRCUIT_NETWORK_ENTITIES.map((name) =>
+    segmentCases(entitySubsetCases(renderDb, "circuit", [name]), "circuit-network"),
+  );
+}
+
+function tilesCaseRows(): CaseSpec[][] {
+  return LOGISTICS_TILE_SEGMENTS.map((segment) =>
+    segmentTileCases(segment.tiles, "logistics/tiles"),
+  );
+}
+
+const LOGISTICS_NESTED_BOOKS = {
+  "belt-systems": {
+    id: "belt-systems",
+    label: "belt systems",
+    icons: itemIcons("transport-belt", "underground-belt", "splitter"),
+    segmentIds: ["belts", "underground-belts", "splitters"],
+  },
+  "rail-systems": {
+    id: "rail-systems",
+    label: "rail systems",
+    icons: itemIcons("rail", "rail-signal", "locomotive"),
+    segmentIds: [
+      "rails",
+      "train-stop",
+      "rail-signals",
+      "locomotive",
+      "cargo-wagon",
+      "fluid-wagon",
+      "artillery-wagon",
+    ],
+  },
+  vehicles: {
+    id: "vehicles",
+    label: "vehicles",
+    icons: itemIcons("car", "tank", "spidertron"),
+    segmentIds: ["car", "tank", "spidertron"],
+  },
+} as const;
+
+type LogisticsNestedBookId = keyof typeof LOGISTICS_NESTED_BOOKS;
+
+const LOGISTICS_LAYOUT: ReadonlyArray<
+  { kind: "segment"; id: string } | { kind: "book"; id: LogisticsNestedBookId }
+> = [
+  { kind: "segment", id: "containers" },
+  { kind: "book", id: "belt-systems" },
+  { kind: "segment", id: "inserters" },
+  { kind: "segment", id: "electricity" },
+  { kind: "segment", id: "fluid" },
+  { kind: "book", id: "rail-systems" },
+  { kind: "book", id: "vehicles" },
+  { kind: "segment", id: "robots" },
+  { kind: "segment", id: "circuit-network" },
+  { kind: "segment", id: "tiles" },
+];
+
+const LOGISTICS_PAGE_SEGMENTS: LogisticsPageSegment[] = [
+  {
+    id: "containers",
+    label: "containers",
+    icons: itemIcons("wooden-chest"),
+    entities: CONTAINER_ENTITIES,
+    buildCases: containerCases,
+  },
+  {
+    id: "belts",
+    label: "belts",
+    icons: itemIcons("transport-belt"),
+    entities: ["transport-belt", "fast-transport-belt", "express-transport-belt"],
+  },
+  {
+    id: "underground-belts",
+    label: "underground belts",
+    icons: itemIcons("underground-belt"),
+    entities: ["underground-belt", "fast-underground-belt", "express-underground-belt"],
+  },
+  {
+    id: "splitters",
+    label: "splitters",
+    icons: itemIcons("splitter"),
+    entities: ["splitter", "fast-splitter", "express-splitter"],
+  },
+  {
+    id: "inserters",
+    label: "inserters",
+    icons: itemIcons("inserter"),
+    entities: [
+      "burner-inserter",
+      "inserter",
+      "long-handed-inserter",
+      "fast-inserter",
+      "bulk-inserter",
+    ],
+  },
+  {
+    id: "electricity",
+    label: "electricity",
+    icons: itemIcons("small-electric-pole"),
+    entities: ELECTRICITY_PAGE_ENTITIES,
+    buildCases: (renderDb) =>
+      segmentCases(entitySubsetCases(renderDb, "power", ELECTRICITY_PAGE_ENTITIES), "electricity"),
+  },
+  {
+    id: "fluid",
+    label: "fluid",
+    icons: itemIcons("pipe"),
+    entities: FLUID_PAGE_ENTITIES,
+    buildCaseRows: fluidCaseRows,
+  },
+  {
+    id: "rails",
+    label: "rails",
+    icons: itemIcons("rail"),
+    entities: RAILS_PAGE_ENTITIES,
+    buildCaseRows: railsCaseRows,
+  },
+  {
+    id: "train-stop",
+    label: "train stop",
+    icons: itemIcons("train-stop"),
+    entities: ["train-stop"],
+    buildCases: (renderDb) =>
+      segmentCases(entitySubsetCases(renderDb, "rail", ["train-stop"]), "train-stop"),
+  },
+  {
+    id: "rail-signals",
+    label: "rail signals",
+    icons: itemIcons("rail-signal", "rail-chain-signal"),
+    entities: RAIL_SIGNAL_PAGE_ENTITIES,
+    buildCaseRows: railSignalCaseRows,
+  },
+  {
+    id: "locomotive",
+    label: "locomotive",
+    icons: itemIcons("locomotive"),
+    entities: ["locomotive"],
+    buildCaseRows: (renderDb) => rollingStockCaseRows(renderDb, "locomotive", "locomotive"),
+  },
+  {
+    id: "cargo-wagon",
+    label: "cargo wagon",
+    icons: itemIcons("cargo-wagon"),
+    entities: ["cargo-wagon"],
+    buildCaseRows: (renderDb) => rollingStockCaseRows(renderDb, "cargo-wagon", "cargo-wagon"),
+  },
+  {
+    id: "fluid-wagon",
+    label: "fluid wagon",
+    icons: itemIcons("fluid-wagon"),
+    entities: ["fluid-wagon"],
+    buildCaseRows: (renderDb) => rollingStockCaseRows(renderDb, "fluid-wagon", "fluid-wagon"),
+  },
+  {
+    id: "artillery-wagon",
+    label: "artillery wagon",
+    icons: itemIcons("artillery-wagon"),
+    entities: ["artillery-wagon"],
+    buildCaseRows: (renderDb) =>
+      rollingStockCaseRows(renderDb, "artillery-wagon", "artillery-wagon"),
+  },
+  {
+    id: "car",
+    label: "car",
+    icons: itemIcons("car"),
+    entities: ["car"],
+    buildCaseRows: (renderDb) => entityPoseCaseRows(renderDb, "vehicles", "car", "car"),
+  },
+  {
+    id: "tank",
+    label: "tank",
+    icons: itemIcons("tank"),
+    entities: ["tank"],
+    buildCaseRows: (renderDb) => entityPoseCaseRows(renderDb, "vehicles", "tank", "tank"),
+  },
+  {
+    id: "spidertron",
+    label: "spidertron",
+    icons: itemIcons("spidertron"),
+    entities: ["spidertron"],
+    buildCaseRows: (renderDb) =>
+      entityPoseCaseRows(renderDb, "vehicles", "spidertron", "spidertron"),
+  },
+  {
+    id: "robots",
+    label: "robots",
+    icons: itemIcons("logistic-robot", "construction-robot", "passive-provider-chest", "roboport"),
+    entities: ROBOT_PAGE_ENTITIES,
+    buildCases: robotCases,
+  },
+  {
+    id: "circuit-network",
+    label: "circuit network",
+    icons: itemIcons("small-lamp", "arithmetic-combinator", "decider-combinator", "display-panel"),
+    entities: CIRCUIT_NETWORK_ENTITIES,
+    buildCaseRows: circuitNetworkCaseRows,
+  },
+  {
+    id: "tiles",
+    label: "tiles",
+    icons: itemIcons("stone-brick", "concrete", "landfill"),
+    entities: [],
+    buildCaseRows: tilesCaseRows,
+  },
+];
+
+function buildLogisticsSegmentPage(
+  renderDb: RenderDb,
+  segment: LogisticsPageSegment,
+  pageIdPrefix: string,
+  allCases: CaseSpec[],
+  consumed: Set<string>,
+  caseOffset: number,
+): { page: PageDraft; caseCount: number } {
+  const entitySet = new Set(segment.entities);
+  const caseRows = segment.buildCaseRows?.(renderDb);
+  const segmentCases = caseRows
+    ? caseRows.flat()
+    : segment.buildCases
+      ? segment.buildCases(renderDb)
+      : allCases.filter(
+          (testCase) => testCase.entityName != null && entitySet.has(testCase.entityName),
+        );
+  for (const testCase of allCases) {
+    if (testCase.entityName != null && entitySet.has(testCase.entityName)) {
+      consumed.add(testCase.id);
+    }
+  }
+  return {
+    page: buildSinglePage(
+      renderDb,
+      "entity-poses",
+      "logistics",
+      `${pageIdPrefix}/${segment.id}`,
+      segment.label,
+      segment.icons,
+      segmentCases,
+      caseOffset,
+      caseRows,
+    ),
+    caseCount: segmentCases.length,
+  };
+}
+
+function logisticsGroup(renderDb: RenderDb): GroupDraft {
+  const groupId = "logistics";
+  const { cases: allCases } = entityCases(renderDb, groupId);
+  const segments = new Map(LOGISTICS_PAGE_SEGMENTS.map((segment) => [segment.id, segment]));
+  const entries: GroupBookEntry[] = [];
+  const consumed = new Set<string>();
+  let caseOffset = 0;
+
+  for (const item of LOGISTICS_LAYOUT) {
+    if (item.kind === "segment") {
+      const segment = segments.get(item.id);
+      if (!segment) throw new Error(`Missing logistics segment ${item.id}`);
+      const { page, caseCount } = buildLogisticsSegmentPage(
+        renderDb,
+        segment,
+        `entity-poses/${groupId}`,
+        allCases,
+        consumed,
+        caseOffset,
+      );
+      entries.push({ kind: "page", page });
+      caseOffset += caseCount;
+      continue;
+    }
+
+    const book = LOGISTICS_NESTED_BOOKS[item.id];
+    const bookPages: PageDraft[] = [];
+    for (const segmentId of book.segmentIds) {
+      const segment = segments.get(segmentId);
+      if (!segment) throw new Error(`Missing logistics segment ${segmentId}`);
+      const { page, caseCount } = buildLogisticsSegmentPage(
+        renderDb,
+        segment,
+        `entity-poses/${groupId}/${book.id}`,
+        allCases,
+        consumed,
+        caseOffset,
+      );
+      bookPages.push(page);
+      caseOffset += caseCount;
+    }
+    entries.push({
+      kind: "book",
+      id: book.id,
+      label: book.label,
+      icons: book.icons,
+      pages: bookPages,
+    });
+  }
+
+  const remaining = allCases.filter((testCase) => !consumed.has(testCase.id));
+  entries.push(
+    ...buildPages(
+      renderDb,
+      "entity-poses",
+      groupId,
+      "logistics",
+      itemIcons("transport-belt", "inserter"),
+      remaining,
+      { pageNumberOffset: 0, caseOffset },
+    ).map((page) => ({ kind: "page" as const, page })),
+  );
+
+  return {
+    id: groupId,
+    label: groupId,
+    icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.logistics),
+    entries,
+  };
 }
 
 function makeBook(
@@ -758,17 +1367,29 @@ function makeBook(
   };
 }
 
+function groupBookEntries(entries: GroupBookEntry[]): BlueprintBook["blueprints"] {
+  return entries.map((entry, index) => {
+    if (entry.kind === "page") {
+      return { index, blueprint: entry.page.blueprint };
+    }
+    return {
+      index,
+      blueprint_book: makeBook(
+        entry.label,
+        entry.icons,
+        entry.pages.map((page, pageIndex) => ({ index: pageIndex, blueprint: page.blueprint })),
+      ),
+    };
+  });
+}
+
 function sectionBook(section: SectionDraft): BlueprintBook {
   return makeBook(
     section.label,
     section.icons,
     section.groups.map((entry, groupIndex) => ({
       index: groupIndex,
-      blueprint_book: makeBook(
-        entry.label,
-        entry.icons,
-        entry.pages.map((page, pageIndex) => ({ index: pageIndex, blueprint: page.blueprint })),
-      ),
+      blueprint_book: makeBook(entry.label, entry.icons, groupBookEntries(entry.entries)),
     })),
   );
 }
@@ -817,6 +1438,7 @@ export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
   const poseGroups = (
     ["logistics", "production", "fluids-heat", "power", "circuit", "defense"] as const
   ).map((groupId) => {
+    if (groupId === "logistics") return logisticsGroup(renderDb);
     const { cases } = entityCases(renderDb, groupId);
     return group(
       renderDb,
@@ -827,20 +1449,19 @@ export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
       cases,
     );
   });
-  const railCases = entityCases(renderDb, "rail").cases;
   const vehicleCases = entityCases(renderDb, "vehicles").cases;
   const internalCases = entityCases(renderDb, "internal").cases;
 
   const sections: SectionDraft[] = [
     {
       id: "entity-poses",
-      label: "10 · Entity poses",
+      label: "Entity poses",
       icons: itemIcons("assembling-machine-3", "transport-belt"),
       groups: poseGroups,
     },
     {
       id: "connectivity",
-      label: "20 · Connectivity",
+      label: "Connectivity",
       icons: itemIcons("pipe", "transport-belt"),
       groups: [
         group(
@@ -880,23 +1501,8 @@ export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
       ],
     },
     {
-      id: "rail",
-      label: "30 · Rail",
-      icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.rail),
-      groups: [
-        group(
-          renderDb,
-          "rail",
-          "rail",
-          "rail poses",
-          itemIcons(...ENTITY_GROUP_ICON_NAMES.rail),
-          railCases,
-        ),
-      ],
-    },
-    {
       id: "vehicles",
-      label: "40 · Vehicles & orientation",
+      label: "Vehicles & orientation",
       icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.vehicles),
       groups: [
         group(
@@ -911,7 +1517,7 @@ export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
     },
     {
       id: "internal",
-      label: "90 · Internal & legacy",
+      label: "Internal & legacy",
       icons: itemIcons(...ENTITY_GROUP_ICON_NAMES.internal),
       groups: [
         group(
@@ -924,42 +1530,46 @@ export function buildBaseSuite(renderDb: RenderDb): BaseSuiteBuild {
         ),
       ],
     },
-    {
-      id: "tiles",
-      label: "99 · Tiles",
-      icons: itemIcons("concrete", "landfill"),
-      groups: [
-        group(
-          renderDb,
-          "tiles",
-          "base-tiles",
-          "base tile patches",
-          itemIcons("concrete", "landfill"),
-          BASE_TILE_NAMES.map(tileCase),
-        ),
-      ],
-    },
   ];
 
   const pages: BaseSuitePage[] = [];
   const cells: BaseSuiteCell[] = [];
   sections.forEach((section, sectionIndex) => {
     section.groups.forEach((entry, groupIndex) => {
-      entry.pages.forEach((page, pageIndex) => {
-        const path = [sectionIndex, groupIndex, pageIndex];
-        for (const cell of page.cells) cell.pagePath = path;
-        pages.push({
-          id: page.id,
-          label: page.label,
-          sectionId: page.sectionId,
-          groupId: page.groupId,
-          path,
-          cellIds: page.cells.map((cell) => cell.id),
-          entityCount: page.blueprint.entities?.length ?? 0,
-          tileCount: page.blueprint.tiles?.length ?? 0,
-        });
-        cells.push(...page.cells);
-      });
+      for (const [entryIndex, groupEntry] of entry.entries.entries()) {
+        if (groupEntry.kind === "page") {
+          const path = [sectionIndex, groupIndex, entryIndex];
+          for (const cell of groupEntry.page.cells) cell.pagePath = path;
+          pages.push({
+            id: groupEntry.page.id,
+            label: groupEntry.page.label,
+            sectionId: groupEntry.page.sectionId,
+            groupId: groupEntry.page.groupId,
+            path,
+            cellIds: groupEntry.page.cells.map((cell) => cell.id),
+            entityCount: groupEntry.page.blueprint.entities?.length ?? 0,
+            tileCount: groupEntry.page.blueprint.tiles?.length ?? 0,
+          });
+          cells.push(...groupEntry.page.cells);
+          continue;
+        }
+
+        for (const [pageIndex, page] of groupEntry.pages.entries()) {
+          const path = [sectionIndex, groupIndex, entryIndex, pageIndex];
+          for (const cell of page.cells) cell.pagePath = path;
+          pages.push({
+            id: page.id,
+            label: page.label,
+            sectionId: page.sectionId,
+            groupId: page.groupId,
+            path,
+            cellIds: page.cells.map((cell) => cell.id),
+            entityCount: page.blueprint.entities?.length ?? 0,
+            tileCount: page.blueprint.tiles?.length ?? 0,
+          });
+          cells.push(...page.cells);
+        }
+      }
     });
   });
 
