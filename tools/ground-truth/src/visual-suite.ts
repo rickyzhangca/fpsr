@@ -186,7 +186,7 @@ export async function loadVisualSuite(dir = BASE_SUITE_DIR): Promise<LoadedVisua
       };
     }
     bookSource = sources.join("\n");
-    document = books[manifestValue.books[0]!.specId].document;
+    document = books[manifestValue.books[0]!.specId]!.document;
   } else {
     bookSource = (await readFile(path.join(root, "book.bp.txt"), "utf8")).trim();
     document = decode(bookSource);
