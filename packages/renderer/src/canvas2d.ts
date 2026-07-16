@@ -156,6 +156,24 @@ function drawRect(
   ctx.fillRect((cmd.x + ox) * ppt, (cmd.y + oy) * ppt, cmd.w * ppt, cmd.h * ppt);
 }
 
+function atlasSourceRect(
+  frame: FrameMeta,
+  src: { x: number; y: number; w: number; h: number },
+): { x: number; y: number; w: number; h: number } {
+  const packedW = packedWidth(frame);
+  const packedH = packedHeight(frame);
+  const atlasScaleX = frame.w === 0 ? 0 : packedW / frame.w;
+  const atlasScaleY = frame.h === 0 ? 0 : packedH / frame.h;
+  const relX = src.x - frame.ox;
+  const relY = src.y - frame.oy;
+  return {
+    x: frame.x + relX * atlasScaleX,
+    y: frame.y + relY * atlasScaleY,
+    w: src.w * atlasScaleX,
+    h: src.h * atlasScaleY,
+  };
+}
+
 function drawSprite(
   ctx: Canvas2DContextLike,
   cmd: SpriteCmd,
@@ -171,12 +189,21 @@ function drawSprite(
   const dw = cmd.w * ppt;
   const dh = cmd.h * ppt;
 
-  const scaleX = frame.sw === 0 ? 0 : dw / frame.sw;
-  const scaleY = frame.sh === 0 ? 0 : dh / frame.sh;
-  const trimmedDx = dx + frame.ox * scaleX;
-  const trimmedDy = dy + frame.oy * scaleY;
-  const trimmedDw = frame.w * scaleX;
-  const trimmedDh = frame.h * scaleY;
+  const src = cmd.src ?? { x: 0, y: 0, w: frame.sw, h: frame.sh };
+  const scaleX = src.w === 0 ? 0 : dw / src.w;
+  const scaleY = src.h === 0 ? 0 : dh / src.h;
+  const atlasSrc = cmd.src
+    ? atlasSourceRect(frame, src)
+    : {
+        x: frame.x,
+        y: frame.y,
+        w: packedWidth(frame),
+        h: packedHeight(frame),
+      };
+  const trimmedDx = cmd.src ? dx : dx + frame.ox * scaleX;
+  const trimmedDy = cmd.src ? dy : dy + frame.oy * scaleY;
+  const trimmedDw = cmd.src ? dw : frame.w * scaleX;
+  const trimmedDh = cmd.src ? dh : frame.h * scaleY;
 
   const prevAlpha = ctx.globalAlpha;
   if (cmd.shadow) {
@@ -198,10 +225,10 @@ function drawSprite(
   ): void => {
     target.drawImage(
       image,
-      frame.x,
-      frame.y,
-      packedWidth(frame),
-      packedHeight(frame),
+      atlasSrc.x,
+      atlasSrc.y,
+      atlasSrc.w,
+      atlasSrc.h,
       destDx,
       destDy,
       destDw,

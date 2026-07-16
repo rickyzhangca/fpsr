@@ -152,6 +152,11 @@ export interface SpriteCmd extends DrawCmdBase {
   /** Clockwise degrees around the sprite center. */
   rotation?: number;
   /**
+   * Optional sub-rect within the untrimmed source sprite (`FrameMeta.sw`×`sh`,
+   * pixels). When set, `x`/`y`/`w`/`h` are the destination rect for this slice.
+   */
+  src?: { x: number; y: number; w: number; h: number };
+  /**
    * Optional destination-space clip rect (tile units, same space as x/y/w/h).
    * Backend applies before drawing; used for UG/loader belt underlay halves.
    */

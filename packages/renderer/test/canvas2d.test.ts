@@ -205,6 +205,47 @@ describe("executeDrawList", () => {
     expect(args[8]).toBe(20);
   });
 
+  it("draws a source sub-rect for material tile cells", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [
+        {
+          kind: "sprite",
+          layer: 2,
+          sortY: 0,
+          sortX: 0,
+          entity: 0,
+          sub: 0,
+          frame: 5,
+          x: 3,
+          y: 5,
+          w: 1,
+          h: 1,
+          src: { x: 24, y: 40, w: 8, h: 8 },
+        },
+      ],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      frames: db.frames,
+    });
+
+    const draw = ctx.calls.find((c) => c.method === "drawImage");
+    expect(draw).toBeDefined();
+    const args = draw?.args ?? [];
+    expect(args[1]).toBe(24);
+    expect(args[2]).toBe(40);
+    expect(args[3]).toBe(8);
+    expect(args[4]).toBe(8);
+    expect(args[5]).toBe(3 * 32);
+    expect(args[6]).toBe(5 * 32);
+    expect(args[7]).toBe(32);
+    expect(args[8]).toBe(32);
+  });
+
   it("uses packed dimensions for a 1x atlas while preserving logical geometry", () => {
     const list: DrawList = {
       schema: 1,

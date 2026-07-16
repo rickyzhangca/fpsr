@@ -75,9 +75,7 @@ describe("planDrawList", () => {
       (command): command is SpriteCmd => command.kind === "sprite",
     );
     expect(paintedSprites).toHaveLength(2);
-    expect(paintedSprites.find((command) => command.sub === 1)?.tint).toEqual([
-      0.25, 0.5, 0.75, 1,
-    ]);
+    expect(paintedSprites.find((command) => command.sub === 1)?.tint).toEqual([0.25, 0.5, 0.75, 1]);
   });
 
   it("computes dest rect from frame sw/sh/scale/shift", () => {
@@ -291,6 +289,42 @@ describe("planDrawList", () => {
       color: [0.4, 0.35, 0.3, 1],
       layer: RENDER_LAYERS["ground-tile"],
     });
+  });
+
+  it("samples material_background tiles from patch UV", () => {
+    const list = planDrawList(
+      bp({
+        tiles: [{ name: "concrete-framed", position: { x: 3, y: 5 } }],
+      }),
+      db,
+    );
+    expect(list.commands).toHaveLength(1);
+    expect(list.commands[0]).toMatchObject({
+      kind: "sprite",
+      frame: 5,
+      x: 3,
+      y: 5,
+      w: 1,
+      h: 1,
+      src: { x: 24, y: 40, w: 8, h: 8 },
+      layer: RENDER_LAYERS["ground-tile"],
+    });
+  });
+
+  it("repeats material patch cells across an 8×8 block", () => {
+    const list = planDrawList(
+      bp({
+        tiles: [
+          { name: "concrete-framed", position: { x: 0, y: 0 } },
+          { name: "concrete-framed", position: { x: 8, y: 0 } },
+        ],
+      }),
+      db,
+    );
+    const sprites = list.commands.filter((c) => c.kind === "sprite") as SpriteCmd[];
+    expect(sprites).toHaveLength(2);
+    expect(sprites[0]?.src).toEqual({ x: 0, y: 0, w: 8, h: 8 });
+    expect(sprites[1]?.src).toEqual({ x: 0, y: 0, w: 8, h: 8 });
   });
 
   it("computes tight bounds", () => {

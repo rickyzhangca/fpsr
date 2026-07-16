@@ -45,6 +45,19 @@ export const TRIMMED_FRAME: FrameMeta = {
   sh: 32,
 };
 
+/** 8×8 material patch (64×64 untrimmed) for tile atlas tests. */
+export const MATERIAL_PATCH_FRAME: FrameMeta = {
+  a: 0,
+  x: 0,
+  y: 0,
+  w: 64,
+  h: 64,
+  ox: 0,
+  oy: 0,
+  sw: 64,
+  sh: 64,
+};
+
 function variant(frame: number, opts?: Partial<SpriteVariant>): SpriteVariant {
   return {
     frame,
@@ -516,6 +529,7 @@ export function makeMiniDb(): RenderDb {
       TRIMMED_FRAME,
       { ...FRAME0, x: 32, y: 0 }, // icon
       UNSUPPORTED_MARKER_FRAME,
+      MATERIAL_PATCH_FRAME,
     ],
     entities: {
       "wooden-chest": woodenChest,
@@ -537,17 +551,25 @@ export function makeMiniDb(): RenderDb {
     tiles: {
       "stone-path": {
         layer: "ground-tile",
+        item: "stone-brick",
         color: [0.4, 0.35, 0.3, 1],
       },
       "concrete-framed": {
         layer: "ground-tile",
         color: [0.5, 0.5, 0.5, 1],
-        frames: [0, 0],
+        material: {
+          sheet: 5,
+          count: 1,
+          patchW: 8,
+          patchH: 8,
+          tilePx: 8,
+        },
       },
     },
     icons: {
       "recipe/iron-gear-wheel": 3,
       "item/iron-plate": 3,
+      "item/stone-brick": 3,
       "quality/rare": 3,
       "utility/unsupported-entity": 4,
     },

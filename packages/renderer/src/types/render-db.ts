@@ -304,15 +304,41 @@ export interface EntityRenderDef {
   qualityIndicatorScale?: number;
 }
 
+/** Factorio `material_background` atlas: repeating patchW×patchH variants. */
+export interface TileMaterialAtlas {
+  /** Cropped material_background spritesheet (all variant patches). */
+  sheet: FrameId;
+  /** `material_background.count`. */
+  count: number;
+  /** `material_texture_width_in_tiles` (default 8). */
+  patchW: number;
+  /** `material_texture_height_in_tiles` (default 8). */
+  patchH: number;
+  /** Source pixels per map tile (`32 / material_background.scale`). */
+  tilePx: number;
+  /** `material_background.line_length`; 0 = single horizontal row. */
+  lineLength?: number;
+  /** `material_background.x` / `y` offset into the source file (pixels). */
+  sheetX?: number;
+  sheetY?: number;
+}
+
 export interface TileRenderDef {
   layer: RenderLayerName;
+  /** Item that places this tile (`place_as_tile.result`); used for UI icons. */
+  item?: string;
   /**
-   * Plain color fallback (RGBA 0-1) or material frames. MVP: `frames` holds 1+
-   * pre-cropped 1-tile variants chosen by position hash; `color` is the
-   * degraded fallback when atlases are unavailable.
+   * Plain color fallback (RGBA 0-1). When atlases are unavailable, tiles draw as
+   * solid rects using this color.
    */
   color: [number, number, number, number];
+  /**
+   * Legacy 1×1 hashed variants from `variants.main[0]` (e.g. stone-path size-1
+   * sheet). Multi-size 2×2 / 4×4 packing is not implemented yet.
+   */
   frames?: FrameId[];
+  /** Factorio `material_background` mode (concrete, landfill, hazard, …). */
+  material?: TileMaterialAtlas;
 }
 
 export interface RenderDb {

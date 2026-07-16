@@ -88,9 +88,11 @@ export type {
   BlueprintIconVariant,
   PlanBlueprintIconsOptions,
 } from "./blueprint-icons.js";
+export { resolveIconFrameId } from "./icon-resolve.js";
 export {
   normalizeEntityColor,
   planDrawList,
+  tileMod,
   tileVariantHash,
   UNSUPPORTED_ENTITY_ICON_KEY,
 } from "./plan.js";
@@ -217,5 +219,6 @@ export type {
   RenderDb,
   RenderLayerName,
   SpriteVariant,
+  TileMaterialAtlas,
   TileRenderDef,
 } from "./types/render-db.js";

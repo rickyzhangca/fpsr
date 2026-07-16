@@ -35,6 +35,7 @@ import type {
   RenderDb,
   RenderLayerName,
   SpriteVariant,
+  TileMaterialAtlas,
 } from "./types/render-db.js";
 import { WIRE_CONNECTOR_ID, type WireColor, wireConnectorColor } from "./wire-connectors.js";
 
@@ -311,6 +312,67 @@ export function tileVariantHash(x: number, y: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+/** Positive modulo for tile grid coordinates (handles negatives). */
+export function tileMod(n: number, m: number): number {
+  return ((n % m) + m) % m;
+}
+
+function materialVariantOrigin(
+  variantIdx: number,
+  material: TileMaterialAtlas,
+): { x: number; y: number } {
+  const patchPxW = material.patchW * material.tilePx;
+  const patchPxH = material.patchH * material.tilePx;
+  const lineLength = material.lineLength ?? 0;
+  const sheetX = material.sheetX ?? 0;
+  const sheetY = material.sheetY ?? 0;
+  if (lineLength > 0) {
+    return {
+      x: sheetX + (variantIdx % lineLength) * patchPxW,
+      y: sheetY + Math.floor(variantIdx / lineLength) * patchPxH,
+    };
+  }
+  return { x: sheetX + variantIdx * patchPxW, y: sheetY };
+}
+
+function planMaterialTileSprite(
+  tx: number,
+  ty: number,
+  material: TileMaterialAtlas,
+  layer: number,
+  frames: FrameMeta[],
+): SpriteCmd | null {
+  const { patchW, patchH, tilePx, count } = material;
+  const bx = Math.floor(tx / patchW) * patchW;
+  const by = Math.floor(ty / patchH) * patchH;
+  const frameId = material.sheet;
+  const frame = frames[frameId];
+  if (!frame) return null;
+  const variantIdx = tileVariantHash(bx, by) % count;
+  const patchOrigin = materialVariantOrigin(variantIdx, material);
+  const lx = tileMod(tx, patchW);
+  const ly = tileMod(ty, patchH);
+  return {
+    kind: "sprite",
+    layer,
+    sortY: 0,
+    sortX: 0,
+    entity: 0,
+    sub: 0,
+    frame: frameId,
+    x: tx,
+    y: ty,
+    w: 1,
+    h: 1,
+    src: {
+      x: patchOrigin.x + lx * tilePx,
+      y: patchOrigin.y + ly * tilePx,
+      w: tilePx,
+      h: tilePx,
+    },
+  };
+}
+
 function spriteDest(
   posX: number,
   posY: number,
@@ -378,6 +440,9 @@ function spriteVisibleBounds(
   w: number;
   h: number;
 } {
+  if (cmd.src) {
+    return { x: cmd.x, y: cmd.y, w: cmd.w, h: cmd.h };
+  }
   const scaleX = frame.sw === 0 ? 0 : cmd.w / frame.sw;
   const scaleY = frame.sh === 0 ? 0 : cmd.h / frame.sh;
   const cx = cmd.x + cmd.w / 2;
@@ -1041,7 +1106,12 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
     const tx = tile.position.x;
     const ty = tile.position.y;
 
-    if (def.frames && def.frames.length > 0) {
+    if (def.material && def.material.count > 0) {
+      const cmd = planMaterialTileSprite(tx, ty, def.material, layer, db.frames);
+      if (!cmd) continue;
+      commands.push(cmd);
+      bounds = includeCmdBounds(bounds, cmd, db.frames);
+    } else if (def.frames && def.frames.length > 0) {
       const frameId = def.frames[tileVariantHash(tx, ty) % def.frames.length];
       if (frameId === undefined) continue;
       const frame = db.frames[frameId];
