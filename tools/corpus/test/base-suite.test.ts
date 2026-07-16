@@ -11,7 +11,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
-import { BASE_ENTITY_NAMES, BASE_TILE_NAMES } from "../src/base-game-catalog.js";
+import {
+  BASE_ENTITY_NAMES,
+  BASE_GAME_BOOK_SPEC,
+  BASE_TILE_NAMES,
+  type BaseGameBookSpec,
+} from "../src/base-game-book-spec.js";
 import { buildBaseSuite } from "../src/base-suite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +32,33 @@ function collectBookIcons(book: BlueprintBook, result: Icon[][]): void {
     if (entry.blueprint) result.push(entry.blueprint.icons ?? []);
     if (entry.blueprint_book) collectBookIcons(entry.blueprint_book, result);
   }
+}
+
+function renderedBookShape(book: BlueprintBook): unknown {
+  return {
+    label: book.label,
+    icons: book.icons?.map((icon) => icon.signal.name),
+    children: book.blueprints?.map((entry) =>
+      entry.blueprint_book
+        ? renderedBookShape(entry.blueprint_book)
+        : {
+            label: entry.blueprint?.label,
+            icons: entry.blueprint?.icons?.map((icon) => icon.signal.name),
+          },
+    ),
+  };
+}
+
+function specifiedBookShape(spec: BaseGameBookSpec): unknown {
+  return {
+    label: spec.label,
+    icons: [...spec.icons],
+    children: spec.children.map((child) =>
+      child.kind === "book"
+        ? specifiedBookShape(child)
+        : { label: child.label, icons: [...child.icons] },
+    ),
+  };
 }
 
 function focusEntity(caseId: string) {
@@ -49,7 +81,8 @@ describe("Base game visual suite", () => {
     expect(BASE_ENTITY_NAMES).toHaveLength(109);
     expect(new Set(BASE_ENTITY_NAMES).size).toBe(BASE_ENTITY_NAMES.length);
     expect(BASE_TILE_NAMES).toHaveLength(8);
-    expect(suite.manifest.inventory.source).toBe("curated-base-2.1.11-catalog");
+    expect(suite.manifest.inventory.source).toBe("base-game-book-spec");
+    expect(suite.manifest.inventory.specId).toBe(BASE_GAME_BOOK_SPEC.id);
     expect(suite.manifest.inventory.entityCount).toBe(109);
     expect([...BASE_ENTITY_NAMES].sort()).toEqual(Object.keys(renderDb.entities).sort());
     expect([...BASE_TILE_NAMES].sort()).toEqual(Object.keys(renderDb.tiles).sort());
@@ -63,6 +96,9 @@ describe("Base game visual suite", () => {
     expect(refs).toHaveLength(suite.manifest.pages.length);
     expect(refs.length).toBeGreaterThan(30);
     expect(suite.document.blueprint_book?.blueprints).toHaveLength(5);
+    expect(renderedBookShape(suite.document.blueprint_book!)).toEqual(
+      specifiedBookShape(BASE_GAME_BOOK_SPEC),
+    );
 
     const caseIds = suite.manifest.cells.map((cell) => cell.id);
     expect(new Set(caseIds).size).toBe(caseIds.length);
