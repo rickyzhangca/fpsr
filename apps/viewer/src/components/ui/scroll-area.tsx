@@ -1,43 +1,46 @@
-import * as React from "react";
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const ScrollAreaRoot = React.forwardRef<
-  HTMLDivElement,
-  ScrollAreaPrimitive.Root.Props
->(({ className, ...props }, ref) => (
-  <ScrollAreaPrimitive.Root
-    ref={ref}
-    data-slot="scroll-area"
-    className={cn("relative", className)}
-    {...props}
-  />
-));
+const ScrollAreaRoot = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Root.Props>(
+  ({ className, ...props }, ref) => (
+    <ScrollAreaPrimitive.Root
+      ref={ref}
+      data-slot="scroll-area"
+      className={cn("relative", className)}
+      {...props}
+    />
+  ),
+);
 
-const ScrollAreaViewport = React.forwardRef<
-  HTMLDivElement,
-  ScrollAreaPrimitive.Viewport.Props
->(({ className, ...props }, ref) => (
-  <ScrollAreaPrimitive.Viewport
-    ref={ref}
-    data-slot="scroll-area-viewport"
-    className={cn(
-      "size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
-      className,
-    )}
-    {...props}
-  />
-));
+const ScrollAreaViewport = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.Viewport.Props>(
+  ({ className, ...props }, ref) => (
+    <ScrollAreaPrimitive.Viewport
+      ref={ref}
+      data-slot="scroll-area-viewport"
+      className={cn(
+        "size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
 
 function ScrollAreaCorner(props: ScrollAreaPrimitive.Corner.Props) {
   return <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" {...props} />;
 }
 
-function ScrollArea({ className, children, ...props }: ScrollAreaPrimitive.Root.Props) {
+function ScrollArea({
+  className,
+  viewportClassName,
+  children,
+  ...props
+}: ScrollAreaPrimitive.Root.Props & { viewportClassName?: string }) {
   return (
     <ScrollAreaRoot className={className} {...props}>
-      <ScrollAreaViewport>{children}</ScrollAreaViewport>
+      <ScrollAreaViewport className={viewportClassName}>{children}</ScrollAreaViewport>
       <ScrollBar />
       <ScrollAreaCorner />
     </ScrollAreaRoot>

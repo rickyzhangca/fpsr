@@ -349,8 +349,8 @@ export function App() {
       <aside className="flex min-h-0 flex-col overflow-hidden">
         <h1 className="text-lg font-semibold tracking-tight px-4 pt-4">FPSR Demo</h1>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="flex flex-col gap-4 py-4 pl-4">
+        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+          <div className="flex flex-col gap-4 py-4 pl-4 pr-3">
             <section className="flex flex-col gap-2">
               <p className="text-muted-foreground text-sm">Demos</p>
               <SidebarTree
@@ -450,7 +450,7 @@ export function App() {
         </DialogContent>
       </Dialog>
 
-      <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card border m-3 rounded-xl">
+      <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card border ml-2 mr-3 my-3 rounded-xl">
         {selectedBlueprint ? (
           <BlueprintSummary
             blueprint={selectedBlueprint}
@@ -470,7 +470,7 @@ export function App() {
           onValueChange={(value) => setTab(value as Tab)}
           className="flex min-h-0 flex-1 flex-col border-t"
         >
-          <TabsList variant="line" className="mx-1">
+          <TabsList variant="line" className="mx-1 mt-1">
             <TabsTrigger value="preview">Preview</TabsTrigger>
             <TabsTrigger value="process">Process</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
