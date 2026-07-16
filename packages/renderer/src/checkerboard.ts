@@ -11,10 +11,15 @@ export function drawTileCheckerboard(
   pixelsPerTile: number,
 ): void {
   const ppt = Math.max(1, pixelsPerTile);
-  for (let y = 0; y < height; y += ppt) {
-    for (let x = 0; x < width; x += ppt) {
-      const cellX = Math.floor(x / ppt);
-      const cellY = Math.floor(y / ppt);
+  const columns = Math.ceil(width / ppt);
+  const rows = Math.ceil(height / ppt);
+  // Drive coordinates from integer cell indexes. Repeatedly adding a
+  // fractional ppt (for example 51.2 after 4K scaling) accumulates enough
+  // floating-point error for floor(x / ppt) to repeat a cell at boundaries.
+  for (let cellY = 0; cellY < rows; cellY++) {
+    const y = cellY * ppt;
+    for (let cellX = 0; cellX < columns; cellX++) {
+      const x = cellX * ppt;
       ctx.fillStyle = (cellX + cellY) % 2 === 0 ? TILE_DARK : TILE_LIGHT;
       ctx.fillRect(x, y, Math.min(ppt, width - x), Math.min(ppt, height - y));
     }
