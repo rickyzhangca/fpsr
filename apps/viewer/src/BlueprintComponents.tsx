@@ -1,7 +1,9 @@
 import type { Blueprint } from "fpsr";
+import { useEffect, useMemo, useState } from "react";
 import { countBlueprintComponentsByName } from "./blueprintMeta";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
 import { FactorioItemIcon } from "./FactorioItemIcon";
+import { viewerAssets } from "./viewerAssets";
 
 export function BlueprintComponents({
   entities,
@@ -10,7 +12,28 @@ export function BlueprintComponents({
   entities: Blueprint["entities"];
   tiles?: Blueprint["tiles"];
 }) {
-  const counts = countBlueprintComponentsByName(entities, tiles);
+  const [tileItemByName, setTileItemByName] = useState<Record<string, string> | undefined>();
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const db = await viewerAssets.loadRenderDb();
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const [tileName, def] of Object.entries(db.tiles)) {
+        if (def.item) map[tileName] = def.item;
+      }
+      setTileItemByName(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const counts = useMemo(
+    () => countBlueprintComponentsByName(entities, tiles, tileItemByName),
+    [entities, tiles, tileItemByName],
+  );
 
   return (
     <div className="w-fit rounded-lg flex flex-col overflow-hidden border bg-card">

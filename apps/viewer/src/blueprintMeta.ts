@@ -32,13 +32,15 @@ export function countEntitiesByName(
 export function countBlueprintComponentsByName(
   entities: BlueprintEntity[] | undefined,
   tiles: Tile[] | undefined,
+  tileItemByName?: Readonly<Record<string, string>>,
 ): { name: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const entity of entities ?? []) {
     counts.set(entity.name, (counts.get(entity.name) ?? 0) + 1);
   }
   for (const tile of tiles ?? []) {
-    counts.set(tile.name, (counts.get(tile.name) ?? 0) + 1);
+    const key = tileItemByName?.[tile.name] ?? tile.name;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return sortCounts(counts);
 }

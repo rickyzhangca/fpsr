@@ -11,6 +11,12 @@ vi.mock("./FactorioItemIcon", () => ({
   },
 }));
 
+vi.mock("./viewerAssets", () => ({
+  viewerAssets: {
+    loadRenderDb: vi.fn().mockResolvedValue({ tiles: {} }),
+  },
+}));
+
 import { BlueprintSummary } from "./BlueprintSummary";
 import { encodedByteSize, formatByteSize } from "./blueprintMeta";
 

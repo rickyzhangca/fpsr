@@ -71,6 +71,47 @@ describe("blueprintMeta", () => {
     ]);
   });
 
+  it("merges hazard-concrete left/right tiles by placing item", () => {
+    const tileItemByName = {
+      "hazard-concrete-left": "hazard-concrete",
+      "hazard-concrete-right": "hazard-concrete",
+    };
+    expect(
+      countBlueprintComponentsByName(
+        undefined,
+        [
+          { name: "hazard-concrete-left", position: { x: 0, y: 0 } },
+          { name: "hazard-concrete-right", position: { x: 1, y: 0 } },
+          { name: "hazard-concrete-left", position: { x: 2, y: 0 } },
+        ],
+        tileItemByName,
+      ),
+    ).toEqual([{ name: "hazard-concrete", count: 3 }]);
+  });
+
+  it("remaps stone-path to stone-brick via placing item", () => {
+    expect(
+      countBlueprintComponentsByName(
+        undefined,
+        [
+          { name: "stone-path", position: { x: 0, y: 0 } },
+          { name: "stone-path", position: { x: 1, y: 0 } },
+        ],
+        { "stone-path": "stone-brick" },
+      ),
+    ).toEqual([{ name: "stone-brick", count: 2 }]);
+  });
+
+  it("keeps tile prototype name when no placing-item map entry", () => {
+    expect(
+      countBlueprintComponentsByName(
+        undefined,
+        [{ name: "refined-concrete", position: { x: 0, y: 0 } }],
+        {},
+      ),
+    ).toEqual([{ name: "refined-concrete", count: 1 }]);
+  });
+
   it("formats contents and byte size", () => {
     expect(formatContents(undefined)).toBe("none");
     expect(

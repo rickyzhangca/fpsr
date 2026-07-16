@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import {
   bakeEntityInfoSilhouette,
   entityInfoSilhouettePadPx,
+  resolveIconFrameId,
   type FrameMeta,
   type RenderDb,
 } from "fpsr";
@@ -124,7 +125,7 @@ async function loadIcon(
   const promise = (async () => {
     try {
       const db: RenderDb = await assets.loadRenderDb();
-      const frameId = db.icons[iconKey];
+      const frameId = resolveIconFrameId(db, iconKey);
       if (frameId === undefined) return null;
       const frame = db.frames[frameId];
       if (!frame) return null;
