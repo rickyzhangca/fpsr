@@ -2,8 +2,8 @@
 
 Dev-only CLI that screenshots a Factorio blueprint string with the **real** 2.1.11 graphics client. Output is human reference ("ground truth") when approving renderer golden images. **Not for CI.**
 
-It also owns the manifest-driven Base visual-suite runner: exact-profile audit, Base-only capture,
-page rendering, stable cell crops, and expected-vs-rendered diff reports.
+It also owns the manifest-driven visual-suite runner: exact-profile audit, capture, page rendering,
+stable cell crops, and expected-vs-rendered diff reports.
 
 ## Requirements
 
@@ -21,10 +21,16 @@ pnpm -F @fpsr/ground-truth run shoot -- <bp-file-or--> [--name out] [--alt] [--p
 # in a **single** Factorio launch.
 pnpm ground-truth:refresh
 
-# Base test book: audit, five-page canary, or the full 166-page suite
+# Base test book: audit, manifest-selected canary, or all 35 pages
 pnpm visual-tests:audit
 pnpm visual-tests:canary
 pnpm visual-tests:all
+
+# Official-mod test book: generate, audit, canary, or all 6 pages
+pnpm visual-tests:generate:official
+pnpm visual-tests:official:audit
+pnpm visual-tests:official:canary
+pnpm visual-tests:official:all
 ```
 
 Examples:
@@ -75,8 +81,7 @@ The runner extracts selected leaf pages as bare blueprint strings because the Fa
 import whole books.
 
 - `visual-tests:audit` validates the suite plus exact Factorio, asset, and reference profiles.
-- `visual-tests:canary` selects five deterministic pages covering cardinal direction, continuous
-  orientation, adjacency masks, belt neighborhoods, and tiles.
+- `visual-tests:canary` selects the three deterministic pages declared by the Base manifest.
 - `visual-tests:all` runs all manifest pages, eight pages per Factorio process by default.
 - References are full-page game PNGs under ignored `fixtures/ground-truth/<suite>/ppt-<n>/`.
 - `index.json` binds every reference to the blueprint hash, PNG hash, manifest path, camera frame,
@@ -93,6 +98,20 @@ pnpm assets:build:base -- --factorio /path/to/factorio-2.1.11.app
 
 The runner checks `factorio --version` and the asset manifest before launch. It refuses a mismatched
 game version or the all-official asset bundle, preventing mislabeled Base goldens.
+
+## Official-mod visual suite
+
+The per-mod books at `fixtures/visual-tests/official-mods/` cover the placeable inventory added by
+Elevated Rails, Recycler, and Space Age. Each official mod owns a separate specification; the
+Quality specification is intentionally empty because Quality adds no placeable entity or tile.
+The suite uses the exact all-official asset profile at `assets-out/2.1.11` and declares four canary
+pages in its manifest.
+
+The official workflow uses `visual-tests:official:*`. Runtime placement constraints and renderer
+pixel correctness are not foundation-generation gates: this stage checks inventory ownership,
+exact profiles, deterministic books, page addressing, and simple default placements. Any planner
+problem found while packing an entity is recorded in the committed manifest as a renderer
+diagnostic instead of becoming an inventory/spec failure.
 
 ## Scenario flow
 

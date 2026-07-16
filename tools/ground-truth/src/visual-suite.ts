@@ -1,8 +1,8 @@
+import { decode, encode, selectBlueprint, type Blueprint, type BlueprintDocument } from "fpsr";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { decode, encode, selectBlueprint, type Blueprint, type BlueprintDocument } from "fpsr";
-import { type ShotView, planShotView } from "./frame.js";
+import { planShotView, type ShotView } from "./frame.js";
 import { FACTORIO_BIN, GROUND_TRUTH_OUT, REPO_ROOT } from "./paths.js";
 import { assertAssetProfile, assertFactorioVersion, type ExactProfile } from "./profile.js";
 import { shootJobs } from "./shoot.js";
@@ -30,10 +30,17 @@ export interface VisualSuitePage {
   label: string;
   sectionId: string;
   groupId: string;
+  bookSpecId?: string;
   path: number[];
   cellIds: string[];
   entityCount: number;
   tileCount: number;
+}
+
+export interface VisualSuiteBook {
+  specId: string;
+  mod: string;
+  file: string;
 }
 
 export interface VisualSuiteManifest {
@@ -41,14 +48,25 @@ export interface VisualSuiteManifest {
   suiteId: string;
   gameVersion: string;
   requiredMods: string[];
+  canaryPageIds: string[];
+  books?: VisualSuiteBook[];
   pages: VisualSuitePage[];
   cells: VisualSuiteCell[];
+}
+
+export interface LoadedVisualBook {
+  specId: string;
+  file: string;
+  source: string;
+  document: BlueprintDocument;
+  sha256: string;
 }
 
 export interface LoadedVisualSuite {
   dir: string;
   bookSource: string;
   document: BlueprintDocument;
+  books?: Record<string, LoadedVisualBook>;
   manifestSource: string;
   manifest: VisualSuiteManifest;
   bookSha256: string;
@@ -93,33 +111,6 @@ export interface ReferenceIndex {
 export const BASE_SUITE_DIR = path.join(REPO_ROOT, "fixtures/visual-tests/base-game");
 export const DEFAULT_BASE_ASSETS_DIR = path.join(REPO_ROOT, "assets-out/2.1.11-base");
 
-const CANARY_SELECTORS: {
-  label: string;
-  matches(cell: VisualSuiteCell): boolean;
-}[] = [
-  {
-    label: "cardinal direction",
-    matches: (cell) => cell.id === "pose/inserter/d00",
-  },
-  {
-    label: "continuous orientation",
-    matches: (cell) => cell.id === "pose/car/o00",
-  },
-  {
-    label: "adjacency mask",
-    matches: (cell) => cell.caseKind === "adjacency-mask" && cell.entityName === "pipe",
-  },
-  {
-    label: "belt neighborhood",
-    matches: (cell) =>
-      cell.caseKind === "belt-neighborhood" && cell.entityName === "transport-belt",
-  },
-  {
-    label: "tile patch",
-    matches: (cell) => cell.caseKind === "tile-patch",
-  },
-];
-
 function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -144,30 +135,80 @@ function assertManifest(value: unknown, filename: string): asserts value is Visu
     typeof manifest.suiteId !== "string" ||
     typeof manifest.gameVersion !== "string" ||
     !Array.isArray(manifest.requiredMods) ||
+    !Array.isArray(manifest.canaryPageIds) ||
+    !manifest.canaryPageIds.every((id) => typeof id === "string") ||
     !Array.isArray(manifest.pages) ||
-    !Array.isArray(manifest.cells)
+    !Array.isArray(manifest.cells) ||
+    (manifest.books != null &&
+      (!Array.isArray(manifest.books) ||
+        !manifest.books.every(
+          (book) =>
+            typeof book.specId === "string" &&
+            typeof book.mod === "string" &&
+            typeof book.file === "string",
+        )))
   ) {
     throw new Error(`Invalid visual-suite manifest at ${filename}`);
   }
 }
 
+function pageDocument(suite: LoadedVisualSuite, page: VisualSuitePage): BlueprintDocument {
+  if (page.bookSpecId) {
+    const book = suite.books?.[page.bookSpecId];
+    if (!book) throw new Error(`Page ${page.id} references unknown book ${page.bookSpecId}`);
+    return book.document;
+  }
+  return suite.document;
+}
+
 export async function loadVisualSuite(dir = BASE_SUITE_DIR): Promise<LoadedVisualSuite> {
   const root = path.resolve(dir);
-  const [bookSourceRaw, manifestSource] = await Promise.all([
-    readFile(path.join(root, "book.bp.txt"), "utf8"),
-    readFile(path.join(root, "manifest.json"), "utf8"),
-  ]);
-  const bookSource = bookSourceRaw.trim();
-  const document = decode(bookSource);
+  const manifestSource = await readFile(path.join(root, "manifest.json"), "utf8");
   const manifestValue: unknown = JSON.parse(manifestSource);
   assertManifest(manifestValue, path.join(root, "manifest.json"));
+
+  let bookSource: string;
+  let document: BlueprintDocument;
+  let books: Record<string, LoadedVisualBook> | undefined;
+
+  if (manifestValue.books) {
+    books = {};
+    const sources: string[] = [];
+    for (const entry of manifestValue.books) {
+      const source = (await readFile(path.join(root, entry.file), "utf8")).trim();
+      sources.push(source);
+      books[entry.specId] = {
+        specId: entry.specId,
+        file: entry.file,
+        source,
+        document: decode(source),
+        sha256: sha256(source),
+      };
+    }
+    bookSource = sources.join("\n");
+    document = books[manifestValue.books[0]!.specId].document;
+  } else {
+    bookSource = (await readFile(path.join(root, "book.bp.txt"), "utf8")).trim();
+    document = decode(bookSource);
+  }
+
+  const suite: LoadedVisualSuite = {
+    dir: root,
+    bookSource,
+    document,
+    books,
+    manifestSource,
+    manifest: manifestValue,
+    bookSha256: sha256(bookSource),
+    manifestSha256: sha256(manifestSource),
+  };
 
   const pageIds = new Set<string>();
   const cellIds = new Set<string>();
   for (const page of manifestValue.pages) {
     if (pageIds.has(page.id)) throw new Error(`Duplicate visual page id: ${page.id}`);
     pageIds.add(page.id);
-    const blueprint = selectBlueprint(document, page.path);
+    const blueprint = selectBlueprint(pageDocument(suite, page), page.path);
     if (blueprint.label !== page.label) {
       throw new Error(`Page ${page.id} label/path does not match the committed book`);
     }
@@ -186,23 +227,18 @@ export async function loadVisualSuite(dir = BASE_SUITE_DIR): Promise<LoadedVisua
     }
   }
 
-  return {
-    dir: root,
-    bookSource,
-    document,
-    manifestSource,
-    manifest: manifestValue,
-    bookSha256: sha256(bookSource),
-    manifestSha256: sha256(manifestSource),
-  };
+  return suite;
 }
 
 function canaryPageIds(suite: LoadedVisualSuite): string[] {
-  const result: string[] = [];
-  for (const selector of CANARY_SELECTORS) {
-    const cell = suite.manifest.cells.find((entry) => selector.matches(entry));
-    if (!cell) throw new Error(`Canary selector has no ${selector.label} case`);
-    if (!result.includes(cell.pageId)) result.push(cell.pageId);
+  if (suite.manifest.canaryPageIds.length === 0) {
+    throw new Error(`Visual suite ${suite.manifest.suiteId} declares no canary pages`);
+  }
+  const result = [...new Set(suite.manifest.canaryPageIds)];
+  for (const pageId of result) {
+    if (!suite.manifest.pages.some((page) => page.id === pageId)) {
+      throw new Error(`Visual suite canary references missing page: ${pageId}`);
+    }
   }
   return result;
 }
@@ -221,7 +257,7 @@ export function selectVisualPages(
   return uniqueIds.map((pageId) => {
     const page = suite.manifest.pages.find((entry) => entry.id === pageId);
     if (!page) throw new Error(`Unknown visual-suite page: ${pageId}`);
-    const blueprint = selectBlueprint(suite.document, page.path);
+    const blueprint = selectBlueprint(pageDocument(suite, page), page.path);
     const blueprintString = encode({ blueprint });
     const cells = page.cellIds.map((cellId) => {
       const cell = suite.manifest.cells.find((entry) => entry.id === cellId);

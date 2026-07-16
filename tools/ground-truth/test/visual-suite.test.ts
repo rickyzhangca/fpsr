@@ -1,7 +1,8 @@
+import { decode } from "fpsr";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { decode } from "fpsr";
 import { describe, expect, it } from "vite-plus/test";
+import { REPO_ROOT } from "../src/paths.js";
 import { assertExactProfile, parseFactorioVersion } from "../src/profile.js";
 import { cleanupMods, stageJobs } from "../src/stage.js";
 import {
@@ -12,17 +13,16 @@ import {
 } from "../src/visual-suite.js";
 
 describe("manifest-driven visual suite", () => {
-  it("extracts five deterministic canary leaves as bare blueprints", async () => {
+  it("extracts manifest-selected canary leaves as bare blueprints", async () => {
     const suite = await loadVisualSuite();
     const pages = selectVisualPages(suite, { kind: "canary" });
-    expect(pages).toHaveLength(5);
-    expect(new Set(pages.map((page) => page.page.id)).size).toBe(5);
+    expect(pages.map((page) => page.page.id)).toEqual(suite.manifest.canaryPageIds);
+    expect(pages).toHaveLength(3);
+    expect(new Set(pages.map((page) => page.page.id)).size).toBe(3);
 
     const cells = pages.flatMap((page) => page.cells);
     expect(cells.some((cell) => cell.pose?.axis === "direction")).toBe(true);
     expect(cells.some((cell) => cell.pose?.axis === "orientation")).toBe(true);
-    expect(cells.some((cell) => cell.caseKind === "adjacency-mask")).toBe(true);
-    expect(cells.some((cell) => cell.caseKind === "belt-neighborhood")).toBe(true);
     expect(cells.some((cell) => cell.caseKind === "tile-patch")).toBe(true);
 
     for (const page of pages) {
@@ -59,6 +59,22 @@ describe("manifest-driven visual suite", () => {
       },
     };
     expect(() => assertReferenceFresh(suite, page, index)).toThrow(/Stale game reference/);
+  });
+
+  it("loads the per-mod official-mod suite with its own canary selection", async () => {
+    const suite = await loadVisualSuite(
+      path.join(REPO_ROOT, "fixtures/visual-tests/official-mods"),
+    );
+    const pages = selectVisualPages(suite, { kind: "canary" });
+    expect(suite.manifest.requiredMods).toEqual([
+      "base",
+      "elevated-rails",
+      "quality",
+      "recycler",
+      "space-age",
+    ]);
+    expect(pages.map((page) => page.page.id)).toEqual(suite.manifest.canaryPageIds);
+    expect(pages).toHaveLength(4);
   });
 });
 
