@@ -1,0 +1,150 @@
+// @vitest-environment jsdom
+import type { Blueprint } from "fpsr";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("./factorio-item-icon", () => ({
+  FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
+    const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
+    return <span data-testid="entity-icon" data-icon-key={key} data-quality={quality ?? ""} />;
+  },
+}));
+
+vi.mock("./viewer-assets", () => ({
+  viewerAssets: {
+    loadRenderDb: vi.fn().mockResolvedValue({ tiles: {} }),
+  },
+}));
+
+import { BlueprintSummary } from "./blueprint-summary";
+import { encodedByteSize, formatByteSize } from "./blueprint-meta";
+
+describe("BlueprintSummary", () => {
+  let host: HTMLDivElement;
+
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    host = document.createElement("div");
+    document.body.append(host);
+  });
+
+  afterEach(() => {
+    host.remove();
+  });
+
+  it("shows blueprint metadata fields", () => {
+    const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version,
+      label: "Meta test",
+      description: "A test blueprint",
+      "absolute-snapping": true,
+      "snap-to-grid": { x: 2, y: 2 },
+      "position-relative-to-grid": { x: 0, y: 0 },
+      entities: [
+        { entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } },
+        { entity_number: 2, name: "wooden-chest", position: { x: 1.5, y: 0.5 } },
+        { entity_number: 3, name: "inserter", position: { x: 2.5, y: 0.5 } },
+      ],
+    };
+    const root = createRoot(host);
+    act(() => {
+      root.render(<BlueprintSummary blueprint={blueprint} tileSize="1×1 tiles" />);
+    });
+
+    const text = host.textContent ?? "";
+    expect(text).toContain("Meta test");
+    expect(text).toContain("A test blueprint");
+    expect(text).toContain("Byte size");
+    expect(text).toContain(formatByteSize(encodedByteSize(blueprint)));
+    expect(text).toContain("Version");
+    expect(text).toContain("2.1.11");
+    expect(text).toContain("Snapping");
+    expect(text).toContain("absolute · grid 2×2 · offset 0,0");
+    expect(text).toContain("Size");
+    expect(text).toContain("1×1 tiles");
+    expect(text).toContain("Components");
+    expect(text).toContain("2");
+    expect(text).toContain("1");
+    const icons = [...host.querySelectorAll("[data-testid=entity-icon]")];
+    expect(icons.map((el) => el.getAttribute("data-icon-key"))).toEqual([
+      "item/blueprint",
+      "item/wooden-chest",
+      "item/inserter",
+    ]);
+    expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="wooden-chest"]')).toBeTruthy();
+    expect(host.querySelector('[aria-label="inserter"]')).toBeTruthy();
+
+    act(() => root.unmount());
+  });
+
+  it("renders blueprint tile icons beside the title and description", () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "Icon test",
+      description: "Blueprint with icons",
+      icons: [
+        { signal: { name: "assembling-machine-2" }, index: 1 },
+        { signal: { name: "transport-belt" }, index: 2 },
+        {
+          signal: { type: "virtual", name: "signal-2", quality: "rare" },
+          index: 3,
+        },
+        {
+          signal: {
+            type: "recipe",
+            name: "simple-coal-liquefaction",
+            quality: "legendary",
+          },
+          index: 4,
+        },
+      ],
+      entities: [],
+    };
+    const root = createRoot(host);
+    act(() => {
+      root.render(<BlueprintSummary blueprint={blueprint} tileSize="—" />);
+    });
+
+    expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
+    const icons = [...host.querySelectorAll("[data-testid=entity-icon]")];
+    expect(icons.map((el) => el.getAttribute("data-icon-key"))).toEqual([
+      "item/blueprint",
+      "item/assembling-machine-2",
+      "item/transport-belt",
+      "virtual-signal/signal-2",
+      "recipe/simple-coal-liquefaction",
+    ]);
+    expect(icons.map((el) => el.getAttribute("data-quality"))).toEqual([
+      "",
+      "",
+      "",
+      "rare",
+      "legendary",
+    ]);
+
+    act(() => root.unmount());
+  });
+
+  it("shows fallback when description is missing", () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "No desc",
+      entities: [],
+    };
+    const root = createRoot(host);
+    act(() => {
+      root.render(<BlueprintSummary blueprint={blueprint} tileSize="—" />);
+    });
+
+    expect(host.textContent).toContain("No description");
+    expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
+
+    act(() => root.unmount());
+  });
+});

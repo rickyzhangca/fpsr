@@ -8,12 +8,12 @@ import {
   type Renderer,
   type RenderResult,
 } from "fpsr";
-import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "./assetConfig";
+import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "./asset-config";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,
   type RenderWorkerResponse,
-} from "./renderWorkerProtocol";
+} from "./render-worker-protocol";
 
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
