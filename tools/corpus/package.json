@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "generate": "tsx src/generate.ts",
+    "generate:base": "tsx src/generate-base.ts",
     "check": "tsx src/check.ts",
     "build": "echo 'no build step'",
-    "test": "echo 'no tests yet'",
+    "test": "vp test run",
     "lint": "vp lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "vp fmt"
   },
   "dependencies": {
@@ -19,6 +20,8 @@
   "devDependencies": {
     "@types/node": "^22.10.7",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }
