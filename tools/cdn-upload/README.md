@@ -16,6 +16,7 @@ pnpm -F @fpsr/cdn-upload run upload -- [--dir assets-out/2.1.11] [--dry-run]
 
 Content-addressed atlas and render-database files are uploaded first. The stable
 `manifest.json` is always uploaded last, so a release becomes visible atomically.
+Generated lossless WebP atlases are uploaded with the `image/webp` content type.
 
 `--dry-run` prints every file that would be uploaded (with sizes) and skips
 network I/O. Missing credentials are allowed in dry-run mode.

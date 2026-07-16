@@ -88,8 +88,9 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
 }
 
-function contentTypeFor(filename: string): string {
+export function contentTypeFor(filename: string): string {
   if (filename.endsWith(".png")) return "image/png";
+  if (filename.endsWith(".webp")) return "image/webp";
   if (filename.endsWith(".json")) return "application/json";
   return "application/octet-stream";
 }
