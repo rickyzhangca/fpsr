@@ -6,6 +6,7 @@
   "scripts": {
     "generate": "tsx src/generate.ts",
     "generate:base": "tsx src/generate-base.ts",
+    "generate:official-mods": "tsx src/generate-official-mods.ts",
     "check": "tsx src/check.ts",
     "build": "echo 'no build step'",
     "test": "vp test run",
