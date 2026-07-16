@@ -9,7 +9,7 @@
     "lint": "vp lint",
     "typecheck": "vp run -r typecheck",
     "format": "vp fmt",
-    "check": "vp check && vp run -r typecheck",
+    "check": "node scripts/check-filenames.mjs && vp check && vp run -r typecheck",
     "dev": "vp dev apps/viewer",
     "goldens:update": "vp run -F @fpsr/golden-tests update",
     "goldens:test": "vp run -F @fpsr/golden-tests test",
