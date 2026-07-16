@@ -14,13 +14,17 @@
     "goldens:update": "vp run -F @fpsr/golden-tests update",
     "goldens:test": "vp run -F @fpsr/golden-tests test",
     "ground-truth:refresh": "pnpm -F @fpsr/ground-truth run refresh",
+    "visual-tests:audit": "pnpm -F @fpsr/ground-truth run suite:audit",
+    "visual-tests:canary": "pnpm -F @fpsr/ground-truth run suite:canary",
+    "visual-tests:all": "pnpm -F @fpsr/ground-truth run suite:all",
     "assets:build": "pnpm -F @fpsr/pipeline run pipeline all",
+    "assets:build:base": "pnpm -F @fpsr/pipeline run pipeline all --mods base",
     "assets:verify": "pnpm -F @fpsr/pipeline run pipeline verify",
     "assets:bench": "pnpm -F @fpsr/pipeline run pipeline bench",
     "renderer:bench-thread": "pnpm -F @fpsr/render-cli run bench:thread"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
+    "typescript": "^7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   },
