@@ -10,6 +10,7 @@ interface CliOptions {
   command: Command;
   force: boolean;
   factorioPath?: string;
+  mods?: string[];
   dir?: string;
   blueprint?: string;
 }
@@ -27,6 +28,7 @@ function usage(): string {
     "",
     "Options:",
     "  --factorio <path>   Factorio app/root/executable (overrides FPSR_FACTORIO_PATH)",
+    "  --mods <a,b,...>    Enabled mod profile for dump/distill (for example: --mods base)",
     "  --dir <path>        Asset bundle for verify/bench",
     "  --force             Regenerate the game data dump",
   ].join("\n");
@@ -36,6 +38,7 @@ function parseArgs(argv: string[]): CliOptions {
   let command: Command | undefined;
   let force = false;
   let factorioPath: string | undefined;
+  let mods: string[] | undefined;
   let dir: string | undefined;
   let blueprint: string | undefined;
   const commands = new Set<Command>(["dump", "distill", "pack", "all", "verify", "bench"]);
@@ -51,11 +54,18 @@ function parseArgs(argv: string[]): CliOptions {
       force = true;
       continue;
     }
-    if (arg === "--factorio" || arg === "--dir") {
+    if (arg === "--factorio" || arg === "--dir" || arg === "--mods") {
       const value = argv[++index];
-      if (!value) throw new Error(`${arg} requires a path`);
+      if (!value) throw new Error(`${arg} requires a value`);
       if (arg === "--factorio") factorioPath = value;
-      else dir = path.resolve(REPO_ROOT, value);
+      else if (arg === "--dir") dir = path.resolve(REPO_ROOT, value);
+      else {
+        mods = value
+          .split(",")
+          .map((mod) => mod.trim())
+          .filter(Boolean);
+        if (mods.length === 0) throw new Error("--mods requires at least one mod");
+      }
       continue;
     }
     if (!command && commands.has(arg as Command)) {
@@ -68,16 +78,17 @@ function parseArgs(argv: string[]): CliOptions {
     }
     throw new Error(`Unknown argument: ${arg}\n\n${usage()}`);
   }
-  return { command: command ?? "all", force, factorioPath, dir, blueprint };
+  return { command: command ?? "all", force, factorioPath, mods, dir, blueprint };
 }
 
 async function generatedAssetDir(
   explicit: string | undefined,
   factorioPath?: string,
+  mods?: readonly string[],
 ): Promise<string> {
   if (explicit) return explicit;
   try {
-    return configurePipelinePaths({ factorioPath }).versionOut;
+    return configurePipelinePaths({ factorioPath, mods }).versionOut;
   } catch {
     const entries = await readdir(ASSETS_OUT, { withFileTypes: true });
     const candidates = entries
@@ -93,7 +104,7 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
 
   if (options.command === "verify") {
-    const dir = await generatedAssetDir(options.dir, options.factorioPath);
+    const dir = await generatedAssetDir(options.dir, options.factorioPath, options.mods);
     const result = await verifyAssetBundle(dir);
     console.log(
       `verify: ${result.gameVersion} — ${result.frames} frames, ${result.atlases} atlases, ` +
@@ -104,7 +115,7 @@ async function main(): Promise<void> {
 
   if (options.command === "bench") {
     if (!options.blueprint) throw new Error(`bench requires a blueprint file\n\n${usage()}`);
-    const dir = await generatedAssetDir(options.dir, options.factorioPath);
+    const dir = await generatedAssetDir(options.dir, options.factorioPath, options.mods);
     const reports = await Promise.all([
       benchAssetUsage(options.blueprint, dir, "1x"),
       benchAssetUsage(options.blueprint, dir, "2x"),
@@ -113,8 +124,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  const paths = configurePipelinePaths({ factorioPath: options.factorioPath });
-  console.log(`pipeline: Factorio ${paths.install.version} at ${paths.install.root}`);
+  const paths = configurePipelinePaths({ factorioPath: options.factorioPath, mods: options.mods });
+  console.log(
+    `pipeline: Factorio ${paths.install.version} at ${paths.install.root}; ` +
+      `profile ${paths.profileId} [${paths.mods.join(", ")}]`,
+  );
   const { dumpData } = await import("./dump.js");
   const { distillAndPack } = await import("./distill.js");
   if (options.command === "dump" || options.command === "all") {

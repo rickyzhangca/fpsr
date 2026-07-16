@@ -3,6 +3,10 @@
 Offline extraction from a licensed Factorio installation into a deterministic,
 schema-2 asset bundle under `assets-out/<detected-game-version>/`.
 
+The default profile enables all official mods. `--mods base` creates a separate Base-only profile
+under `assets-out/<detected-game-version>-base/` with profile-specific dump/meta files, so it cannot
+silently reuse or overwrite the all-official dump.
+
 ```bash
 # From the repository root
 pnpm assets:build
@@ -64,4 +68,7 @@ pnpm -F @fpsr/pipeline run pipeline dump [--force] [--factorio <path>]
 pnpm -F @fpsr/pipeline run pipeline distill [--factorio <path>]
 pnpm -F @fpsr/pipeline run pipeline verify [--dir <assets-out/version>]
 pnpm -F @fpsr/pipeline run pipeline bench -- <blueprint-file> [--dir <assets-out/version>]
+
+# Exact Base-only assets used by fixtures/visual-tests/base-game
+pnpm -F @fpsr/pipeline run pipeline all --mods base --factorio /path/to/factorio-2.1.11.app
 ```

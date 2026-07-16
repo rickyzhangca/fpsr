@@ -24,10 +24,17 @@ function run(command: string, args: string[]): Promise<void> {
   });
 }
 
-async function dumpMatchesVersion(metaPath: string, version: string): Promise<boolean> {
+async function dumpMatchesProfile(
+  metaPath: string,
+  version: string,
+  mods: readonly string[],
+): Promise<boolean> {
   try {
-    const meta = JSON.parse(await readFile(metaPath, "utf8")) as { gameVersion?: unknown };
-    return meta.gameVersion === version;
+    const meta = JSON.parse(await readFile(metaPath, "utf8")) as {
+      gameVersion?: unknown;
+      mods?: unknown;
+    };
+    return meta.gameVersion === version && JSON.stringify(meta.mods) === JSON.stringify(mods);
   } catch {
     return false;
   }
@@ -40,23 +47,28 @@ export async function dumpData(opts: { force?: boolean } = {}): Promise<void> {
   if (
     !opts.force &&
     (await pathExists(paths.dumpPath)) &&
-    (await dumpMatchesVersion(paths.dumpMetaPath, paths.install.version))
+    (await dumpMatchesProfile(paths.dumpMetaPath, paths.install.version, paths.mods))
   ) {
     console.log(`dump: skip (${paths.install.version} exists) ${paths.dumpPath}`);
     return;
   }
 
   await mkdir(paths.tempModDir, { recursive: true });
+  const officialNames = OFFICIAL_MODS as readonly string[];
+  const modList = [
+    ...OFFICIAL_MODS.map((name) => ({ name, enabled: paths.mods.includes(name) })),
+    ...paths.mods
+      .filter((name) => !officialNames.includes(name))
+      .map((name) => ({ name, enabled: true })),
+  ];
   await writeFile(
     path.join(paths.tempModDir, "mod-list.json"),
-    `${JSON.stringify(
-      { mods: OFFICIAL_MODS.map((name) => ({ name, enabled: true })) },
-      null,
-      2,
-    )}\n`,
+    `${JSON.stringify({ mods: modList }, null, 2)}\n`,
   );
 
-  console.log(`dump: running ${paths.install.binary} --dump-data (official mods only)…`);
+  console.log(
+    `dump: running ${paths.install.binary} --dump-data (profile ${paths.profileId}: ${paths.mods.join(", ")})…`,
+  );
   await run(paths.install.binary, [
     "--dump-data",
     "--disable-audio",
@@ -77,7 +89,7 @@ export async function dumpData(opts: { force?: boolean } = {}): Promise<void> {
   const meta = {
     sha256,
     gameVersion: paths.install.version,
-    mods: [...OFFICIAL_MODS],
+    mods: [...paths.mods],
     source: paths.dumpSource,
     bytes: buf.byteLength,
   };

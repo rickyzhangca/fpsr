@@ -30,6 +30,8 @@ export interface FactorioInstall {
 
 export interface PipelinePaths {
   install: FactorioInstall;
+  mods: string[];
+  profileId: string;
   assetsOut: string;
   dumpPath: string;
   dumpMetaPath: string;
@@ -135,18 +137,33 @@ export function configurePipelinePaths(
   options: {
     factorioPath?: string;
     assetsOut?: string;
+    mods?: readonly string[];
   } = {},
 ): PipelinePaths {
   const install = discoverFactorioInstall(options.factorioPath);
   const assetsOut = path.resolve(options.assetsOut ?? ASSETS_OUT);
+  const mods = [...(options.mods ?? OFFICIAL_MODS)];
+  if (!mods.includes("base")) throw new Error('Asset profile mods must include "base"');
+  if (new Set(mods).size !== mods.length) throw new Error("Asset profile mods contain duplicates");
+  for (const mod of mods) {
+    if (!/^[a-z0-9][a-z0-9_-]*$/i.test(mod)) throw new Error(`Invalid mod name: ${mod}`);
+  }
+  const isDefaultProfile =
+    mods.length === OFFICIAL_MODS.length &&
+    mods.every((mod, index) => mod === OFFICIAL_MODS[index]);
+  const profileId = isDefaultProfile ? "official" : mods.join("+");
+  const dumpSuffix = isDefaultProfile ? "" : `.${profileId}`;
+  const versionSuffix = isDefaultProfile ? "" : `-${profileId}`;
   configured = {
     install,
+    mods,
+    profileId,
     assetsOut,
-    dumpPath: path.join(assetsOut, "data-raw-dump.json"),
-    dumpMetaPath: path.join(assetsOut, "data-raw-dump.meta.json"),
-    versionOut: path.join(assetsOut, install.version),
+    dumpPath: path.join(assetsOut, `data-raw-dump${dumpSuffix}.json`),
+    dumpMetaPath: path.join(assetsOut, `data-raw-dump${dumpSuffix}.meta.json`),
+    versionOut: path.join(assetsOut, `${install.version}${versionSuffix}`),
     dumpSource: path.join(factorioUserDir(), "script-output/data-raw-dump.json"),
-    tempModDir: path.join(os.tmpdir(), "fpsr-mods"),
+    tempModDir: path.join(os.tmpdir(), `fpsr-mods-${profileId}`),
   };
   return configured;
 }
