@@ -126,7 +126,18 @@ function collectUsageRefs(input: PackUsageInput): MutableFrameRef[] {
   }
 
   for (const name of Object.keys(input.tiles).sort()) {
-    const frames = input.tiles[name]?.frames;
+    const tile = input.tiles[name];
+    if (tile?.material) {
+      const oldId = tile.material.sheet;
+      refs.push({
+        oldId,
+        group: "tiles",
+        assign(id) {
+          tile.material!.sheet = id;
+        },
+      });
+    }
+    const frames = tile?.frames;
     if (!frames) continue;
     for (let index = 0; index < frames.length; index++) {
       const oldId = frames[index]!;

@@ -89,6 +89,31 @@ describe("usage-aware atlas packing", () => {
     }
   });
 
+  it("remaps tile material.sheet frame ids after pack", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-material-"));
+    try {
+      const frames = [frame(0, 32, 32), frame(1, 128, 16)];
+      const usage: PackUsageInput = {
+        entities: {},
+        tiles: {
+          concrete: {
+            layer: "ground-tile",
+            color: [0.5, 0.5, 0.5, 1],
+            material: { sheet: 1, count: 2, patchW: 8, patchH: 8, tilePx: 16 },
+          },
+        },
+        icons: {},
+      };
+      const packed = await packAtlases(frames, usage, dir);
+      expect(usage.tiles.concrete?.material?.sheet).not.toBe(1);
+      const remapped = packed.frames[usage.tiles.concrete!.material!.sheet];
+      expect(remapped?.sw).toBe(128);
+      expect(remapped?.sh).toBe(16);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("fails with a group report when cloning exceeds the storage ceiling", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-limit-"));
     try {

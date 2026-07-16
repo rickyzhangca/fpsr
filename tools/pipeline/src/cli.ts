@@ -9,6 +9,7 @@ type Command = "dump" | "distill" | "pack" | "all" | "verify" | "bench";
 interface CliOptions {
   command: Command;
   force: boolean;
+  allowBundleGrowth: boolean;
   factorioPath?: string;
   mods?: string[];
   dir?: string;
@@ -31,12 +32,14 @@ function usage(): string {
     "  --mods <a,b,...>    Enabled mod profile for dump/distill (for example: --mods base)",
     "  --dir <path>        Asset bundle for verify/bench",
     "  --force             Regenerate the game data dump",
+    "  --allow-bundle-growth  Skip the generated-bundle size guard",
   ].join("\n");
 }
 
 function parseArgs(argv: string[]): CliOptions {
   let command: Command | undefined;
   let force = false;
+  let allowBundleGrowth = false;
   let factorioPath: string | undefined;
   let mods: string[] | undefined;
   let dir: string | undefined;
@@ -52,6 +55,10 @@ function parseArgs(argv: string[]): CliOptions {
     }
     if (arg === "--force") {
       force = true;
+      continue;
+    }
+    if (arg === "--allow-bundle-growth") {
+      allowBundleGrowth = true;
       continue;
     }
     if (arg === "--factorio" || arg === "--dir" || arg === "--mods") {
@@ -78,7 +85,15 @@ function parseArgs(argv: string[]): CliOptions {
     }
     throw new Error(`Unknown argument: ${arg}\n\n${usage()}`);
   }
-  return { command: command ?? "all", force, factorioPath, mods, dir, blueprint };
+  return {
+    command: command ?? "all",
+    force,
+    allowBundleGrowth,
+    factorioPath,
+    mods,
+    dir,
+    blueprint,
+  };
 }
 
 async function generatedAssetDir(
@@ -135,7 +150,7 @@ async function main(): Promise<void> {
     await dumpData({ force: options.force });
   }
   if (options.command === "distill" || options.command === "pack" || options.command === "all") {
-    await distillAndPack();
+    await distillAndPack({ allowBundleGrowth: options.allowBundleGrowth });
   }
 }
 

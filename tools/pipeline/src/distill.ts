@@ -3,8 +3,12 @@ import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "
 import path from "node:path";
 import { packAtlases } from "./atlas.js";
 import { asOffset2, splitBeltFrameMain } from "./belt-connector-split.js";
-import { discoverPlaceableEntities, discoverPlaceableTiles } from "./discover.js";
-import { getPipelinePaths, UNSUPPORTED_ENTITY_PNG, resolveSpritePath } from "./paths.js";
+import {
+  discoverPlaceableEntities,
+  discoverPlaceableTiles,
+  discoverTilePlacingItems,
+} from "./discover.js";
+import { UNSUPPORTED_ENTITY_PNG, getPipelinePaths, resolveSpritePath } from "./paths.js";
 import { fpsrLayer, guessedLayer, officialLayer, railPieceLayerFromDump } from "./render-layers.js";
 import {
   FrameBank,
@@ -3200,52 +3204,95 @@ async function distillIcon(
 async function distillTile(bank: FrameBank, raw: DataRaw, name: string): Promise<TileRenderDef> {
   const t = proto(raw, "tile", name);
   const variants = t.variants as {
-    material_background?: { picture: string; count?: number; scale?: number };
+    material_background?: {
+      picture: string;
+      count?: number;
+      scale?: number;
+      line_length?: number;
+      x?: number;
+      y?: number;
+    };
     main?: { picture: string; count?: number; size?: number; scale?: number }[];
+    material_texture_width_in_tiles?: number;
+    material_texture_height_in_tiles?: number;
   };
 
-  let picture: string | undefined;
-  let count = 1;
-  let scale = 0.5;
+  const mapColor = t.map_color as number[] | undefined;
+  const mapColorRgba = (
+    fallback: [number, number, number, number],
+  ): [number, number, number, number] =>
+    mapColor
+      ? [
+          round4((mapColor[0] ?? 0) > 1 ? (mapColor[0] ?? 0) / 255 : (mapColor[0] ?? 0)),
+          round4((mapColor[1] ?? 0) > 1 ? (mapColor[1] ?? 0) / 255 : (mapColor[1] ?? 0)),
+          round4((mapColor[2] ?? 0) > 1 ? (mapColor[2] ?? 0) / 255 : (mapColor[2] ?? 0)),
+          round4((mapColor[3] ?? 1) > 1 ? (mapColor[3] ?? 1) / 255 : (mapColor[3] ?? 1)),
+        ]
+      : fallback;
+
+  const layer = fpsrLayer("ground-tile", "tile ground; fpsr name ≈ under-tiles");
 
   if (variants.material_background) {
-    picture = variants.material_background.picture;
-    count = variants.material_background.count ?? 1;
-    scale = variants.material_background.scale ?? 0.5;
-  } else if (variants.main?.[0]) {
-    picture = variants.main[0].picture;
-    count = variants.main[0].count ?? 1;
-    scale = variants.main[0].scale ?? 0.5;
-  }
-  if (!picture) throw new Error(`tile ${name} has no material picture`);
+    const mb = variants.material_background;
+    const picture = mb.picture;
+    const count = mb.count ?? 1;
+    const scale = mb.scale ?? 0.5;
+    const patchW = variants.material_texture_width_in_tiles ?? 8;
+    const patchH = variants.material_texture_height_in_tiles ?? 8;
+    const abs = resolveSpritePath(picture);
+    const color = await averageColor(abs);
+    const tilePx = Math.round(32 / scale);
+    const patchPxW = patchW * tilePx;
+    const patchPxH = patchH * tilePx;
+    const lineLength = mb.line_length ?? 0;
+    const sheetX = mb.x ?? 0;
+    const sheetY = mb.y ?? 0;
+    const sheetCols = lineLength > 0 ? lineLength : count;
+    const sheetRows = lineLength > 0 ? Math.ceil(count / lineLength) : 1;
+    const sheetPxW = sheetCols * patchPxW;
+    const sheetPxH = sheetRows * patchPxH;
+    const sheetCrop = await cropFileRect(abs, sheetX, sheetY, sheetPxW, sheetPxH);
+    const sheet = await bank.add(sheetCrop);
 
+    return {
+      layer,
+      color: mapColorRgba(color),
+      material: {
+        sheet,
+        count,
+        patchW,
+        patchH,
+        tilePx,
+        ...(lineLength > 0 ? { lineLength } : {}),
+        ...(sheetX !== 0 ? { sheetX } : {}),
+        ...(sheetY !== 0 ? { sheetY } : {}),
+      },
+    };
+  }
+
+  // `variants.main` path: only size-1 sheet today. Multi-size 2×2 / 4×4 packing
+  // (stone-path) and neighbor transitions are deferred.
+  const main0 = variants.main?.[0];
+  if (!main0?.picture) throw new Error(`tile ${name} has no material picture`);
+
+  const picture = main0.picture;
+  const count = main0.count ?? 1;
+  const scale = main0.scale ?? 0.5;
   const abs = resolveSpritePath(picture);
   const color = await averageColor(abs);
-  // One tile in source pixels at this scale: 32 / scale
   const tilePx = Math.round(32 / scale);
   const frameCount = Math.min(4, Math.max(1, count));
   const frames: number[] = [];
   for (let i = 0; i < frameCount; i++) {
-    // material sheets: either a row of 1x1 tiles, or count rows of wide strips
     const x = (i * tilePx) % Math.max(tilePx, tilePx * Math.min(count, 16));
     const y = 0;
     const crop = await cropFileRect(abs, x, y, tilePx, tilePx);
     frames.push(await bank.add(crop));
   }
 
-  const mapColor = t.map_color as number[] | undefined;
-  const finalColor: [number, number, number, number] = mapColor
-    ? [
-        round4((mapColor[0] ?? 0) > 1 ? (mapColor[0] ?? 0) / 255 : (mapColor[0] ?? 0)),
-        round4((mapColor[1] ?? 0) > 1 ? (mapColor[1] ?? 0) / 255 : (mapColor[1] ?? 0)),
-        round4((mapColor[2] ?? 0) > 1 ? (mapColor[2] ?? 0) / 255 : (mapColor[2] ?? 0)),
-        round4((mapColor[3] ?? 1) > 1 ? (mapColor[3] ?? 1) / 255 : (mapColor[3] ?? 1)),
-      ]
-    : color;
-
   return {
-    layer: fpsrLayer("ground-tile", "tile ground; fpsr name ≈ under-tiles"),
-    color: finalColor,
+    layer,
+    color: mapColorRgba(color),
     frames,
   };
 }
@@ -3316,7 +3363,14 @@ async function publishAtomic(staging: string, target: string): Promise<void> {
   if (hadTarget) await rm(backup, { recursive: true, force: true });
 }
 
-export async function distillAndPack(): Promise<RenderDb> {
+const MAX_BUNDLE_GROWTH_RATIO = 1.5;
+
+export interface DistillAndPackOptions {
+  /** Skip the bundle-size guard (e.g. after intentional tile-material growth). */
+  allowBundleGrowth?: boolean;
+}
+
+export async function distillAndPack(options: DistillAndPackOptions = {}): Promise<RenderDb> {
   const paths = getPipelinePaths();
   pipeCoversCache = undefined;
   clearImageCache();
@@ -3342,11 +3396,15 @@ export async function distillAndPack(): Promise<RenderDb> {
   }
 
   const tileNames = discoverPlaceableTiles(raw);
+  const tilePlacingItems = discoverTilePlacingItems(raw);
   const tiles: Record<string, TileRenderDef> = {};
   for (const name of tileNames) {
     process.stdout.write(`  tile ${name}…`);
     try {
-      tiles[name] = await distillTile(bank, raw, name);
+      const def = await distillTile(bank, raw, name);
+      const placingItem = tilePlacingItems[name];
+      if (placingItem) def.item = placingItem;
+      tiles[name] = def;
       console.log(" ok");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -3565,11 +3623,17 @@ export async function distillAndPack(): Promise<RenderDb> {
 
   const previousBytes = await directoryBytes(paths.versionOut);
   const generatedBytes = await directoryBytes(staging);
-  if (previousBytes > 0 && generatedBytes > previousBytes * 1.25) {
+  if (
+    !options.allowBundleGrowth &&
+    previousBytes > 0 &&
+    generatedBytes > previousBytes * MAX_BUNDLE_GROWTH_RATIO
+  ) {
     await rm(staging, { recursive: true, force: true });
     throw new Error(
       `Generated bundle ${(generatedBytes / 1024 / 1024).toFixed(2)} MiB exceeds ` +
-        `125% of existing ${(previousBytes / 1024 / 1024).toFixed(2)} MiB bundle`,
+        `${(MAX_BUNDLE_GROWTH_RATIO * 100).toFixed(0)}% of existing ` +
+        `${(previousBytes / 1024 / 1024).toFixed(2)} MiB bundle. ` +
+        `Re-run with --allow-bundle-growth if the increase is expected.`,
     );
   }
   await verifyAssetBundle(staging).catch(async (error) => {

@@ -163,3 +163,26 @@ export function discoverPlaceableTiles(raw: DataRaw): string[] {
   }
   return [...names].filter((n) => !!raw.tile?.[n]).sort();
 }
+
+/**
+ * Reverse map from tile prototype name to the item that places it via
+ * `place_as_tile.result`, including sibling `-right` hazard tiles.
+ */
+export function discoverTilePlacingItems(raw: DataRaw): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const protos of Object.values(raw)) {
+    if (!protos || typeof protos !== "object") continue;
+    for (const [itemName, p] of Object.entries(protos)) {
+      if (!p || typeof p !== "object") continue;
+      const pat = (p as { place_as_tile?: { result?: unknown } }).place_as_tile;
+      if (pat && typeof pat.result === "string") map[pat.result] = itemName;
+    }
+  }
+  for (const [tileName, itemName] of Object.entries(map)) {
+    if (tileName.endsWith("-left")) {
+      const right = `${tileName.slice(0, -5)}-right`;
+      if (raw.tile?.[right] && map[right] === undefined) map[right] = itemName;
+    }
+  }
+  return map;
+}

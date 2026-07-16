@@ -166,10 +166,24 @@ export interface EntityRenderDef {
   qualityIndicatorScale?: number;
 }
 
+export interface TileMaterialAtlas {
+  sheet: FrameId;
+  count: number;
+  patchW: number;
+  patchH: number;
+  tilePx: number;
+  lineLength?: number;
+  sheetX?: number;
+  sheetY?: number;
+}
+
 export interface TileRenderDef {
   layer: RenderLayerName;
+  /** Item that places this tile (`place_as_tile.result`); used for UI icons. */
+  item?: string;
   color: [number, number, number, number];
   frames?: FrameId[];
+  material?: TileMaterialAtlas;
 }
 
 export interface RenderDb {

@@ -87,6 +87,7 @@ function collectFrameIds(db: RenderDb): Set<number> {
   }
   for (const t of Object.values(db.tiles)) {
     for (const f of t.frames ?? []) ids.add(f);
+    if (t.material?.sheet != null) ids.add(t.material.sheet);
   }
   for (const f of Object.values(db.icons)) ids.add(f);
   return ids;
@@ -123,6 +124,14 @@ describe("render-db contract", () => {
       for (const f of t.frames ?? []) {
         expect(f).toBeGreaterThanOrEqual(0);
         expect(f).toBeLessThan(db.frames.length);
+      }
+      if (t.material) {
+        expect(t.material.sheet).toBeGreaterThanOrEqual(0);
+        expect(t.material.sheet).toBeLessThan(db.frames.length);
+        expect(t.material.count).toBeGreaterThan(0);
+        expect(t.material.patchW).toBeGreaterThan(0);
+        expect(t.material.patchH).toBeGreaterThan(0);
+        expect(t.material.tilePx).toBeGreaterThan(0);
       }
       expect(name.length).toBeGreaterThan(0);
     }
