@@ -132,6 +132,40 @@ export function selectBlueprint(doc: BlueprintDocument, path?: number[]): Bluepr
   throw new BlueprintSelectError("not-found", "Document has no blueprint or blueprint book");
 }
 
+function selectBookFromBook(book: BlueprintBook, path: number[]): BlueprintBook {
+  if (path.length === 0) {
+    return book;
+  }
+
+  const head = path[0];
+  if (head === undefined) {
+    throw new BlueprintSelectError("not-found", "Empty path");
+  }
+  const rest = path.slice(1);
+  const entry = findEntryByIndex(book, head);
+  if (!entry) {
+    throw new BlueprintSelectError("not-found", `No book entry at index ${head}`);
+  }
+  if (isPlannerEntry(entry)) {
+    throw new BlueprintSelectError("planner", `Entry at index ${head} is a planner`);
+  }
+  if (!entry.blueprint_book) {
+    throw new BlueprintSelectError("not-found", `Entry at index ${head} is not a blueprint book`);
+  }
+  return selectBookFromBook(entry.blueprint_book, rest);
+}
+
+/**
+ * Select a blueprint book from a document by path.
+ * No path / `[]` returns the root book; non-empty paths walk nested books only.
+ */
+export function selectBook(doc: BlueprintDocument, path?: number[]): BlueprintBook {
+  if (!doc.blueprint_book) {
+    throw new BlueprintSelectError("not-found", "Document has no blueprint book");
+  }
+  return selectBookFromBook(doc.blueprint_book, path ?? []);
+}
+
 export type BookTreeItemKind = "book" | "blueprint" | "upgrade_planner" | "deconstruction_planner";
 
 /** Hierarchical book entry for tree UIs (e.g. Headless Tree sync data loader). */

@@ -4,6 +4,7 @@ export {
   listBlueprints,
   resolveActivePath,
   selectBlueprint,
+  selectBook,
 } from "./book.js";
 export type { BlueprintSelectReason, BookTree, BookTreeItem, BookTreeItemKind } from "./book.js";
 export { BlueprintDecodeError, decode, decodeWithStats } from "./decode.js";

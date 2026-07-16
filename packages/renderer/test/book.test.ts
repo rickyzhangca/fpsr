@@ -7,6 +7,7 @@ import {
   listBlueprints,
   resolveActivePath,
   selectBlueprint,
+  selectBook,
 } from "../src/book.js";
 import { decode } from "../src/decode.js";
 import type { BlueprintDocument } from "../src/types/blueprint.js";
@@ -52,6 +53,45 @@ describe("selectBlueprint", () => {
     } catch (e) {
       expect((e as BlueprintSelectError).reason).toBe("planner");
     }
+  });
+});
+
+describe("selectBook", () => {
+  it("returns the root book with no path", () => {
+    const doc = decode(readFileSync(join(FIXTURES_DIR, "05-nested-book.txt"), "utf8"));
+    const book = selectBook(doc);
+    expect(book.label).toBe("Main book");
+  });
+
+  it("selects a nested book by path", () => {
+    const doc = decode(readFileSync(join(FIXTURES_DIR, "05-nested-book.txt"), "utf8"));
+    const book = selectBook(doc, [2]);
+    expect(book.label).toBe("Nested book");
+  });
+
+  it("throws when path lands on a blueprint", () => {
+    const doc = decode(readFileSync(join(FIXTURES_DIR, "05-nested-book.txt"), "utf8"));
+    expect(() => selectBook(doc, [0])).toThrow(BlueprintSelectError);
+    try {
+      selectBook(doc, [0]);
+    } catch (e) {
+      expect((e as BlueprintSelectError).reason).toBe("not-found");
+    }
+  });
+
+  it("throws when path lands on a planner", () => {
+    const doc = decode(readFileSync(join(FIXTURES_DIR, "06-book-with-planner.txt"), "utf8"));
+    expect(() => selectBook(doc, [1])).toThrow(BlueprintSelectError);
+    try {
+      selectBook(doc, [1]);
+    } catch (e) {
+      expect((e as BlueprintSelectError).reason).toBe("planner");
+    }
+  });
+
+  it("throws for bare blueprint documents", () => {
+    const doc = decode(readFileSync(join(FIXTURES_DIR, "01-minimal-chest.txt"), "utf8"));
+    expect(() => selectBook(doc)).toThrow(BlueprintSelectError);
   });
 });
 
