@@ -1,0 +1,3645 @@
+{
+  "schema": 1,
+  "suiteId": "official-mods-2.1.11",
+  "gameVersion": "2.1.11",
+  "requiredMods": [
+    "base",
+    "elevated-rails",
+    "quality",
+    "recycler",
+    "space-age"
+  ],
+  "books": [
+    {
+      "specId": "space-age-2.1.11",
+      "mod": "space-age",
+      "file": "space-age.bp.txt"
+    },
+    {
+      "specId": "quality-2.1.11",
+      "mod": "quality",
+      "file": "quality.bp.txt"
+    },
+    {
+      "specId": "elevated-rails-2.1.11",
+      "mod": "elevated-rails",
+      "file": "elevated-rails.bp.txt"
+    },
+    {
+      "specId": "recycler-2.1.11",
+      "mod": "recycler",
+      "file": "recycler.bp.txt"
+    }
+  ],
+  "canaryPageIds": [
+    "official-mods/elevated-rails/logistics",
+    "official-mods/recycler/recycler",
+    "official-mods/space-age/space",
+    "official-mods/space-age/logistics"
+  ],
+  "inventory": {
+    "source": "per-mod-book-specs",
+    "specs": [
+      {
+        "mod": "space-age",
+        "specId": "space-age-2.1.11",
+        "entityCount": 27,
+        "tileCount": 7,
+        "emitted": true
+      },
+      {
+        "mod": "quality",
+        "specId": "quality-2.1.11",
+        "entityCount": 0,
+        "tileCount": 0,
+        "emitted": false
+      },
+      {
+        "mod": "elevated-rails",
+        "specId": "elevated-rails-2.1.11",
+        "entityCount": 6,
+        "tileCount": 0,
+        "emitted": true
+      },
+      {
+        "mod": "recycler",
+        "specId": "recycler-2.1.11",
+        "entityCount": 1,
+        "tileCount": 0,
+        "emitted": true
+      }
+    ]
+  },
+  "renderMetadata": {
+    "role": "exact-all-official-graphics-metadata",
+    "gameVersion": "2.1.11",
+    "mods": [
+      "base",
+      "elevated-rails",
+      "quality",
+      "recycler",
+      "space-age"
+    ]
+  },
+  "rendererDiagnostics": [],
+  "contract": {
+    "covered": [
+      "Every placeable entity and tile owned by Elevated Rails, Recycler, and Space Age 2.1.11",
+      "Every available direction and underground/loader input-output pose per owned entity",
+      "One 7×7 patch per owned tile",
+      "Independent per-mod inventory ownership composed under the exact all-official profile"
+    ],
+    "deferred": [
+      "Orientation, connectivity, runtime-state, recipe, module, filter, and circuit matrices",
+      "Quality item/icon and quality-state coverage because Quality owns no placeable entity or tile",
+      "Renderer correctness; planner failures are recorded in rendererDiagnostics and use selection-box packing",
+      "Surface-specific real-game placement for planetary and space-platform entities and tiles"
+    ]
+  },
+  "coverage": {
+    "entityPrototypeCount": 34,
+    "entityPlacementCaseCount": 137,
+    "tilePrototypeCount": 7,
+    "tileCaseCount": 7,
+    "pageCount": 6
+  },
+  "pages": [
+    {
+      "id": "official-mods/space-age/logistics",
+      "label": "logistics",
+      "sectionId": "official-mods",
+      "groupId": "space-age",
+      "bookSpecId": "space-age-2.1.11",
+      "path": [
+        0
+      ],
+      "cellIds": [
+        "pose/turbo-transport-belt/d00",
+        "pose/turbo-transport-belt/d04",
+        "pose/turbo-transport-belt/d08",
+        "pose/turbo-transport-belt/d12",
+        "pose/turbo-underground-belt/d00-input",
+        "pose/turbo-underground-belt/d00-output",
+        "pose/turbo-underground-belt/d04-input",
+        "pose/turbo-underground-belt/d04-output",
+        "pose/turbo-underground-belt/d08-input",
+        "pose/turbo-underground-belt/d08-output",
+        "pose/turbo-underground-belt/d12-input",
+        "pose/turbo-underground-belt/d12-output",
+        "pose/turbo-splitter/d00",
+        "pose/turbo-splitter/d04",
+        "pose/turbo-splitter/d08",
+        "pose/turbo-splitter/d12",
+        "pose/turbo-loader/d00-input",
+        "pose/turbo-loader/d00-output",
+        "pose/turbo-loader/d04-input",
+        "pose/turbo-loader/d04-output",
+        "pose/turbo-loader/d08-input",
+        "pose/turbo-loader/d08-output",
+        "pose/turbo-loader/d12-input",
+        "pose/turbo-loader/d12-output",
+        "pose/stack-inserter/d00",
+        "pose/stack-inserter/d04",
+        "pose/stack-inserter/d08",
+        "pose/stack-inserter/d12",
+        "tile/space-age/artificial-jellynut-soil",
+        "tile/space-age/artificial-yumako-soil",
+        "tile/space-age/foundation",
+        "tile/space-age/ice-platform",
+        "tile/space-age/overgrowth-jellynut-soil",
+        "tile/space-age/overgrowth-yumako-soil",
+        "tile/space-age/space-platform-foundation"
+      ],
+      "entityCount": 28,
+      "tileCount": 343
+    },
+    {
+      "id": "official-mods/space-age/production",
+      "label": "production items",
+      "sectionId": "official-mods",
+      "groupId": "space-age",
+      "bookSpecId": "space-age-2.1.11",
+      "path": [
+        1
+      ],
+      "cellIds": [
+        "pose/agricultural-tower/d00",
+        "pose/big-mining-drill/d00",
+        "pose/big-mining-drill/d04",
+        "pose/big-mining-drill/d08",
+        "pose/big-mining-drill/d12",
+        "pose/biochamber/d00",
+        "pose/biochamber/d04",
+        "pose/biochamber/d08",
+        "pose/biochamber/d12",
+        "pose/biolab/d00",
+        "pose/captive-biter-spawner/d00",
+        "pose/captive-biter-spawner/d04",
+        "pose/captive-biter-spawner/d08",
+        "pose/captive-biter-spawner/d12",
+        "pose/cryogenic-plant/d00",
+        "pose/cryogenic-plant/d04",
+        "pose/cryogenic-plant/d08",
+        "pose/cryogenic-plant/d12",
+        "pose/electromagnetic-plant/d00",
+        "pose/electromagnetic-plant/d04",
+        "pose/electromagnetic-plant/d08",
+        "pose/electromagnetic-plant/d12",
+        "pose/foundry/d00",
+        "pose/foundry/d04",
+        "pose/foundry/d08",
+        "pose/foundry/d12",
+        "pose/fusion-reactor/d00",
+        "pose/fusion-generator/d00",
+        "pose/fusion-generator/d04",
+        "pose/fusion-generator/d08",
+        "pose/fusion-generator/d12",
+        "pose/heating-tower/d00",
+        "pose/lightning-rod/d00",
+        "pose/lightning-collector/d00"
+      ],
+      "entityCount": 34,
+      "tileCount": 0
+    },
+    {
+      "id": "official-mods/space-age/space",
+      "label": "space",
+      "sectionId": "official-mods",
+      "groupId": "space-age",
+      "bookSpecId": "space-age-2.1.11",
+      "path": [
+        2
+      ],
+      "cellIds": [
+        "pose/space-platform-hub/d00",
+        "pose/cargo-bay/d00",
+        "pose/landing-pad-unloading-bay/d00",
+        "pose/landing-pad-unloading-bay/d04",
+        "pose/landing-pad-unloading-bay/d08",
+        "pose/landing-pad-unloading-bay/d12",
+        "pose/asteroid-collector/d00",
+        "pose/asteroid-collector/d04",
+        "pose/asteroid-collector/d08",
+        "pose/asteroid-collector/d12",
+        "pose/crusher/d00",
+        "pose/crusher/d04",
+        "pose/crusher/d08",
+        "pose/crusher/d12",
+        "pose/thruster/d00"
+      ],
+      "entityCount": 15,
+      "tileCount": 0
+    },
+    {
+      "id": "official-mods/space-age/combat",
+      "label": "combat items",
+      "sectionId": "official-mods",
+      "groupId": "space-age",
+      "bookSpecId": "space-age-2.1.11",
+      "path": [
+        3
+      ],
+      "cellIds": [
+        "pose/railgun-turret/d00",
+        "pose/railgun-turret/d04",
+        "pose/railgun-turret/d08",
+        "pose/railgun-turret/d12",
+        "pose/rocket-turret/d00",
+        "pose/rocket-turret/d04",
+        "pose/rocket-turret/d08",
+        "pose/rocket-turret/d12",
+        "pose/tesla-turret/d00",
+        "pose/tesla-turret/d04",
+        "pose/tesla-turret/d08",
+        "pose/tesla-turret/d12"
+      ],
+      "entityCount": 12,
+      "tileCount": 0
+    },
+    {
+      "id": "official-mods/elevated-rails/logistics",
+      "label": "logistics",
+      "sectionId": "official-mods",
+      "groupId": "elevated-rails",
+      "bookSpecId": "elevated-rails-2.1.11",
+      "path": [
+        0
+      ],
+      "cellIds": [
+        "pose/elevated-straight-rail/d00",
+        "pose/elevated-straight-rail/d02",
+        "pose/elevated-straight-rail/d04",
+        "pose/elevated-straight-rail/d06",
+        "pose/elevated-straight-rail/d08",
+        "pose/elevated-straight-rail/d10",
+        "pose/elevated-straight-rail/d12",
+        "pose/elevated-straight-rail/d14",
+        "pose/elevated-half-diagonal-rail/d00",
+        "pose/elevated-half-diagonal-rail/d02",
+        "pose/elevated-half-diagonal-rail/d04",
+        "pose/elevated-half-diagonal-rail/d06",
+        "pose/elevated-half-diagonal-rail/d08",
+        "pose/elevated-half-diagonal-rail/d10",
+        "pose/elevated-half-diagonal-rail/d12",
+        "pose/elevated-half-diagonal-rail/d14",
+        "pose/elevated-curved-rail-a/d00",
+        "pose/elevated-curved-rail-a/d02",
+        "pose/elevated-curved-rail-a/d04",
+        "pose/elevated-curved-rail-a/d06",
+        "pose/elevated-curved-rail-a/d08",
+        "pose/elevated-curved-rail-a/d10",
+        "pose/elevated-curved-rail-a/d12",
+        "pose/elevated-curved-rail-a/d14",
+        "pose/elevated-curved-rail-b/d00",
+        "pose/elevated-curved-rail-b/d02",
+        "pose/elevated-curved-rail-b/d04",
+        "pose/elevated-curved-rail-b/d06",
+        "pose/elevated-curved-rail-b/d08",
+        "pose/elevated-curved-rail-b/d10",
+        "pose/elevated-curved-rail-b/d12",
+        "pose/elevated-curved-rail-b/d14",
+        "pose/rail-ramp/d00",
+        "pose/rail-ramp/d04",
+        "pose/rail-ramp/d08",
+        "pose/rail-ramp/d12",
+        "pose/rail-support/d00",
+        "pose/rail-support/d02",
+        "pose/rail-support/d04",
+        "pose/rail-support/d06",
+        "pose/rail-support/d08",
+        "pose/rail-support/d10",
+        "pose/rail-support/d12",
+        "pose/rail-support/d14"
+      ],
+      "entityCount": 44,
+      "tileCount": 0
+    },
+    {
+      "id": "official-mods/recycler/recycler",
+      "label": "production items",
+      "sectionId": "official-mods",
+      "groupId": "recycler",
+      "bookSpecId": "recycler-2.1.11",
+      "path": [
+        0
+      ],
+      "cellIds": [
+        "pose/recycler/d00",
+        "pose/recycler/d04",
+        "pose/recycler/d08",
+        "pose/recycler/d12"
+      ],
+      "entityCount": 4,
+      "tileCount": 0
+    }
+  ],
+  "cells": [
+    {
+      "id": "pose/turbo-transport-belt/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 0.1875,
+        "right": 2.578125,
+        "bottom": 2.8125
+      },
+      "focusEntityNumbers": [
+        1
+      ],
+      "entityName": "turbo-transport-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/turbo-transport-belt/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 3.1875,
+        "top": -0.421875,
+        "right": 5.8125,
+        "bottom": 1.71875
+      },
+      "focusEntityNumbers": [
+        2
+      ],
+      "entityName": "turbo-transport-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/turbo-transport-belt/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 6.484375,
+        "top": 0.1875,
+        "right": 8.578125,
+        "bottom": 2.8125
+      },
+      "focusEntityNumbers": [
+        3
+      ],
+      "entityName": "turbo-transport-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/turbo-transport-belt/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 9.1875,
+        "top": -0.421875,
+        "right": 11.796875,
+        "bottom": 1.71875
+      },
+      "focusEntityNumbers": [
+        4
+      ],
+      "entityName": "turbo-transport-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d00-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 3.171875,
+        "right": 5.1875,
+        "bottom": 5.8125
+      },
+      "focusEntityNumbers": [
+        5
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d00-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 5.484375,
+        "top": 3.171875,
+        "right": 10.1875,
+        "bottom": 5.703125
+      },
+      "focusEntityNumbers": [
+        6
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d04-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 10.1875,
+        "top": 3.34375,
+        "right": 12.859375,
+        "bottom": 5.71875
+      },
+      "focusEntityNumbers": [
+        7
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d04-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 13.390625,
+        "top": 3.34375,
+        "right": 16.015625,
+        "bottom": 5.71875
+      },
+      "focusEntityNumbers": [
+        8
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d08-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 6.171875,
+        "right": 5.1875,
+        "bottom": 8.703125
+      },
+      "focusEntityNumbers": [
+        9
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d08-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 5.484375,
+        "top": 6.171875,
+        "right": 10.1875,
+        "bottom": 8.8125
+      },
+      "focusEntityNumbers": [
+        10
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d12-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 10.390625,
+        "top": 6.34375,
+        "right": 13.015625,
+        "bottom": 8.71875
+      },
+      "focusEntityNumbers": [
+        11
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-underground-belt/d12-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 13.1875,
+        "top": 6.34375,
+        "right": 15.859375,
+        "bottom": 8.71875
+      },
+      "focusEntityNumbers": [
+        12
+      ],
+      "entityName": "turbo-underground-belt",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-splitter/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 9.1875,
+        "right": 3.968775,
+        "bottom": 11.8125
+      },
+      "focusEntityNumbers": [
+        13
+      ],
+      "entityName": "turbo-splitter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/turbo-splitter/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 4.1875,
+        "top": 9.156225,
+        "right": 6.828175,
+        "bottom": 12.71875
+      },
+      "focusEntityNumbers": [
+        14
+      ],
+      "entityName": "turbo-splitter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/turbo-splitter/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 7.34375,
+        "top": 9.1875,
+        "right": 10.890625,
+        "bottom": 11.8125
+      },
+      "focusEntityNumbers": [
+        15
+      ],
+      "entityName": "turbo-splitter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/turbo-splitter/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 11.1875,
+        "top": 9.218725,
+        "right": 13.890625,
+        "bottom": 12.71875
+      },
+      "focusEntityNumbers": [
+        16
+      ],
+      "entityName": "turbo-splitter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d00-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 13.53125,
+        "right": 2.578125,
+        "bottom": 16.3125
+      },
+      "focusEntityNumbers": [
+        17
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d00-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 3.484375,
+        "top": 13.53125,
+        "right": 5.578125,
+        "bottom": 16.3125
+      },
+      "focusEntityNumbers": [
+        18
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d04-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 5.6875,
+        "top": 13.53125,
+        "right": 8.46875,
+        "bottom": 15.71875
+      },
+      "focusEntityNumbers": [
+        19
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d04-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 8.6875,
+        "top": 13.53125,
+        "right": 11.46875,
+        "bottom": 15.71875
+      },
+      "focusEntityNumbers": [
+        20
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d08-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 16.6875,
+        "right": 2.578125,
+        "bottom": 19.46875
+      },
+      "focusEntityNumbers": [
+        21
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d08-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 3.484375,
+        "top": 16.6875,
+        "right": 5.578125,
+        "bottom": 19.46875
+      },
+      "focusEntityNumbers": [
+        22
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d12-input",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 6.53125,
+        "top": 16.53125,
+        "right": 9.3125,
+        "bottom": 18.71875
+      },
+      "focusEntityNumbers": [
+        23
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12,
+        "type": "input"
+      }
+    },
+    {
+      "id": "pose/turbo-loader/d12-output",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 9.53125,
+        "top": 16.53125,
+        "right": 12.3125,
+        "bottom": 18.71875
+      },
+      "focusEntityNumbers": [
+        24
+      ],
+      "entityName": "turbo-loader",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12,
+        "type": "output"
+      }
+    },
+    {
+      "id": "pose/stack-inserter/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.4765625,
+        "top": 20.085979167,
+        "right": 2.8515875,
+        "bottom": 22.7109125
+      },
+      "focusEntityNumbers": [
+        25
+      ],
+      "entityName": "stack-inserter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/stack-inserter/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 3.3203375,
+        "top": 20.304877682,
+        "right": 6.046473775,
+        "bottom": 22.6484125
+      },
+      "focusEntityNumbers": [
+        26
+      ],
+      "entityName": "stack-inserter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/stack-inserter/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 6.4765625,
+        "top": 19.6796625,
+        "right": 8.8515875,
+        "bottom": 21.73985
+      },
+      "focusEntityNumbers": [
+        27
+      ],
+      "entityName": "stack-inserter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/stack-inserter/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 8.953526225,
+        "top": 20.304877682,
+        "right": 11.8047125,
+        "bottom": 22.5702875
+      },
+      "focusEntityNumbers": [
+        28
+      ],
+      "entityName": "stack-inserter",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "tile/space-age/artificial-jellynut-soil",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.5,
+        "top": 23.5,
+        "right": 7.5,
+        "bottom": 31.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "artificial-jellynut-soil",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/artificial-yumako-soil",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 7.5,
+        "top": 23.5,
+        "right": 15.5,
+        "bottom": 31.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "artificial-yumako-soil",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/foundation",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 15.5,
+        "top": 23.5,
+        "right": 23.5,
+        "bottom": 31.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "foundation",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/ice-platform",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 23.5,
+        "top": 23.5,
+        "right": 31.5,
+        "bottom": 31.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "ice-platform",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/overgrowth-jellynut-soil",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.5,
+        "top": 31.5,
+        "right": 7.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "overgrowth-jellynut-soil",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/overgrowth-yumako-soil",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 7.5,
+        "top": 31.5,
+        "right": 15.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "overgrowth-yumako-soil",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/space-platform-foundation",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 15.5,
+        "top": 31.5,
+        "right": 23.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "space-platform-foundation",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "pose/agricultural-tower/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.28127500000000005,
+        "top": -0.474975,
+        "right": 8.4839,
+        "bottom": 6.999975
+      },
+      "focusEntityNumbers": [
+        1
+      ],
+      "entityName": "agricultural-tower",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/big-mining-drill/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.46875,
+        "top": 7.906224999999999,
+        "right": 7.640625,
+        "bottom": 14.374975
+      },
+      "focusEntityNumbers": [
+        2
+      ],
+      "entityName": "big-mining-drill",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/big-mining-drill/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 8.515625,
+        "top": 7.921900000000001,
+        "right": 16.296925,
+        "bottom": 14.4219
+      },
+      "focusEntityNumbers": [
+        3
+      ],
+      "entityName": "big-mining-drill",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/big-mining-drill/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 16.4688,
+        "top": 7.26565,
+        "right": 23.7188,
+        "bottom": 13.62505
+      },
+      "focusEntityNumbers": [
+        4
+      ],
+      "entityName": "big-mining-drill",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/big-mining-drill/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 24.29685,
+        "top": 7.921900000000001,
+        "right": 31.609375,
+        "bottom": 14.4219
+      },
+      "focusEntityNumbers": [
+        5
+      ],
+      "entityName": "big-mining-drill",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/biochamber/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.29690000000000005,
+        "top": 15.031225,
+        "right": 5.65625,
+        "bottom": 19.921875
+      },
+      "focusEntityNumbers": [
+        6
+      ],
+      "entityName": "biochamber",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/biochamber/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 6.296875,
+        "top": 15.031225,
+        "right": 11.65625,
+        "bottom": 19.687475
+      },
+      "focusEntityNumbers": [
+        7
+      ],
+      "entityName": "biochamber",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/biochamber/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 12.2969,
+        "top": 15.031225,
+        "right": 17.65625,
+        "bottom": 19.921875
+      },
+      "focusEntityNumbers": [
+        8
+      ],
+      "entityName": "biochamber",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/biochamber/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 18.296875,
+        "top": 15.031225,
+        "right": 23.65625,
+        "bottom": 19.687475
+      },
+      "focusEntityNumbers": [
+        9
+      ],
+      "entityName": "biochamber",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/biolab/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.34375,
+        "top": 20.06255,
+        "right": 8.8594,
+        "bottom": 26.796925
+      },
+      "focusEntityNumbers": [
+        10
+      ],
+      "entityName": "biolab",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/captive-biter-spawner/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.31252500000000005,
+        "top": 27.437475,
+        "right": 7.65625,
+        "bottom": 33.624975
+      },
+      "focusEntityNumbers": [
+        11
+      ],
+      "entityName": "captive-biter-spawner",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/captive-biter-spawner/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 8.312525,
+        "top": 27.437475,
+        "right": 15.65625,
+        "bottom": 33.624975
+      },
+      "focusEntityNumbers": [
+        12
+      ],
+      "entityName": "captive-biter-spawner",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/captive-biter-spawner/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 16.312525,
+        "top": 27.437475,
+        "right": 23.65625,
+        "bottom": 33.624975
+      },
+      "focusEntityNumbers": [
+        13
+      ],
+      "entityName": "captive-biter-spawner",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/captive-biter-spawner/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 24.312525,
+        "top": 27.437475,
+        "right": 31.65625,
+        "bottom": 33.624975
+      },
+      "focusEntityNumbers": [
+        14
+      ],
+      "entityName": "captive-biter-spawner",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/cryogenic-plant/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.25005,
+        "top": 34.093725,
+        "right": 8.70315,
+        "bottom": 40.921875
+      },
+      "focusEntityNumbers": [
+        15
+      ],
+      "entityName": "cryogenic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/cryogenic-plant/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 9.25005,
+        "top": 34.093725,
+        "right": 17.70315,
+        "bottom": 40.85935
+      },
+      "focusEntityNumbers": [
+        16
+      ],
+      "entityName": "cryogenic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/cryogenic-plant/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 18.25005,
+        "top": 34.093725,
+        "right": 26.70315,
+        "bottom": 40.921875
+      },
+      "focusEntityNumbers": [
+        17
+      ],
+      "entityName": "cryogenic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/cryogenic-plant/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 27.25005,
+        "top": 34.093725,
+        "right": 35.70315,
+        "bottom": 40.85935
+      },
+      "focusEntityNumbers": [
+        18
+      ],
+      "entityName": "cryogenic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/electromagnetic-plant/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.296875,
+        "top": 41.890625,
+        "right": 7.6875,
+        "bottom": 47.921875
+      },
+      "focusEntityNumbers": [
+        19
+      ],
+      "entityName": "electromagnetic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/electromagnetic-plant/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 8.296875,
+        "top": 41.890625,
+        "right": 15.6875,
+        "bottom": 47.921875
+      },
+      "focusEntityNumbers": [
+        20
+      ],
+      "entityName": "electromagnetic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/electromagnetic-plant/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 16.296875,
+        "top": 41.890625,
+        "right": 23.6875,
+        "bottom": 47.921875
+      },
+      "focusEntityNumbers": [
+        21
+      ],
+      "entityName": "electromagnetic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/electromagnetic-plant/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 24.296875,
+        "top": 41.890625,
+        "right": 31.6875,
+        "bottom": 47.921875
+      },
+      "focusEntityNumbers": [
+        22
+      ],
+      "entityName": "electromagnetic-plant",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/foundry/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.21877500000000005,
+        "top": 48.7031,
+        "right": 9.4844,
+        "bottom": 55.921875
+      },
+      "focusEntityNumbers": [
+        23
+      ],
+      "entityName": "foundry",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/foundry/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 10.218775,
+        "top": 48.7031,
+        "right": 19.4844,
+        "bottom": 55.687475
+      },
+      "focusEntityNumbers": [
+        24
+      ],
+      "entityName": "foundry",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/foundry/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 20.218775,
+        "top": 48.7031,
+        "right": 29.4844,
+        "bottom": 55.921875
+      },
+      "focusEntityNumbers": [
+        25
+      ],
+      "entityName": "foundry",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/foundry/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 30.218775,
+        "top": 48.7031,
+        "right": 39.4844,
+        "bottom": 55.687475
+      },
+      "focusEntityNumbers": [
+        26
+      ],
+      "entityName": "foundry",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/fusion-reactor/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.06247499999999995,
+        "top": 56.8281,
+        "right": 9.96875,
+        "bottom": 65.109425
+      },
+      "focusEntityNumbers": [
+        27
+      ],
+      "entityName": "fusion-reactor",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/fusion-generator/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.359375,
+        "top": 65.15625,
+        "right": 5.312475,
+        "bottom": 71.734375
+      },
+      "focusEntityNumbers": [
+        28
+      ],
+      "entityName": "fusion-generator",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/fusion-generator/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 6.28125,
+        "top": 65.171925,
+        "right": 13.109375,
+        "bottom": 69.75005
+      },
+      "focusEntityNumbers": [
+        29
+      ],
+      "entityName": "fusion-generator",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/fusion-generator/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 13.28125,
+        "top": 65.578125,
+        "right": 18.218725,
+        "bottom": 71.9375
+      },
+      "focusEntityNumbers": [
+        30
+      ],
+      "entityName": "fusion-generator",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/fusion-generator/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 18.281275,
+        "top": 65.15625,
+        "right": 25,
+        "bottom": 69.75
+      },
+      "focusEntityNumbers": [
+        31
+      ],
+      "entityName": "fusion-generator",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/heating-tower/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.4688,
+        "top": 72.125025,
+        "right": 6.3438,
+        "bottom": 77.625025
+      },
+      "focusEntityNumbers": [
+        32
+      ],
+      "entityName": "heating-tower",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/lightning-rod/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.296875,
+        "top": 78.3125,
+        "right": 7.1875,
+        "bottom": 84.57815
+      },
+      "focusEntityNumbers": [
+        33
+      ],
+      "entityName": "lightning-rod",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/lightning-collector/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 0.34372499999999995,
+        "top": 85.031275,
+        "right": 7.78125,
+        "bottom": 92.70315
+      },
+      "focusEntityNumbers": [
+        34
+      ],
+      "entityName": "lightning-collector",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/space-platform-hub/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": -0.140625,
+        "top": 0.390675,
+        "right": 12.95315,
+        "bottom": 10.4375
+      },
+      "focusEntityNumbers": [
+        1
+      ],
+      "entityName": "space-platform-hub",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/cargo-bay/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": -0.2969,
+        "top": 10.874975,
+        "right": 6.875025,
+        "bottom": 16.078125
+      },
+      "focusEntityNumbers": [
+        2
+      ],
+      "entityName": "cargo-bay",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/landing-pad-unloading-bay/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 0.453125,
+        "top": 16.609375,
+        "right": 7.249975,
+        "bottom": 22.5313
+      },
+      "focusEntityNumbers": [
+        3
+      ],
+      "entityName": "landing-pad-unloading-bay",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/landing-pad-unloading-bay/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 7.53125,
+        "top": 16.531225,
+        "right": 14.453175,
+        "bottom": 22.7813
+      },
+      "focusEntityNumbers": [
+        4
+      ],
+      "entityName": "landing-pad-unloading-bay",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/landing-pad-unloading-bay/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 15.4375,
+        "top": 16.531275,
+        "right": 22.437525,
+        "bottom": 23.218725
+      },
+      "focusEntityNumbers": [
+        5
+      ],
+      "entityName": "landing-pad-unloading-bay",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/landing-pad-unloading-bay/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 22.73435,
+        "top": 16.515675,
+        "right": 30.749975,
+        "bottom": 22.62505
+      },
+      "focusEntityNumbers": [
+        6
+      ],
+      "entityName": "landing-pad-unloading-bay",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/asteroid-collector/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 0.484375,
+        "top": 23.7813,
+        "right": 6.10935,
+        "bottom": 28.609425
+      },
+      "focusEntityNumbers": [
+        7
+      ],
+      "entityName": "asteroid-collector",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/asteroid-collector/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 6.29685,
+        "top": 23.28125,
+        "right": 11.515625,
+        "bottom": 28.78125
+      },
+      "focusEntityNumbers": [
+        8
+      ],
+      "entityName": "asteroid-collector",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/asteroid-collector/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 12.29685,
+        "top": 23.375,
+        "right": 17.10935,
+        "bottom": 28.8125
+      },
+      "focusEntityNumbers": [
+        9
+      ],
+      "entityName": "asteroid-collector",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/asteroid-collector/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 17.484375,
+        "top": 23.28125,
+        "right": 23.10935,
+        "bottom": 28.78125
+      },
+      "focusEntityNumbers": [
+        10
+      ],
+      "entityName": "asteroid-collector",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/crusher/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 0.4063,
+        "top": 29.2656,
+        "right": 3.984375,
+        "bottom": 33.374975
+      },
+      "focusEntityNumbers": [
+        11
+      ],
+      "entityName": "crusher",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/crusher/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 4.4375,
+        "top": 29.0938,
+        "right": 8.9531,
+        "bottom": 32.79685
+      },
+      "focusEntityNumbers": [
+        12
+      ],
+      "entityName": "crusher",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/crusher/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 9.4063,
+        "top": 29.2656,
+        "right": 12.984375,
+        "bottom": 33.374975
+      },
+      "focusEntityNumbers": [
+        13
+      ],
+      "entityName": "crusher",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/crusher/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 13.4375,
+        "top": 29.0938,
+        "right": 17.9531,
+        "bottom": 32.79685
+      },
+      "focusEntityNumbers": [
+        14
+      ],
+      "entityName": "crusher",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/thruster/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/space",
+      "pagePath": [
+        2
+      ],
+      "cropTiles": {
+        "left": 0.21875,
+        "top": 33.70315,
+        "right": 5.90625,
+        "bottom": 43.359425
+      },
+      "focusEntityNumbers": [
+        15
+      ],
+      "entityName": "thruster",
+      "pose": {
+        "axis": "single",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/railgun-turret/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 0.234425,
+        "top": -0.296825,
+        "right": 5.390675,
+        "bottom": 6.3906
+      },
+      "focusEntityNumbers": [
+        1
+      ],
+      "entityName": "railgun-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/railgun-turret/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 6.328175,
+        "top": 0.17184999999999995,
+        "right": 14.500025,
+        "bottom": 4.67185
+      },
+      "focusEntityNumbers": [
+        2
+      ],
+      "entityName": "railgun-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/railgun-turret/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 15.265675,
+        "top": 0.46872499999999995,
+        "right": 20.828175,
+        "bottom": 6.749975
+      },
+      "focusEntityNumbers": [
+        3
+      ],
+      "entityName": "railgun-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/railgun-turret/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 20.843725,
+        "top": -0.031275,
+        "right": 28.671925,
+        "bottom": 4.718725
+      },
+      "focusEntityNumbers": [
+        4
+      ],
+      "entityName": "railgun-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/rocket-turret/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 0.43752500000000005,
+        "top": 7.56255,
+        "right": 4.812525,
+        "bottom": 11.406225
+      },
+      "focusEntityNumbers": [
+        5
+      ],
+      "entityName": "rocket-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/rocket-turret/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 5.437525,
+        "top": 7.56255,
+        "right": 9.96875,
+        "bottom": 11.406225
+      },
+      "focusEntityNumbers": [
+        6
+      ],
+      "entityName": "rocket-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/rocket-turret/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 10.437525,
+        "top": 7.31255,
+        "right": 14.812525,
+        "bottom": 11.406225
+      },
+      "focusEntityNumbers": [
+        7
+      ],
+      "entityName": "rocket-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/rocket-turret/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 15.437525,
+        "top": 7.484425,
+        "right": 20.015625,
+        "bottom": 11.406225
+      },
+      "focusEntityNumbers": [
+        8
+      ],
+      "entityName": "rocket-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/tesla-turret/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": -0.25,
+        "top": 11.5781,
+        "right": 4.843775,
+        "bottom": 16.54685
+      },
+      "focusEntityNumbers": [
+        9
+      ],
+      "entityName": "tesla-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/tesla-turret/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 5.46875,
+        "top": 11.5781,
+        "right": 10.82815,
+        "bottom": 16.343725
+      },
+      "focusEntityNumbers": [
+        10
+      ],
+      "entityName": "tesla-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/tesla-turret/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 11.75,
+        "top": 12.312475,
+        "right": 16.82815,
+        "bottom": 17.218725
+      },
+      "focusEntityNumbers": [
+        11
+      ],
+      "entityName": "tesla-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/tesla-turret/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/combat",
+      "pagePath": [
+        3
+      ],
+      "cropTiles": {
+        "left": 16.921875,
+        "top": 11.499975,
+        "right": 22.218775,
+        "bottom": 16.343725
+      },
+      "focusEntityNumbers": [
+        12
+      ],
+      "entityName": "tesla-turret",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.453125,
+        "top": 0.46875,
+        "right": 3.53125,
+        "bottom": 3.640625
+      },
+      "focusEntityNumbers": [
+        1
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d02",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 3.640625,
+        "top": 0.0625,
+        "right": 8.34375,
+        "bottom": 3.953125
+      },
+      "focusEntityNumbers": [
+        2
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 2
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 8.5,
+        "top": -0.265625,
+        "right": 11.5,
+        "bottom": 2.28125
+      },
+      "focusEntityNumbers": [
+        3
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d06",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 11.65625,
+        "top": 0.0625,
+        "right": 16.34375,
+        "bottom": 3.953125
+      },
+      "focusEntityNumbers": [
+        4
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 6
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.453125,
+        "top": 4.46875,
+        "right": 3.53125,
+        "bottom": 7.640625
+      },
+      "focusEntityNumbers": [
+        5
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d10",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 3.640625,
+        "top": 4.0625,
+        "right": 8.34375,
+        "bottom": 7.953125
+      },
+      "focusEntityNumbers": [
+        6
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 10
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 8.5,
+        "top": 4.734375,
+        "right": 11.5,
+        "bottom": 7.28125
+      },
+      "focusEntityNumbers": [
+        7
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/elevated-straight-rail/d14",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 11.65625,
+        "top": 4.0625,
+        "right": 16.34375,
+        "bottom": 7.953125
+      },
+      "focusEntityNumbers": [
+        8
+      ],
+      "entityName": "elevated-straight-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 14
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.46875,
+        "top": 8.21875,
+        "right": 4.46875,
+        "bottom": 13.796875
+      },
+      "focusEntityNumbers": [
+        9
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d02",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 4.53125,
+        "top": 8.21875,
+        "right": 9.46875,
+        "bottom": 13.796875
+      },
+      "focusEntityNumbers": [
+        10
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 2
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 9.921875,
+        "top": 8.859375,
+        "right": 16.078125,
+        "bottom": 13.140625
+      },
+      "focusEntityNumbers": [
+        11
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d06",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 16.921875,
+        "top": 8.875,
+        "right": 23.078125,
+        "bottom": 13.140625
+      },
+      "focusEntityNumbers": [
+        12
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 6
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.46875,
+        "top": 14.21875,
+        "right": 4.46875,
+        "bottom": 19.796875
+      },
+      "focusEntityNumbers": [
+        13
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d10",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 4.53125,
+        "top": 14.21875,
+        "right": 9.46875,
+        "bottom": 19.796875
+      },
+      "focusEntityNumbers": [
+        14
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 10
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 9.921875,
+        "top": 13.859375,
+        "right": 16.078125,
+        "bottom": 18.140625
+      },
+      "focusEntityNumbers": [
+        15
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/elevated-half-diagonal-rail/d14",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 16.921875,
+        "top": 13.875,
+        "right": 23.078125,
+        "bottom": 18.140625
+      },
+      "focusEntityNumbers": [
+        16
+      ],
+      "entityName": "elevated-half-diagonal-rail",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 14
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.46875,
+        "top": 20.21875,
+        "right": 3.53125,
+        "bottom": 26.640625
+      },
+      "focusEntityNumbers": [
+        17
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d02",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 4.46875,
+        "top": 20.21875,
+        "right": 8.46875,
+        "bottom": 26.640625
+      },
+      "focusEntityNumbers": [
+        18
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 2
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 8.5,
+        "top": 19.859375,
+        "right": 15.078125,
+        "bottom": 23.28125
+      },
+      "focusEntityNumbers": [
+        19
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d06",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 15.5,
+        "top": 20.734375,
+        "right": 22.078125,
+        "bottom": 24.140625
+      },
+      "focusEntityNumbers": [
+        20
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 6
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.46875,
+        "top": 27.46875,
+        "right": 4.46875,
+        "bottom": 33.796875
+      },
+      "focusEntityNumbers": [
+        21
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d10",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 4.53125,
+        "top": 27.46875,
+        "right": 8.53125,
+        "bottom": 33.796875
+      },
+      "focusEntityNumbers": [
+        22
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 10
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 8.921875,
+        "top": 26.734375,
+        "right": 15.5,
+        "bottom": 30.140625
+      },
+      "focusEntityNumbers": [
+        23
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-a/d14",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 15.921875,
+        "top": 26.875,
+        "right": 22.5,
+        "bottom": 30.28125
+      },
+      "focusEntityNumbers": [
+        24
+      ],
+      "entityName": "elevated-curved-rail-a",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 14
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.34375,
+        "top": 34.0625,
+        "right": 5.46875,
+        "bottom": 39.796875
+      },
+      "focusEntityNumbers": [
+        25
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d02",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 5.53125,
+        "top": 34.0625,
+        "right": 11.34375,
+        "bottom": 39.796875
+      },
+      "focusEntityNumbers": [
+        26
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 2
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 11.921875,
+        "top": 34.0625,
+        "right": 18.34375,
+        "bottom": 39.140625
+      },
+      "focusEntityNumbers": [
+        27
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d06",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 18.921875,
+        "top": 33.875,
+        "right": 25.34375,
+        "bottom": 38.953125
+      },
+      "focusEntityNumbers": [
+        28
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 6
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.46875,
+        "top": 40.21875,
+        "right": 5.34375,
+        "bottom": 45.953125
+      },
+      "focusEntityNumbers": [
+        29
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d10",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 5.65625,
+        "top": 40.21875,
+        "right": 11.46875,
+        "bottom": 45.953125
+      },
+      "focusEntityNumbers": [
+        30
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 10
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 11.65625,
+        "top": 39.859375,
+        "right": 18.078125,
+        "bottom": 44.953125
+      },
+      "focusEntityNumbers": [
+        31
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/elevated-curved-rail-b/d14",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 18.65625,
+        "top": 40.0625,
+        "right": 25.078125,
+        "bottom": 45.140625
+      },
+      "focusEntityNumbers": [
+        32
+      ],
+      "entityName": "elevated-curved-rail-b",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 14
+      }
+    },
+    {
+      "id": "pose/rail-ramp/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.015625,
+        "top": 46.593775,
+        "right": 5.609375,
+        "bottom": 66.593775
+      },
+      "focusEntityNumbers": [
+        33
+      ],
+      "entityName": "rail-ramp",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/rail-ramp/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 6.5,
+        "top": 46.7344,
+        "right": 23.578125,
+        "bottom": 55.343775
+      },
+      "focusEntityNumbers": [
+        34
+      ],
+      "entityName": "rail-ramp",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/rail-ramp/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 23.984375,
+        "top": 46.14065,
+        "right": 29.609375,
+        "bottom": 63.57815
+      },
+      "focusEntityNumbers": [
+        35
+      ],
+      "entityName": "rail-ramp",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/rail-ramp/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 30.421875,
+        "top": 46.7344,
+        "right": 47.5,
+        "bottom": 53.718775
+      },
+      "focusEntityNumbers": [
+        36
+      ],
+      "entityName": "rail-ramp",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/rail-support/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.40625,
+        "top": 67.203125,
+        "right": 9.0625,
+        "bottom": 74.59375
+      },
+      "focusEntityNumbers": [
+        37
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/rail-support/d02",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 9.4375,
+        "top": 67.03125,
+        "right": 18.6875,
+        "bottom": 74.3125
+      },
+      "focusEntityNumbers": [
+        38
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 2
+      }
+    },
+    {
+      "id": "pose/rail-support/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 19.359375,
+        "top": 67.03125,
+        "right": 28.953125,
+        "bottom": 74.359375
+      },
+      "focusEntityNumbers": [
+        39
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/rail-support/d06",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 29.421875,
+        "top": 67.171875,
+        "right": 39.15625,
+        "bottom": 74.4375
+      },
+      "focusEntityNumbers": [
+        40
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 6
+      }
+    },
+    {
+      "id": "pose/rail-support/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.4375,
+        "top": 74.796875,
+        "right": 8.84375,
+        "bottom": 81.703125
+      },
+      "focusEntityNumbers": [
+        41
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/rail-support/d10",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 9.3125,
+        "top": 75.171875,
+        "right": 19.03125,
+        "bottom": 82.4375
+      },
+      "focusEntityNumbers": [
+        42
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 10
+      }
+    },
+    {
+      "id": "pose/rail-support/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 19.390625,
+        "top": 75.03125,
+        "right": 28.859375,
+        "bottom": 82.359375
+      },
+      "focusEntityNumbers": [
+        43
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    },
+    {
+      "id": "pose/rail-support/d14",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/elevated-rails/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 29.453125,
+        "top": 75.03125,
+        "right": 38.625,
+        "bottom": 82.3125
+      },
+      "focusEntityNumbers": [
+        44
+      ],
+      "entityName": "rail-support",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 14
+      }
+    },
+    {
+      "id": "pose/recycler/d00",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/recycler/recycler",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 0.296875,
+        "top": -0.0781,
+        "right": 5.203125,
+        "bottom": 5.6094
+      },
+      "focusEntityNumbers": [
+        1
+      ],
+      "entityName": "recycler",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 0
+      }
+    },
+    {
+      "id": "pose/recycler/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/recycler/recycler",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 5.359425,
+        "top": -0.187475,
+        "right": 12.00005,
+        "bottom": 3.750025
+      },
+      "focusEntityNumbers": [
+        2
+      ],
+      "entityName": "recycler",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/recycler/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/recycler/recycler",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 12.2344,
+        "top": 0.43752500000000005,
+        "right": 16.875025,
+        "bottom": 5.7344
+      },
+      "focusEntityNumbers": [
+        3
+      ],
+      "entityName": "recycler",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/recycler/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/recycler/recycler",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 17.343725,
+        "top": -0.093725,
+        "right": 23.453125,
+        "bottom": 3.750025
+      },
+      "focusEntityNumbers": [
+        4
+      ],
+      "entityName": "recycler",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
+      }
+    }
+  ]
+}

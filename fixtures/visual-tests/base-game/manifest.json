@@ -5,149 +5,16 @@
   "requiredMods": [
     "base"
   ],
+  "canaryPageIds": [
+    "entity-poses/logistics/inserters",
+    "entity-poses/logistics/transport/car",
+    "entity-poses/logistics/terrain"
+  ],
   "inventory": {
-    "source": "curated-base-2.1.11-catalog",
+    "source": "base-game-book-spec",
+    "specId": "base-game-2.1.11",
     "entityCount": 109,
-    "tileCount": 8,
-    "entityGroups": {
-      "logistics": [
-        "transport-belt",
-        "fast-transport-belt",
-        "express-transport-belt",
-        "underground-belt",
-        "fast-underground-belt",
-        "express-underground-belt",
-        "splitter",
-        "fast-splitter",
-        "express-splitter",
-        "burner-inserter",
-        "inserter",
-        "long-handed-inserter",
-        "fast-inserter",
-        "bulk-inserter",
-        "wooden-chest",
-        "iron-chest",
-        "steel-chest",
-        "storage-tank",
-        "passive-provider-chest",
-        "active-provider-chest",
-        "storage-chest",
-        "buffer-chest",
-        "requester-chest",
-        "construction-robot",
-        "logistic-robot",
-        "roboport"
-      ],
-      "production": [
-        "burner-mining-drill",
-        "electric-mining-drill",
-        "pumpjack",
-        "stone-furnace",
-        "steel-furnace",
-        "electric-furnace",
-        "assembling-machine-1",
-        "assembling-machine-2",
-        "assembling-machine-3",
-        "lab",
-        "beacon",
-        "centrifuge",
-        "chemical-plant",
-        "oil-refinery",
-        "rocket-silo",
-        "cargo-landing-pad",
-        "radar"
-      ],
-      "fluids-heat": [
-        "offshore-pump",
-        "pipe",
-        "pipe-to-ground",
-        "pump",
-        "boiler",
-        "steam-engine",
-        "steam-turbine",
-        "heat-exchanger",
-        "heat-pipe",
-        "nuclear-reactor"
-      ],
-      "power": [
-        "small-electric-pole",
-        "medium-electric-pole",
-        "big-electric-pole",
-        "substation",
-        "accumulator",
-        "solar-panel"
-      ],
-      "circuit": [
-        "arithmetic-combinator",
-        "decider-combinator",
-        "constant-combinator",
-        "selector-combinator",
-        "display-panel",
-        "small-lamp",
-        "programmable-speaker",
-        "power-switch"
-      ],
-      "defense": [
-        "stone-wall",
-        "gate",
-        "land-mine",
-        "gun-turret",
-        "laser-turret",
-        "flamethrower-turret",
-        "artillery-turret"
-      ],
-      "rail": [
-        "straight-rail",
-        "curved-rail-a",
-        "curved-rail-b",
-        "half-diagonal-rail",
-        "rail-signal",
-        "rail-chain-signal",
-        "train-stop",
-        "locomotive",
-        "cargo-wagon",
-        "fluid-wagon",
-        "artillery-wagon"
-      ],
-      "vehicles": [
-        "car",
-        "tank",
-        "spidertron"
-      ],
-      "internal": [
-        "loader",
-        "fast-loader",
-        "express-loader",
-        "lane-splitter",
-        "linked-belt",
-        "linked-chest",
-        "infinity-chest",
-        "infinity-pipe",
-        "infinity-cargo-wagon",
-        "electric-energy-interface",
-        "heat-interface",
-        "burner-generator",
-        "simple-entity-with-force",
-        "simple-entity-with-owner",
-        "proxy-container",
-        "bottomless-chest",
-        "one-way-valve",
-        "overflow-valve",
-        "top-up-valve",
-        "legacy-straight-rail",
-        "legacy-curved-rail"
-      ]
-    },
-    "tiles": [
-      "stone-path",
-      "concrete",
-      "hazard-concrete-left",
-      "hazard-concrete-right",
-      "refined-concrete",
-      "refined-hazard-concrete-left",
-      "refined-hazard-concrete-right",
-      "landfill"
-    ]
+    "tileCount": 8
   },
   "renderMetadata": {
     "role": "exact-base-graphics-and-pose-metadata",
@@ -19895,8 +19762,8 @@
       "cropTiles": {
         "left": 3.5,
         "top": 4.421875,
-        "right": 7.5,
-        "bottom": 8.328125
+        "right": 7.7188,
+        "bottom": 8.46875
       },
       "focusEntityNumbers": [
         6
@@ -19917,10 +19784,10 @@
         1
       ],
       "cropTiles": {
-        "left": 7.5625,
+        "left": 8.515625,
         "top": 4.484425,
-        "right": 11.4375,
-        "bottom": 8.4688
+        "right": 12.484375,
+        "bottom": 8.6563
       },
       "focusEntityNumbers": [
         7
@@ -19941,10 +19808,10 @@
         1
       ],
       "cropTiles": {
-        "left": 11.5,
+        "left": 13.28125,
         "top": 4.421875,
-        "right": 15.5,
-        "bottom": 8.328125
+        "right": 17.5,
+        "bottom": 8.46875
       },
       "focusEntityNumbers": [
         8
@@ -20014,9 +19881,9 @@
       ],
       "cropTiles": {
         "left": 7.140625,
-        "top": 8.5,
+        "top": 9.5,
         "right": 9.78125,
-        "bottom": 12.5
+        "bottom": 13.5
       },
       "focusEntityNumbers": [
         11
@@ -20061,10 +19928,10 @@
         1
       ],
       "cropTiles": {
-        "left": 0.26564999999999994,
-        "top": 13.0313,
-        "right": 4.45315,
-        "bottom": 16.421925
+        "left": 0.03126249999999997,
+        "top": 14.0313,
+        "right": 4.7187625,
+        "bottom": 18.5937875
       },
       "focusEntityNumbers": [
         13
@@ -20085,10 +19952,10 @@
         1
       ],
       "cropTiles": {
-        "left": 4.5,
-        "top": 13.5,
-        "right": 8.5,
-        "bottom": 17.5
+        "left": 5.0312625,
+        "top": 13.5625375,
+        "right": 9.5000125,
+        "bottom": 17.7812875
       },
       "focusEntityNumbers": [
         14
@@ -20109,10 +19976,10 @@
         1
       ],
       "cropTiles": {
-        "left": 8.5,
-        "top": 13.5,
-        "right": 12.5,
-        "bottom": 17.5
+        "left": 10.0312625,
+        "top": 14.3594125,
+        "right": 14.7968875,
+        "bottom": 18.5000375
       },
       "focusEntityNumbers": [
         15
@@ -20133,10 +20000,10 @@
         1
       ],
       "cropTiles": {
-        "left": 12.5,
-        "top": 13.5,
-        "right": 16.5,
-        "bottom": 17.5
+        "left": 15.0312625,
+        "top": 14.3281625,
+        "right": 19.5781375,
+        "bottom": 18.6406625
       },
       "focusEntityNumbers": [
         16

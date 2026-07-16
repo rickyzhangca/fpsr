@@ -11,15 +11,17 @@ Regenerate both files with:
 pnpm -F @fpsr/corpus run generate:base
 ```
 
-The inventory is owned by the curated Base 2.1.11 catalog in
-`tools/corpus/src/base-game-catalog.ts`. The catalog contains 109 entity prototypes (including
-hidden/internal and legacy entities) and eight tiles. `base-profile.ts` contains the data.raw
-discovery/audit rule used for normal Base entities; the two legacy rail prototypes are explicit
-catalog additions.
+The Viewer hierarchy and inventory are owned together by the book-shaped specification in
+`tools/corpus/src/base-game-book-spec.ts`. Its leaf pages contain 109 entity prototypes (including
+hidden/internal and legacy entities) and eight tiles. The generator derives the nested blueprint
+book and its flattened coverage inventory from that one tree. `base-profile.ts` contains the
+data.raw discovery/audit rule used for normal Base entities; the two legacy rail prototypes are
+explicit specification entries.
 
-Each page contains at most 12 cases. Cases are packed from their actual pose-specific rendered
-sprite bounds, excluding shadows, with one empty tile between neighbors. The manifest crop gives
-each case half of that gap on every side. This keeps tall entities such as electric poles readable
+Cases are arranged four per row and packed from their actual pose-specific rendered sprite bounds,
+excluding shadows, with one empty tile between neighbors. A leaf page keeps the poses for its
+Viewer item group together and may contain up to 64 cases. The manifest crop gives each case half
+of the inter-case gap on every side. This keeps tall entities such as electric poles readable
 without letting long shadows inflate the page. Every book level and leaf blueprint has descriptive
 item icons for navigation.
 
@@ -38,10 +40,10 @@ pnpm visual-tests:audit
 # With an exact Factorio 2.1.11 installation, build the required Base-only assets.
 pnpm assets:build:base -- --factorio /path/to/factorio-2.1.11.app
 
-# Capture + compare five deterministic pages (direction/orientation/mask/belt/tile).
+# Capture + compare the three pages selected by manifest.json.
 pnpm visual-tests:canary
 
-# Capture + compare all 166 pages in batches of eight game shots.
+# Capture + compare all 35 pages in batches of eight game shots.
 pnpm visual-tests:all
 ```
 
