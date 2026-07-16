@@ -895,6 +895,13 @@ function indexFor(
   beltIndex: Map<string, BeltOccupant[]>,
   poleDirs?: Map<number, number>,
 ): number {
+  if (def.kind === "vehicle") {
+    const n =
+      (typeof def.data?.orientationCount === "number" && def.data.orientationCount > 0
+        ? def.data.orientationCount
+        : group.variants.default?.length) ?? 1;
+    return trainOrientationIndex(projectVehicleOrientation(entity.orientation ?? 0), n);
+  }
   if (def.kind === "train") {
     const n =
       (typeof def.data?.orientationCount === "number" && def.data.orientationCount > 0
@@ -930,6 +937,22 @@ function indexFor(
     return (dir16ToIndex(entity.direction ?? 0, "direction4") + 2) % 4;
   }
   return dir16ToIndex(direction, group.indexing);
+}
+
+/**
+ * Vehicle RotatedAnimation art is already authored in oblique screen angles.
+ * Convert the world-space orientation back into that authored ellipse before
+ * selecting a pose. This is the inverse axis scaling of rolling-stock
+ * projection; vehicles also have no rail/bogie geometry.
+ */
+export function projectVehicleOrientation(orientation: number): number {
+  const turn = ((orientation % 1) + 1) % 1;
+  let x = Math.sin(turn * Math.PI * 2);
+  const y = -Math.cos(turn * Math.PI * 2);
+  x *= Math.SQRT1_2;
+  let out = Math.atan2(x, -y) / (Math.PI * 2);
+  if (out < 0) out += 1;
+  return out;
 }
 
 /**

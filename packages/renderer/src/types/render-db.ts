@@ -232,8 +232,9 @@ export interface LayerGroup {
  *   Shape: `{ indexing: "belt-reader-band-nesw", layers: { layer, variants: SpriteVariant[4][4] }[] }`
  *   (bands × N/E/S/W edge frames; see Factorio BeltReaderLayer validation).
  *   variants indexed east=0, west=1, north=2, south=3.
- * - `orientationCount`: number of distilled train poses (resolver rounds
- *   projected `entity.orientation * N`, or `* 2N % N` when `backEqualsFront`).
+ * - `orientationCount`: number of distilled train or vehicle poses. Each uses
+ *   its corresponding camera/original-sheet projection; only trains add
+ *   rail/bogie geometry.
  * - `backEqualsFront`: cargo/fluid wagon bodies only author half a turn; index
  *   folds with `round(o * 2N) % N` (wheels stay full-circle).
  * - `wheelsGroupIndex` / `jointDistance` / `connectionDistance`: rolling-stock
@@ -244,8 +245,8 @@ export interface LayerGroup {
  * - `cannonGroupIndices` / `cannonBaseHeight` /
  *   `cannonBaseShiftWhenVertical` / `cannonBaseShiftWhenHorizontal`:
  *   artillery-wagon cannon barrel+base layers and mount offset (FBSR).
- * - `colorMaskGroupIndex`: train graphics group that is the runtime-tint mask
- *   (apply `entity.color` / `defaultColor` as `cmd.tint` at plan time).
+ * - `colorMaskGroupIndex` / `colorMaskGroupIndices`: graphics group(s) that are
+ *   runtime-tint masks (apply `entity.color` / `defaultColor` at plan time).
  * - `defaultColor`: prototype `color` for rolling stock when the blueprint omits it.
  * - `fluidConnections` / `heatConnections` / `tileSize` / … (see M2).
  * - `pipeCovers`: `{ covers: SpriteVariant[4], shadows?: SpriteVariant[4] }` —
@@ -268,6 +269,7 @@ export type EntityKind =
   | "assembler"
   | "rail"
   | "rail-signal"
+  | "vehicle"
   | "train";
 
 export interface EntityRenderDef {

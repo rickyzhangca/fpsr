@@ -41,6 +41,7 @@ export {
   isBeltCircuitInputEnabled,
   isBeltCircuitOutputEnabled,
   projectTrainOrientation,
+  projectVehicleOrientation,
   railDirectionIndex,
   resolve,
   rotateOffset,

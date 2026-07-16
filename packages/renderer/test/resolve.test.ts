@@ -29,7 +29,7 @@ import { makeMiniDb } from "./fixtures/mini-db.js";
 
 const FIXTURE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const FIXTURE_DB = JSON.parse(
-  readFileSync(path.join(FIXTURE_ROOT, "fixtures/render-db/2.1.9.json"), "utf8"),
+  readFileSync(path.join(FIXTURE_ROOT, "fixtures/render-db/2.1.11.json"), "utf8"),
 ) as RenderDb;
 
 function bp(entities: Blueprint["entities"]): Blueprint {
@@ -398,6 +398,46 @@ describe("trainOrientationIndex", () => {
     expect(trainOrientationIndex(0.75, 64, true)).toBe(32);
     expect(trainOrientationIndex(0, 64, true)).toBe(0);
     expect(trainOrientationIndex(0.5, 64, true)).toBe(0);
+  });
+});
+
+describe("vehicle orientation", () => {
+  it("selects camera-projected 64-way poses without train geometry", () => {
+    const db = makeMiniDb();
+    const fallbackFrame = db.entities["wooden-chest"]?.graphics[0]?.variants.default?.[0]?.frame;
+    expect(fallbackFrame).toBeTypeOf("number");
+    db.entities.car = {
+      kind: "vehicle",
+      protoType: "car",
+      collisionBox: [
+        [-1, -1],
+        [1, 1],
+      ],
+      selectionBox: [
+        [-1, -1],
+        [1, 1],
+      ],
+      graphics: [
+        {
+          layer: "object",
+          indexing: "resolver",
+          variants: {
+            default: Array.from({ length: 64 }, () => ({
+              frame: fallbackFrame as number,
+              scale: 1,
+              shift: [0, 0] as [number, number],
+            })),
+          },
+        },
+      ],
+      data: { orientationCount: 64 },
+    };
+
+    const out = resolve(
+      bp([{ entity_number: 1, name: "car", position: { x: 0, y: 0 }, orientation: 4 / 64 }]),
+      db,
+    );
+    expect(out[0]?.selections[0]?.index).toBe(3);
   });
 });
 

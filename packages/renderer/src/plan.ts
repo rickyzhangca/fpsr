@@ -53,13 +53,21 @@ export function normalizeEntityColor(color: Color): [number, number, number, num
   return [r, g, b, a];
 }
 
+function isRuntimeColorMaskGroup(def: EntityRenderDef, groupIndex: number): boolean {
+  const maskIndex = def.data?.colorMaskGroupIndex;
+  const maskIndices = def.data?.colorMaskGroupIndices;
+  return (
+    (typeof maskIndex === "number" && groupIndex === maskIndex) ||
+    (Array.isArray(maskIndices) && maskIndices.includes(groupIndex))
+  );
+}
+
 function runtimeColorMaskTint(
   entity: BlueprintEntity,
   def: EntityRenderDef,
   groupIndex: number,
 ): [number, number, number, number] | undefined {
-  const maskIndex = def.data?.colorMaskGroupIndex;
-  if (typeof maskIndex !== "number" || groupIndex !== maskIndex) return undefined;
+  if (!isRuntimeColorMaskGroup(def, groupIndex)) return undefined;
   const fromEntity = entity.color;
   if (fromEntity) return normalizeEntityColor(fromEntity);
   const fallback = def.data?.defaultColor;
@@ -1099,6 +1107,17 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
     for (const sel of selections) {
       const group = def.graphics[sel.group];
       if (!group) continue;
+      // A zero runtime color is Factorio's sentinel for an unpainted vehicle;
+      // do not draw its apply_runtime_tint mask until the blueprint/prototype
+      // supplies an actual color.
+      if (
+        def.kind === "vehicle" &&
+        isRuntimeColorMaskGroup(def, sel.group) &&
+        !entity.color &&
+        !Array.isArray(def.data?.defaultColor)
+      ) {
+        continue;
+      }
       const variants = group.variants[sel.variantKey] ?? group.variants.default;
       if (!variants) continue;
       const variant = variants[sel.index];

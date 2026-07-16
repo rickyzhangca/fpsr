@@ -24,6 +24,62 @@ describe("normalizeEntityColor", () => {
 });
 
 describe("planDrawList", () => {
+  it("omits an unpainted vehicle runtime-color mask and tints it when colored", () => {
+    const vehicleDb = structuredClone(db);
+    const frame = vehicleDb.entities["wooden-chest"]!.graphics[0]!.variants.default![0]!.frame;
+    vehicleDb.entities.car = {
+      kind: "vehicle",
+      protoType: "car",
+      collisionBox: [
+        [-1, -1],
+        [1, 1],
+      ],
+      selectionBox: [
+        [-1, -1],
+        [1, 1],
+      ],
+      graphics: [
+        {
+          layer: "object",
+          indexing: "resolver",
+          variants: { default: [{ frame, scale: 1, shift: [0, 0] }] },
+        },
+        {
+          layer: "object",
+          indexing: "resolver",
+          variants: { default: [{ frame, scale: 1, shift: [0, 0] }] },
+        },
+      ],
+      data: { orientationCount: 1, colorMaskGroupIndices: [1] },
+    };
+    const unpainted = planDrawList(
+      bp({ entities: [{ entity_number: 1, name: "car", position: { x: 0, y: 0 } }] }),
+      vehicleDb,
+    );
+    expect(unpainted.commands.filter((command) => command.kind === "sprite")).toHaveLength(1);
+
+    const painted = planDrawList(
+      bp({
+        entities: [
+          {
+            entity_number: 1,
+            name: "car",
+            position: { x: 0, y: 0 },
+            color: { r: 0.25, g: 0.5, b: 0.75, a: 1 },
+          },
+        ],
+      }),
+      vehicleDb,
+    );
+    const paintedSprites = painted.commands.filter(
+      (command): command is SpriteCmd => command.kind === "sprite",
+    );
+    expect(paintedSprites).toHaveLength(2);
+    expect(paintedSprites.find((command) => command.sub === 1)?.tint).toEqual([
+      0.25, 0.5, 0.75, 1,
+    ]);
+  });
+
   it("computes dest rect from frame sw/sh/scale/shift", () => {
     const list = planDrawList(
       bp({
