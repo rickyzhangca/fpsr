@@ -976,6 +976,17 @@ async function distillInserter(
 
   return baseEntity("inserter", "inserter", p, [...platformGroups, ...handGroups]);
 }
+/**
+ * Skip leaves that Factorio composites additively / as lights. Their source
+ * sheets are mostly opaque black with a few bright pixels; drawing them as
+ * normal sprites produces solid black rectangles (cargo-hub emissions, etc.).
+ */
+function skipIdleDecorativeLeaf(leaf: RawSprite): boolean {
+  if (leaf.apply_runtime_tint || leaf.draw_as_light || leaf.draw_as_glow) return true;
+  if (leaf.blend_mode === "additive" || leaf.blend_mode === "additive-soft") return true;
+  return false;
+}
+
 async function layersFromSprite(
   bank: FrameBank,
   sprite: RawSprite | undefined,
@@ -1002,7 +1013,7 @@ async function layersFromSprite(
       const leaves = leafLayers(dirs[di]);
       let leafIdx = 0;
       for (const leaf of leaves) {
-        if (leaf.apply_runtime_tint || leaf.draw_as_light) continue;
+        if (skipIdleDecorativeLeaf(leaf)) continue;
         const info = await bank.addSprite(leaf, frame, 0);
         const layerName: RenderLayerName = info.shadow
           ? fpsrLayer("shadow", "draw_as_shadow leaf")
@@ -1031,7 +1042,7 @@ async function layersFromSprite(
   const groups: LayerGroup[] = [];
 
   for (const leaf of leaves) {
-    if (leaf.apply_runtime_tint || leaf.draw_as_light) continue;
+    if (skipIdleDecorativeLeaf(leaf)) continue;
     const assumed = opts.assumeDirectionCount;
     const dirCount = leaf.direction_count ?? assumed ?? 1;
     /**
@@ -1202,6 +1213,401 @@ async function distillDirection4Animation(
     frame: 0,
   });
   return baseEntity(kind, protoType, p, graphics);
+}
+
+interface WorkingVisualisation {
+  always_draw?: boolean;
+  apply_tint?: string;
+  apply_recipe_tint?: string;
+  render_layer?: string;
+  draw_in_states?: string[];
+  animation?: RawSprite;
+  north_animation?: RawSprite;
+  east_animation?: RawSprite;
+  south_animation?: RawSprite;
+  west_animation?: RawSprite;
+}
+
+const RUNTIME_WORKING_VIS_TINTS = new Set([
+  "resource-color",
+  "status",
+  "input-fluid-base-color",
+  "input-fluid-flow-color",
+  "visual-state-color",
+]);
+
+const RECIPE_WORKING_VIS_TINTS = new Set(["primary", "secondary", "tertiary", "quaternary"]);
+
+/** Static blueprint view = idle. Skip working-only / tinted runtime overlays. */
+function includeWorkingVisualisationForIdle(wv: WorkingVisualisation): boolean {
+  if (wv.always_draw !== true) return false;
+  if (wv.apply_tint && RUNTIME_WORKING_VIS_TINTS.has(wv.apply_tint)) return false;
+  if (wv.apply_recipe_tint && RECIPE_WORKING_VIS_TINTS.has(wv.apply_recipe_tint)) return false;
+  if (wv.draw_in_states && wv.draw_in_states.length > 0 && !wv.draw_in_states.includes("idle")) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Mining-drill heads, pumpjack horseheads, EM-plant cores, foundry pipes, etc.
+ * live in `graphics_set.working_visualisations` with `always_draw`, not in the
+ * base `animation` / `idle_animation` (often just an empty frame).
+ */
+async function layersFromWorkingVisualisation(
+  bank: FrameBank,
+  wv: WorkingVisualisation,
+): Promise<LayerGroup[]> {
+  const layer =
+    officialLayer(wv.render_layer) ??
+    guessedLayer("object", "working_visualisation; dump has no render_layer");
+  const dirSprites = [
+    wv.north_animation,
+    wv.east_animation,
+    wv.south_animation,
+    wv.west_animation,
+  ] as const;
+
+  if (dirSprites.some((sprite) => sprite != null)) {
+    // Mirror layersFromSprite's 4-way path, but keep missing directions as null
+    // instead of dirs4's fallback to the parent object.
+    const groups = new Map<string, LayerGroup>();
+    for (let di = 0; di < 4; di++) {
+      const leaves = leafLayers(dirSprites[di]);
+      let leafIdx = 0;
+      for (const leaf of leaves) {
+        if (skipIdleDecorativeLeaf(leaf)) continue;
+        const info = await bank.addSprite(leaf, 0, 0);
+        const layerName: RenderLayerName = info.shadow
+          ? fpsrLayer("shadow", "draw_as_shadow leaf")
+          : layer;
+        const key = `${layerName}:${info.shadow ? "s" : "o"}:${leafIdx}`;
+        leafIdx++;
+        let g = groups.get(key);
+        if (!g) {
+          g = {
+            layer: layerName,
+            indexing: "direction4",
+            variants: { default: [null, null, null, null] },
+          };
+          groups.set(key, g);
+        }
+        const arr = g.variants.default;
+        if (arr) arr[di] = bank.toVariant(info);
+      }
+    }
+    return [...groups.values()];
+  }
+
+  if (wv.animation) {
+    return layersFromSprite(bank, wv.animation, {
+      layer,
+      indexing: "single",
+      frame: 0,
+    });
+  }
+
+  return [];
+}
+
+async function appendIdleWorkingVisualisations(
+  bank: FrameBank,
+  groups: LayerGroup[],
+  workingVisualisations: WorkingVisualisation[] | undefined,
+): Promise<void> {
+  for (const wv of workingVisualisations ?? []) {
+    if (!includeWorkingVisualisationForIdle(wv)) continue;
+    groups.push(...(await layersFromWorkingVisualisation(bank, wv)));
+  }
+}
+
+/**
+ * Floor/platform blend sprites (`integration_patch`). Drawn under the body so
+ * thrusters/crushers don't float as nozzle/head-only cutouts.
+ */
+async function appendIntegrationPatch(
+  bank: FrameBank,
+  groups: LayerGroup[],
+  gs:
+    | {
+        integration_patch?: RawSprite;
+        integration_patch_render_layer?: string;
+      }
+    | undefined,
+): Promise<void> {
+  if (!gs?.integration_patch) return;
+  const layer =
+    officialLayer(gs.integration_patch_render_layer) ??
+    guessedLayer("floor", "integration_patch; dump has no render_layer");
+  const indexing = isSprite4Way(gs.integration_patch) ? "direction4" : "single";
+  groups.push(
+    ...(await layersFromSprite(bank, gs.integration_patch, {
+      layer,
+      indexing,
+      frame: 0,
+    })),
+  );
+}
+
+async function distillMiningDrill(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+  protoType: string,
+): Promise<EntityRenderDef> {
+  const gs = p.graphics_set as
+    | {
+        animation?: RawSprite;
+        idle_animation?: RawSprite;
+        working_visualisations?: WorkingVisualisation[];
+      }
+    | undefined;
+  const groups: LayerGroup[] = [];
+  const baseAnim =
+    gs?.animation ??
+    gs?.idle_animation ??
+    (p.animations as RawSprite | undefined) ??
+    (p.animation as RawSprite | undefined);
+  groups.push(
+    ...(await layersFromSprite(bank, baseAnim, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing: "direction4",
+      frame: 0,
+    })),
+  );
+  await appendIdleWorkingVisualisations(bank, groups, gs?.working_visualisations);
+  return withFluidData(baseEntity("simple", protoType, p, groups), p);
+}
+
+async function distillAssembler(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+  protoType: string,
+): Promise<EntityRenderDef> {
+  const gs = p.graphics_set as
+    | {
+        animation?: RawSprite;
+        idle_animation?: RawSprite;
+        working_visualisations?: WorkingVisualisation[];
+        integration_patch?: RawSprite;
+        integration_patch_render_layer?: string;
+      }
+    | undefined;
+  const anim = gs?.animation ?? gs?.idle_animation ?? (p.animation as RawSprite | undefined);
+  const indexing = anim && isSprite4Way(anim) ? "direction4" : "single";
+  const groups: LayerGroup[] = [];
+  await appendIntegrationPatch(bank, groups, gs);
+  groups.push(
+    ...(await layersFromSprite(bank, anim, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing,
+      frame: 0,
+    })),
+  );
+  await appendIdleWorkingVisualisations(bank, groups, gs?.working_visualisations);
+  return withFluidData(baseEntity("assembler", protoType, p, groups), p);
+}
+
+/**
+ * Thruster body is only the nozzle stack; `integration_patch` is the platform
+ * mount, and always_draw WVs are the pipe stubs at the platform edge.
+ */
+async function distillThruster(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+): Promise<EntityRenderDef> {
+  const gs = p.graphics_set as
+    | {
+        animation?: RawSprite;
+        integration_patch?: RawSprite;
+        integration_patch_render_layer?: string;
+        working_visualisations?: WorkingVisualisation[];
+      }
+    | undefined;
+  const groups: LayerGroup[] = [];
+  await appendIntegrationPatch(bank, groups, gs);
+  groups.push(
+    ...(await layersFromSprite(bank, gs?.animation, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  await appendIdleWorkingVisualisations(bank, groups, gs?.working_visualisations);
+  return withFluidData(baseEntity("simple", "thruster", p, groups), p);
+}
+
+/**
+ * Asteroid-collector top animation is only the head shell (transparent hopper
+ * opening). `below_*` hang under the platform edge; `arm_head*` is the idle
+ * grabber that sits in that opening. Full arm-link FK is deferred.
+ */
+async function distillAsteroidCollector(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+): Promise<EntityRenderDef> {
+  const gs = p.graphics_set as
+    | {
+        animation?: RawSprite;
+        below_ground_pictures?: RawSprite;
+        below_arm_pictures?: RawSprite;
+        arm_head_animation?: RawSprite;
+        arm_head_top_animation?: RawSprite;
+      }
+    | undefined;
+  const groups: LayerGroup[] = [];
+  groups.push(
+    ...(await layersFromSprite(bank, gs?.below_ground_pictures, {
+      layer: guessedLayer("lower-object", "asteroid-collector below_ground under platform edge"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  // Must paint above the entity shadow: the head shell has a transparent hopper
+  // opening, and a shadow-under-hole reads as a solid black void.
+  groups.push(
+    ...(await layersFromSprite(bank, gs?.below_arm_pictures, {
+      layer: guessedLayer("object", "asteroid-collector below_arm visible through hopper opening"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  const animIndexing = gs?.animation && isSprite4Way(gs.animation) ? "direction4" : "single";
+  groups.push(
+    ...(await layersFromSprite(bank, gs?.animation, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing: animIndexing,
+      frame: 0,
+    })),
+  );
+
+  // 32-way head sheets: map N/E/S/W → directions 0/8/16/24, idle frame 0.
+  for (const arm of [gs?.arm_head_animation, gs?.arm_head_top_animation]) {
+    if (!arm) continue;
+    const dirCount = arm.direction_count ?? 1;
+    if (dirCount < 4) {
+      groups.push(
+        ...(await layersFromSprite(bank, arm, {
+          layer: guessedLayer("object", "asteroid-collector idle arm head"),
+          indexing: "single",
+          frame: 0,
+        })),
+      );
+      continue;
+    }
+    const step = Math.max(1, Math.round(dirCount / 4));
+    const variants: (SpriteVariant | null)[] = [];
+    for (let di = 0; di < 4; di++) {
+      const info = await bank.addSprite(arm, 0, (di * step) % dirCount);
+      variants.push(bank.toVariant(info));
+    }
+    groups.push({
+      layer: guessedLayer("object", "asteroid-collector idle arm head"),
+      indexing: "direction4",
+      variants: { default: variants },
+    });
+  }
+
+  return baseEntity("simple", "asteroid-collector", p, groups);
+}
+
+interface CranePartRaw {
+  name?: string;
+  rotated_sprite?: RawSprite;
+  rotated_sprite_shadow?: RawSprite;
+}
+
+/** Crane Vector3D is (x, y, z-up). Body lifts Z into screen -Y. */
+const CRANE_HEIGHT_TO_Y = 0.5;
+
+function cranePartScreenPos(
+  origin: readonly number[] | undefined,
+  shadowDirection: readonly number[] | undefined,
+  kind: "body" | "shadow",
+): [number, number] {
+  const ox = origin?.[0] ?? 0;
+  const oy = origin?.[1] ?? 0;
+  const oz = origin?.[2] ?? 0;
+  if (kind === "body") {
+    return [ox, oy - oz * CRANE_HEIGHT_TO_Y];
+  }
+  // shadow_direction points toward the light (positive z). Cast the elevated
+  // point onto the ground plane z=0 opposite the light so the shadow sits under
+  // the crane rather than floating at hub height.
+  const sx = shadowDirection?.[0] ?? 0;
+  const sy = shadowDirection?.[1] ?? 0;
+  const sz = shadowDirection?.[2] ?? 0;
+  if (oz > 0 && sz > 1e-6) {
+    const t = oz / sz;
+    return [ox - sx * t, oy - sy * t];
+  }
+  return [ox, oy];
+}
+
+/**
+ * Agricultural-tower `graphics_set.animation` is only the base silo. The crane
+ * hub lives under `crane.parts` as rotated sprites. Blueprint idle draws the
+ * hub at `crane.origin` (Z→screen Y) above the silo, and casts its shadow onto
+ * the ground via `shadow_direction`. Full articulated arm FK is deferred.
+ */
+async function distillAgriculturalTower(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+  protoType: string,
+): Promise<EntityRenderDef> {
+  const gs = p.graphics_set as
+    | {
+        animation?: RawSprite;
+        idle_animation?: RawSprite;
+        working_visualisations?: WorkingVisualisation[];
+      }
+    | undefined;
+  const groups: LayerGroup[] = [];
+  const baseAnim = gs?.animation ?? gs?.idle_animation;
+  groups.push(
+    ...(await layersFromSprite(bank, baseAnim, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  await appendIdleWorkingVisualisations(bank, groups, gs?.working_visualisations);
+
+  const crane = p.crane as
+    | {
+        origin?: number[];
+        shadow_direction?: number[];
+        parts?: CranePartRaw[];
+      }
+    | undefined;
+  const hub = crane?.parts?.find((part) => part.name === "hub") ?? crane?.parts?.[0] ?? undefined;
+  const bodyPos = cranePartScreenPos(crane?.origin, crane?.shadow_direction, "body");
+  const shadowPos = cranePartScreenPos(crane?.origin, crane?.shadow_direction, "shadow");
+
+  for (const [sprite, pos] of [
+    [hub?.rotated_sprite, bodyPos],
+    [hub?.rotated_sprite_shadow, shadowPos],
+  ] as const) {
+    if (!sprite) continue;
+    for (const leaf of leafLayers(sprite)) {
+      if (leaf.apply_runtime_tint || leaf.draw_as_light) continue;
+      const info = await bank.addSprite(leaf, 0, 0);
+      // Same-layer Y-sort buries the hub under the silo body.
+      const layerName: RenderLayerName = info.shadow
+        ? fpsrLayer("shadow", "draw_as_shadow leaf")
+        : guessedLayer("higher-object-under", "agricultural-tower crane hub above silo body");
+      groups.push({
+        layer: layerName,
+        indexing: "single",
+        variants: {
+          default: [
+            bank.toVariant(info, [round4(info.shift[0] + pos[0]), round4(info.shift[1] + pos[1])]),
+          ],
+        },
+      });
+    }
+  }
+
+  return baseEntity("simple", protoType, p, groups);
 }
 
 async function distillPipe(bank: FrameBank, p: Record<string, unknown>): Promise<EntityRenderDef> {
@@ -2512,7 +2918,7 @@ async function distillGraphicsSetPictureArray(
       let leafIdx = 0;
       for (const entry of list) {
         for (const leaf of leafLayers(entry)) {
-          if (leaf.apply_runtime_tint || leaf.draw_as_light) continue;
+          if (skipIdleDecorativeLeaf(leaf)) continue;
           const info = await bank.addSprite(leaf, 0, 0);
           const layerName: RenderLayerName = info.shadow
             ? fpsrLayer("shadow", "draw_as_shadow leaf")
@@ -2562,7 +2968,47 @@ async function distillGraphicsSetPictureArray(
       await addPic(pp);
     }
   }
+  await appendCargoStationIdleHatches(bank, groups, p);
   return baseEntity(kind, protoType, p, groups);
+}
+
+/**
+ * Closed cargo-hub giga hatches. Without these, hub-3's hatch pits read as
+ * black voids against empty space.
+ */
+async function appendCargoStationIdleHatches(
+  bank: FrameBank,
+  groups: LayerGroup[],
+  p: Record<string, unknown>,
+): Promise<void> {
+  const csp = p.cargo_station_parameters as
+    | {
+        giga_hatch_definitions?: Array<{
+          hatch_graphics_back?: RawSprite;
+          hatch_graphics_front?: RawSprite;
+          hatch_render_layer_back?: string;
+          hatch_render_layer_front?: string;
+        }>;
+      }
+    | undefined;
+  for (const hatch of csp?.giga_hatch_definitions ?? []) {
+    for (const [spr, rl] of [
+      [hatch.hatch_graphics_back, hatch.hatch_render_layer_back],
+      [hatch.hatch_graphics_front, hatch.hatch_render_layer_front],
+    ] as const) {
+      if (!spr) continue;
+      const layer =
+        officialLayer(rl) ??
+        guessedLayer("object", "cargo station idle giga hatch; dump has no render_layer");
+      groups.push(
+        ...(await layersFromSprite(bank, spr, {
+          layer,
+          indexing: "single",
+          frame: 0,
+        })),
+      );
+    }
+  }
 }
 
 async function distillFusionGenerator(
@@ -2620,12 +3066,30 @@ async function distillFusion(
   p: Record<string, unknown>,
   protoType: string,
 ): Promise<EntityRenderDef> {
-  const gs = p.graphics_set as { structure?: RawSprite; animation?: RawSprite } | undefined;
+  const gs = p.graphics_set as
+    | {
+        structure?: RawSprite;
+        animation?: RawSprite;
+        /** Idle neighbour-port patches; main structure has transparent cutouts here. */
+        connections_graphics?: Array<{ pictures?: RawSprite }>;
+      }
+    | undefined;
   if (gs?.structure) {
     const graphics = await layersFromSprite(bank, gs.structure, {
       layer: guessedLayer("object", "entity body; dump has no render_layer"),
       indexing: "single",
     });
+    // Frame 0 = unconnected port cover. Connected neighbour states are runtime.
+    for (const conn of gs.connections_graphics ?? []) {
+      if (!conn.pictures) continue;
+      graphics.push(
+        ...(await layersFromSprite(bank, conn.pictures, {
+          layer: guessedLayer("object", "fusion reactor idle connection patch"),
+          indexing: "single",
+          frame: 0,
+        })),
+      );
+    }
     return withFluidData(baseEntity("simple", protoType, p, graphics), p);
   }
   return withFluidData(await distillGraphicsSetAnimation(bank, p, protoType, "simple"), p);
@@ -2770,22 +3234,7 @@ async function distillEntity(
         break;
       }
       case "assembling-machine": {
-        // Directional plants (chemical/oil/SA) vs omnidirectional assemblers.
-        const gs = p.graphics_set as
-          | {
-              animation?: RawSprite;
-              idle_animation?: RawSprite;
-            }
-          | undefined;
-        const anim = gs?.animation ?? gs?.idle_animation ?? (p.animation as RawSprite | undefined);
-        if (anim && isSprite4Way(anim)) {
-          def = withFluidData(await distillDirection4Animation(bank, p, protoType, "assembler"), p);
-        } else {
-          def = withFluidData(
-            await distillGraphicsSetAnimation(bank, p, protoType, "assembler"),
-            p,
-          );
-        }
+        def = await distillAssembler(bank, p, protoType);
         break;
       }
       case "furnace": {
@@ -2829,7 +3278,7 @@ async function distillEntity(
         def = await distillBeacon(bank, p);
         break;
       case "mining-drill":
-        def = withFluidData(await distillDirection4Animation(bank, p, protoType, "simple"), p);
+        def = await distillMiningDrill(bank, p, protoType);
         break;
       case "pipe-to-ground": {
         const pictures = p.pictures as RawSprite;
@@ -2965,17 +3414,13 @@ async function distillEntity(
         def = await distillFusionGenerator(bank, p);
         break;
       case "thruster":
-      case "agricultural-tower":
+        def = await distillThruster(bank, p);
+        break;
       case "asteroid-collector":
-      case "crusher":
-        def = await distillGraphicsSetAnimation(bank, p, protoType, "simple");
-        // thruster / asteroid may be 4-way
-        {
-          const gs = p.graphics_set as { animation?: RawSprite } | undefined;
-          if (gs?.animation && isSprite4Way(gs.animation)) {
-            def = await distillDirection4Animation(bank, p, protoType, "simple");
-          }
-        }
+        def = await distillAsteroidCollector(bank, p);
+        break;
+      case "agricultural-tower":
+        def = await distillAgriculturalTower(bank, p, protoType);
         break;
       case "lamp":
         def = await layersFromSprite(bank, p.picture_off as RawSprite, {
@@ -3533,7 +3978,9 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
 
   console.log("pack: packing 2x atlases…");
   const twoXDefinitions = tierDefinitions();
-  const packed2x = await packAtlases(bank.list(), twoXDefinitions, staging).catch(async (error) => {
+  const packed2x = await packAtlases(bank.list(), twoXDefinitions, staging, {
+    format: "webp",
+  }).catch(async (error) => {
     await rm(staging, { recursive: true, force: true });
     throw error;
   });

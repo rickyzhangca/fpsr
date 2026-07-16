@@ -32,7 +32,10 @@ export interface VerifyResult {
   >;
 }
 
-const MAX_TIERED_STORAGE_RATIO = 1.25;
+// With both tiers using the same lossless codec, the 1x tier is about 30% of
+// the 2x pixel area. Leave compression variance across mod profiles without
+// permitting a materially oversized derived tier.
+const MAX_TIERED_STORAGE_RATIO = 1.4;
 
 export function assertTierStorageCeiling(tiers: Record<AssetTier, { bytes: number }>): void {
   const baselineBytes = tiers["2x"].bytes;
@@ -164,7 +167,7 @@ export async function verifyAssetBundle(dir: string): Promise<VerifyResult> {
       }
       if (info.width !== atlas.w || info.height !== atlas.h) {
         throw new Error(
-          `Atlas ${index} dimensions mismatch: manifest=${atlas.w}x${atlas.h}, png=${info.width}x${info.height}`,
+          `Atlas ${index} dimensions mismatch: manifest=${atlas.w}x${atlas.h}, image=${info.width}x${info.height}`,
         );
       }
       if (atlas.bytes != null && atlas.bytes !== data.byteLength) {

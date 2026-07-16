@@ -23,7 +23,7 @@ The generated bundle contains:
 - stable `manifest.json` (schema 2);
 - deterministic `1x` and `2x` tier descriptors in the manifest;
 - one content-addressed `render-db.<sha256>.json` per tier;
-- content-addressed lossless atlas pages (`1x` WebP, `2x` PNG); and
+- content-addressed lossless WebP atlas pages for both tiers; and
 - `distill-report.json` with generation and packing statistics.
 
 The `1x` tier is derived directly from the same registered Factorio frames with

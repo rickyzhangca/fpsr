@@ -290,7 +290,8 @@ export function resolveSpriteFile(
           }
           localFrame -= stripe.width_in_frames;
         }
-        if (!selected) throw new Error(`RotatedAnimation stripe group is empty at direction ${dir}`);
+        if (!selected)
+          throw new Error(`RotatedAnimation stripe group is empty at direction ${dir}`);
         return {
           sprite: {
             ...s,

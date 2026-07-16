@@ -230,6 +230,9 @@ export interface RawSprite {
   tint?: number[] | { r?: number; g?: number; b?: number; a?: number };
   draw_as_shadow?: boolean;
   draw_as_light?: boolean;
+  /** Additive glow sheets are mostly opaque black + bright pixels; skip for idle. */
+  draw_as_glow?: boolean;
+  blend_mode?: string;
   apply_runtime_tint?: boolean;
   /** RotatedAnimation stripes: direction rows split across one or more files. */
   stripes?: {

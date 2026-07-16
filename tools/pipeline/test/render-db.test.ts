@@ -281,6 +281,131 @@ describe("render-db contract", () => {
     expect(beacon?.graphics).toHaveLength(5);
   });
 
+  it("includes always_draw mining-drill working visualisations (heads / fronts)", async () => {
+    const db = await loadDb();
+    const electric = db.entities["electric-mining-drill"];
+    expect(electric).toBeTruthy();
+    // Base still-frame alone is 4 groups; drill head + east/west fronts add more.
+    expect(electric?.graphics.length).toBeGreaterThan(4);
+    expect(electric?.graphics.some((group) => group.indexing === "direction4")).toBe(true);
+
+    const big = db.entities["big-mining-drill"];
+    expect(big).toBeTruthy();
+    // Base still + shadow is 2 groups; drill head is a shared always_draw animation.
+    expect(big?.graphics.length).toBeGreaterThan(2);
+    expect(big?.graphics.some((group) => group.indexing === "single")).toBe(true);
+
+    const pumpjack = db.entities.pumpjack;
+    expect(pumpjack).toBeTruthy();
+    // Horsehead lives in always_draw working_visualisations on top of the base.
+    expect(pumpjack?.graphics.length).toBeGreaterThan(2);
+  });
+
+  it("fills electromagnetic-plant idle core and foundry pipes from working visualisations", async () => {
+    const db = await loadDb();
+    const plant = db.entities["electromagnetic-plant"];
+    expect(plant).toBeTruthy();
+    // Base + shadow alone is 2 groups; idle always_draw core fills the center hole.
+    expect(plant?.graphics.length).toBeGreaterThan(2);
+
+    const foundry = db.entities.foundry;
+    expect(foundry).toBeTruthy();
+    // Base animation plus always_draw input/output pipe direction layers.
+    expect(foundry?.graphics.length).toBeGreaterThan(3);
+    expect(foundry?.graphics.some((group) => group.indexing === "direction4")).toBe(true);
+  });
+
+  it("fills fusion-reactor neighbour-port cutouts with idle connection patches", async () => {
+    const db = await loadDb();
+    const reactor = db.entities["fusion-reactor"];
+    expect(reactor).toBeTruthy();
+    // structure body+shadow (2) plus 8 port patches (most with shadows).
+    expect(reactor!.graphics.length).toBeGreaterThan(10);
+    const bottomPort = reactor!.graphics.find((group) => {
+      const shift = group.variants.default?.[0]?.shift;
+      return group.layer === "object" && shift != null && shift[1] > 2;
+    });
+    expect(bottomPort).toBeTruthy();
+    expect(bottomPort!.variants.default![0]!.shift[1]).toBeCloseTo(2.5938, 3);
+  });
+
+  it("draws thruster platform mount, pipe stubs, and crusher/collector lower stacks", async () => {
+    const db = await loadDb();
+
+    const thruster = db.entities.thruster;
+    expect(thruster).toBeTruthy();
+    // floor integration + body + 4 always_draw pipe stubs.
+    expect(thruster!.graphics.length).toBeGreaterThanOrEqual(6);
+    expect(thruster!.graphics.some((group) => group.layer === "floor")).toBe(true);
+    const pipeStub = thruster!.graphics.find((group) => {
+      const shift = group.variants.default?.[0]?.shift;
+      return group.layer === "object" && shift != null && shift[1] > 2.5;
+    });
+    expect(pipeStub).toBeTruthy();
+
+    const crusher = db.entities.crusher;
+    expect(crusher).toBeTruthy();
+    expect(crusher!.graphics.some((group) => group.layer === "floor")).toBe(true);
+    expect(crusher!.graphics.some((group) => group.indexing === "direction4")).toBe(true);
+
+    const collector = db.entities["asteroid-collector"];
+    expect(collector).toBeTruthy();
+    expect(collector!.graphics.some((group) => group.layer === "lower-object")).toBe(true);
+    // below_arm is object-layer so it shows through the transparent hopper opening.
+    expect(
+      collector!.graphics.some(
+        (group) => group.layer === "object" && (group.variants.default?.[2]?.shift[1] ?? 0) > 1,
+      ),
+    ).toBe(true);
+    expect(collector!.graphics.some((group) => group.indexing === "direction4")).toBe(true);
+    // Idle arm head (+ top) fill the hopper.
+    expect(collector!.graphics.length).toBeGreaterThan(5);
+  });
+
+  it("skips additive cargo-hub emission sheets that would paint as black holes", async () => {
+    const db = await loadDb();
+    const hub = db.entities["space-platform-hub"];
+    expect(hub).toBeTruthy();
+    // Emissions were ~392×214 / 194×164 / 202×128 full-bleed black sheets.
+    const suspicious = hub!.graphics.filter((group) => {
+      const v = group.variants.default?.[0];
+      if (!v || v.drawAsShadow) return false;
+      const frame = db.frames[v.frame];
+      if (!frame) return false;
+      const fill = (frame.w * frame.h) / (frame.sw * frame.sh);
+      return fill > 0.95 && frame.sw >= 190 && frame.sh >= 120 && (v.shift[1] ?? 0) < -2.5;
+    });
+    expect(suspicious).toHaveLength(0);
+    // Closed giga hatch covers (upper + lower, back + front).
+    expect(hub!.graphics.length).toBeGreaterThan(12);
+  });
+
+  it("places agricultural-tower crane hub above the base silo", async () => {
+    const db = await loadDb();
+    const tower = db.entities["agricultural-tower"];
+    expect(tower).toBeTruthy();
+    // Base animation is 3 groups; hub + hub shadow are appended from crane.parts.
+    expect(tower?.graphics.length).toBeGreaterThan(3);
+    const hub = tower!.graphics.find((group) => {
+      const shift = group.variants.default?.[0]?.shift;
+      return (
+        group.layer === "higher-object-under" && shift != null && Math.abs(shift[0] - 0.5) < 0.01
+      );
+    });
+    expect(hub).toBeTruthy();
+    // Crane origin [0.5, -0.55, 4.6] with z*0.5 → screen y ≈ -2.85 plus sprite shift.
+    expect(hub!.variants.default![0]!.shift[1]).toBeCloseTo(-2.9906, 3);
+
+    // Shadow is cast onto the ground via shadow_direction, not lifted with the hub.
+    const craneShadow = tower!.graphics.find((group) => {
+      const v = group.variants.default?.[0];
+      return group.layer === "shadow" && v?.drawAsShadow === true && (v.shift[0] ?? 0) > 2;
+    });
+    expect(craneShadow).toBeTruthy();
+    expect(craneShadow!.variants.default![0]!.shift[0]).toBeCloseTo(3.9839, 3);
+    expect(craneShadow!.variants.default![0]!.shift[1]).toBeCloseTo(-0.6022, 3);
+  });
+
   it("distills circuit connector graphics for inserter and assembling-machine-2", async () => {
     const db = await loadDb();
     for (const name of ["inserter", "assembling-machine-2"] as const) {

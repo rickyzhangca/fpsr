@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import sharp from "sharp";
 import { describe, expect, it } from "vite-plus/test";
 import { packAtlases, type PackUsageInput } from "../src/atlas.js";
 import type { RegisteredFrame } from "../src/sprite.js";
@@ -74,6 +75,21 @@ describe("usage-aware atlas packing", () => {
     } finally {
       await rm(firstDir, { recursive: true, force: true });
       await rm(secondDir, { recursive: true, force: true });
+    }
+  });
+
+  it("emits WebP atlas pages when requested", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-webp-"));
+    try {
+      const { frames, usage } = fixture();
+      const packed = await packAtlases(frames, usage, dir, { format: "webp" });
+      expect(packed.manifestAtlases.every((atlas) => atlas.file.endsWith(".webp"))).toBe(true);
+      const firstAtlas = packed.manifestAtlases[0];
+      expect(firstAtlas).toBeDefined();
+      const metadata = await sharp(await readFile(path.join(dir, firstAtlas!.file))).metadata();
+      expect(metadata.format).toBe("webp");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
     }
   });
 
