@@ -1,5 +1,6 @@
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -57,6 +58,7 @@ export default defineConfig({
   plugins: lazyPlugins(() => [
     tailwindcss(),
     react(),
+    babel({ presets: [reactCompilerPreset()] }),
     serveDirectory("/assets/", assetsRoot),
     serveDirectory("/golden/", goldenRoot),
     serveDirectory("/ground-truth/", groundTruthRoot),
