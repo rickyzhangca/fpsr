@@ -62,8 +62,8 @@ vp install
 | -------------------------------------------------- | ---------------------------------------------------- |
 | `pnpm dev` / `vp dev apps/viewer`                  | Start the blueprint viewer (`@fpsr/viewer`)          |
 | `pnpm build`                                       | Build all packages                                   |
-| `pnpm test`                                        | Run all package tests                                |
-| `pnpm check` / `vp check`                          | Format, lint, and typecheck (Oxlint/Oxfmt via Vite+) |
+| `pnpm test`                                        | Run unit and contract tests                          |
+| `pnpm check`                                       | Check filenames, format, lint, and types             |
 | `pnpm lint` / `vp lint`                            | Lint only                                            |
 | `pnpm format` / `vp fmt`                           | Format only                                          |
 | `pnpm assets:build`                                | Generate and verify assets from local Factorio       |

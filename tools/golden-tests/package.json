@@ -6,7 +6,8 @@
   "scripts": {
     "seed": "tsx scripts/seed-blueprints.ts",
     "update": "tsx src/update.ts",
-    "test": "vp test run",
+    "test": "echo 'golden regression tests are opt-in: pnpm goldens:test'",
+    "test:golden": "vp test run",
     "build": "echo 'no build step'",
     "lint": "vp lint",
     "typecheck": "tsc --noEmit",

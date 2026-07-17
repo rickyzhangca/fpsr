@@ -9,7 +9,7 @@ Curated blueprint renders are pixel-compared against committed PNGs in `fixtures
 pnpm -F @fpsr/golden-tests run update
 
 # Run pixel-diff tests
-pnpm -F @fpsr/golden-tests test
+pnpm goldens:test
 ```
 
 ## Workflow
