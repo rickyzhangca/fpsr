@@ -44,7 +44,7 @@ function assertSnapshot(name: string, list: ReturnType<typeof planDrawList>): vo
         break;
       }
     }
-    expect.fail(hint);
+    throw new Error(hint);
   }
   expect(actual).toBe(expected);
 }
@@ -196,6 +196,7 @@ describe("drawlist snapshots (committed render-db)", () => {
   it("underground-corpus: all tiers and cardinals", () => {
     const corpusPath = path.join(ROOT, "fixtures/corpus/underground-belt.bp.txt");
     const blueprint = decode(readFileSync(corpusPath, "utf8")).blueprint;
+    expect(blueprint).toBeDefined();
     if (!blueprint) throw new Error("missing blueprint in corpus fixture");
     assertSnapshot("underground-corpus", planDrawList(blueprint, db));
   });
@@ -583,9 +584,9 @@ describe("drawlist snapshots (committed render-db)", () => {
         c.kind === "sprite" && c.entity >= 1 && c.entity <= 3 && c.layer === RENDER_LAYERS.object,
     );
     expect(poleObjects.length).toBeGreaterThan(0);
-    for (const c of poleObjects) {
-      if (c.kind === "sprite") expect(c.frame).toBe(southFrame);
-    }
+    expect(
+      poleObjects.every((command) => command.kind === "sprite" && command.frame === southFrame),
+    ).toBe(true);
     assertSnapshot("wired-poles", list);
   });
 
@@ -746,7 +747,7 @@ describe("drawlist snapshots (committed render-db)", () => {
       db.entities["transport-belt"]?.data?.beltConnectorGraphics as {
         layers?: { frame_main?: ({ frame: number } | null)[][] };
       }
-    ).layers?.frame_main;
+    )?.layers?.frame_main;
     expect(frameRows).toBeTruthy();
 
     const plannedFrames = (
@@ -981,9 +982,10 @@ describe("drawlist snapshots (committed render-db)", () => {
 
   it("artillery-wagon includes cannon barrel and base groups", () => {
     const arty = db.entities["artillery-wagon"];
+    const cannonGroupIndices = (arty?.data?.cannonGroupIndices as number[] | undefined) ?? [];
     expect(arty?.kind).toBe("train");
-    expect(Array.isArray(arty?.data?.cannonGroupIndices)).toBe(true);
-    expect((arty?.data?.cannonGroupIndices as number[]).length).toBeGreaterThanOrEqual(2);
+    expect(Array.isArray(cannonGroupIndices)).toBe(true);
+    expect(cannonGroupIndices.length).toBeGreaterThanOrEqual(2);
     expect(typeof arty?.data?.cannonBaseHeight).toBe("number");
     const resolved = resolve(
       bp([
@@ -996,7 +998,7 @@ describe("drawlist snapshots (committed render-db)", () => {
       ]),
       db,
     )[0];
-    const cannonIdxs = new Set(arty?.data?.cannonGroupIndices as number[]);
+    const cannonIdxs = new Set(cannonGroupIndices);
     const cannonSels = resolved?.selections.filter((s) => cannonIdxs.has(s.group)) ?? [];
     expect(cannonSels.length).toBeGreaterThanOrEqual(2);
     // East-facing mount: negative X offset + height flatten (see artilleryCannonShift).

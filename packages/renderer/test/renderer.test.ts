@@ -106,8 +106,8 @@ describe("createRenderer", () => {
   });
 
   it("measures without loading atlases or mutating a canvas", async () => {
-    const loadAtlasImage = vi.fn(async () => fakeImage);
-    const createCanvas = vi.fn(() => stubCanvas());
+    const loadAtlasImage = vi.fn<() => Promise<CanvasImageSource>>(async () => fakeImage);
+    const createCanvas = vi.fn<() => CanvasLike>(() => stubCanvas());
     const renderer = await createRenderer({
       assets: { ...assets, loadAtlasImage },
       renderDb: db,
@@ -161,11 +161,13 @@ describe("createRenderer", () => {
   });
 
   it("encodes WebP directly from the rendered canvas with the requested quality", async () => {
-    const convertToBlob = vi.fn(
+    const convertToBlob = vi.fn<(options?: { type?: string; quality?: number }) => Promise<Blob>>(
       async (options?: { type?: string; quality?: number }) =>
         new Blob(["encoded"], { type: options?.type }),
     );
-    const toBuffer = vi.fn(async () => Buffer.from("encoded"));
+    const toBuffer = vi.fn<(mime?: string, options?: { quality?: number }) => Promise<Uint8Array>>(
+      async () => Buffer.from("encoded"),
+    );
     const canvas = { ...stubCanvas(), convertToBlob, toBuffer };
     const renderer = await createRenderer({ assets, renderDb: db, createCanvas: () => canvas });
     const bp: Blueprint = {

@@ -70,7 +70,7 @@ describe("icon silhouette alpha ops", () => {
     expect(out[center + 3]).toBe(255);
     expect(out[(2 * width + 1) * 4 + 3]).toBe(255);
     expect(out[(1 * width + 2) * 4 + 3]).toBe(255);
-    expect(out[(0 * width + 0) * 4 + 3]).toBe(0);
+    expect(out[3]).toBe(0);
     expect(out[center]).toBe(0);
     expect(out[center + 1]).toBe(0);
     expect(out[center + 2]).toBe(0);

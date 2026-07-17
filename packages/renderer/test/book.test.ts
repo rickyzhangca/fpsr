@@ -14,6 +14,15 @@ import type { BlueprintDocument } from "../src/types/blueprint.js";
 
 const FIXTURES_DIR = join(import.meta.dirname, "../../../fixtures/decode");
 
+function captureError(run: () => unknown): unknown {
+  try {
+    run();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected function to throw");
+}
+
 describe("listBlueprints", () => {
   it("flattens nested book fixture 05", () => {
     const doc = decode(readFileSync(join(FIXTURES_DIR, "05-nested-book.txt"), "utf8"));
@@ -47,12 +56,9 @@ describe("selectBlueprint", () => {
 
   it("throws when selecting a planner entry", () => {
     const doc = decode(readFileSync(join(FIXTURES_DIR, "06-book-with-planner.txt"), "utf8"));
-    expect(() => selectBlueprint(doc, [1])).toThrow(BlueprintSelectError);
-    try {
-      selectBlueprint(doc, [1]);
-    } catch (e) {
-      expect((e as BlueprintSelectError).reason).toBe("planner");
-    }
+    const error = captureError(() => selectBlueprint(doc, [1]));
+    expect(error).toBeInstanceOf(BlueprintSelectError);
+    expect((error as BlueprintSelectError).reason).toBe("planner");
   });
 });
 
@@ -71,22 +77,16 @@ describe("selectBook", () => {
 
   it("throws when path lands on a blueprint", () => {
     const doc = decode(readFileSync(join(FIXTURES_DIR, "05-nested-book.txt"), "utf8"));
-    expect(() => selectBook(doc, [0])).toThrow(BlueprintSelectError);
-    try {
-      selectBook(doc, [0]);
-    } catch (e) {
-      expect((e as BlueprintSelectError).reason).toBe("not-found");
-    }
+    const error = captureError(() => selectBook(doc, [0]));
+    expect(error).toBeInstanceOf(BlueprintSelectError);
+    expect((error as BlueprintSelectError).reason).toBe("not-found");
   });
 
   it("throws when path lands on a planner", () => {
     const doc = decode(readFileSync(join(FIXTURES_DIR, "06-book-with-planner.txt"), "utf8"));
-    expect(() => selectBook(doc, [1])).toThrow(BlueprintSelectError);
-    try {
-      selectBook(doc, [1]);
-    } catch (e) {
-      expect((e as BlueprintSelectError).reason).toBe("planner");
-    }
+    const error = captureError(() => selectBook(doc, [1]));
+    expect(error).toBeInstanceOf(BlueprintSelectError);
+    expect((error as BlueprintSelectError).reason).toBe("planner");
   });
 
   it("throws for bare blueprint documents", () => {

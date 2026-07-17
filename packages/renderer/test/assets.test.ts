@@ -50,14 +50,19 @@ function jsonResponse(value: unknown): Response {
   });
 }
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
 describe("cdnAssets", () => {
   it("loads schema-2 content-addressed render databases", async () => {
-    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = requestUrl(input);
       if (url.endsWith("manifest.json")) return jsonResponse(manifest);
       if (url.endsWith(manifest.tiers["2x"].renderDb.file)) return jsonResponse(db);
       return new Response(null, { status: 404 });
-    }) as unknown as typeof fetch;
+    });
 
     const assets = cdnAssets("https://assets.example/2.1.11", { fetchImpl });
     const loaded = await assets.loadRenderDb();
@@ -67,13 +72,15 @@ describe("cdnAssets", () => {
   });
 
   it("keeps 1x and 2x databases and atlases in independent caches", async () => {
-    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = requestUrl(input);
       if (url.endsWith("manifest.json")) return jsonResponse(manifest);
       if (url.includes("render-db.")) return jsonResponse(db);
       return new Response(new Blob([url]), { status: 200 });
-    }) as unknown as typeof fetch;
-    const decodeImage = vi.fn(async () => ({}) as CanvasImageSource);
+    });
+    const decodeImage = vi.fn<(blob: Blob) => Promise<CanvasImageSource>>(
+      async () => ({}) as CanvasImageSource,
+    );
     const assets = cdnAssets("https://assets.example/2.1.11", { fetchImpl, decodeImage });
 
     await Promise.all([
@@ -91,12 +98,12 @@ describe("cdnAssets", () => {
     let active = 0;
     let maxActive = 0;
     const events: import("../src/profile.js").AssetEvent[] = [];
-    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = requestUrl(input);
       if (url.endsWith("manifest.json")) return jsonResponse(manifest);
       return new Response(new Blob([url]), { status: 200 });
-    }) as unknown as typeof fetch;
-    const decodeImage = vi.fn(async () => {
+    });
+    const decodeImage = vi.fn<(blob: Blob) => Promise<CanvasImageSource>>(async () => {
       active++;
       maxActive = Math.max(maxActive, active);
       await new Promise((resolve) => setTimeout(resolve, 5));
@@ -123,13 +130,13 @@ describe("cdnAssets", () => {
 
   it("evicts failed atlas promises so a later request can retry", async () => {
     let atlasAttempts = 0;
-    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = requestUrl(input);
       if (url.endsWith("manifest.json")) return jsonResponse(manifest);
       atlasAttempts++;
       if (atlasAttempts === 1) return new Response(null, { status: 503 });
       return new Response(new Blob(["ok"]), { status: 200 });
-    }) as unknown as typeof fetch;
+    });
     const assets = cdnAssets("https://assets.example/2.1.11", {
       fetchImpl,
       decodeImage: async () => ({}) as CanvasImageSource,
