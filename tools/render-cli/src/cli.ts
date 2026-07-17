@@ -7,28 +7,10 @@ import {
   createRenderer,
   decodeWithStats,
 } from "fpsr";
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { stdin } from "node:process";
-import { fileURLToPath } from "node:url";
+import { writeFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
 import { assertAssetsDir, localAssets } from "./assets.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, "../../..");
-const DEFAULT_ASSETS = path.join(REPO_ROOT, "assets-out/2.1.11");
-
-interface CliOptions {
-  input?: string;
-  out: string;
-  ppt: number;
-  blueprintPath?: number[];
-  alt?: boolean;
-  assets: string;
-  profile: boolean;
-  json: boolean;
-  warmup: boolean;
-}
+import { parseArgs, readBlueprintInput, usage } from "./cli-options.js";
 
 interface ProfileRun {
   label: "cold" | "warm" | "render";
@@ -45,113 +27,6 @@ interface ProfileReport {
     commandCount: number;
     pixelsPerTile: number;
   };
-}
-
-function usage(): string {
-  return [
-    "Usage: pnpm -F @fpsr/render-cli render -- <bp-file-or--> [options]",
-    "",
-    "Options:",
-    "  --out <path>     Output PNG path (default: out.png)",
-    "  --ppt <number>   Pixels per tile (default: 64)",
-    "  --path <i,j,...> Blueprint book path (comma-separated indices)",
-    "  --alt            Enable alt-mode rendering (on by default; kept for compatibility)",
-    "  --assets <dir>   Asset directory (default: assets-out/2.1.11 from repo root)",
-    "  --profile        Collect decode + render stage timings",
-    "  --warmup         With --profile: run once cold, then again warm (report both)",
-    "  --json           Print machine-readable JSON (agents: use with --profile)",
-    "",
-    "Read blueprint string from a file or '-' for stdin.",
-  ].join("\n");
-}
-
-function parseArgs(argv: string[]): CliOptions {
-  const opts: CliOptions = {
-    out: "out.png",
-    ppt: 64,
-    assets: DEFAULT_ASSETS,
-    profile: false,
-    json: false,
-    warmup: false,
-  };
-
-  const rest = [...argv];
-  while (rest.length > 0) {
-    const arg = rest.shift();
-    if (!arg || arg === "--") continue;
-
-    if (arg === "--help" || arg === "-h") {
-      console.log(usage());
-      process.exit(0);
-    }
-    if (arg === "--out") {
-      opts.out = rest.shift() ?? opts.out;
-      continue;
-    }
-    if (arg === "--ppt") {
-      const raw = rest.shift();
-      if (!raw) throw new Error("--ppt requires a number");
-      opts.ppt = Number(raw);
-      if (!Number.isFinite(opts.ppt) || opts.ppt <= 0) {
-        throw new Error(`Invalid --ppt value: ${raw}`);
-      }
-      continue;
-    }
-    if (arg === "--path") {
-      const raw = rest.shift();
-      if (!raw) throw new Error("--path requires comma-separated indices");
-      opts.blueprintPath = raw.split(",").map((part) => {
-        const n = Number(part.trim());
-        if (!Number.isInteger(n) || n < 0) {
-          throw new Error(`Invalid path index: ${part}`);
-        }
-        return n;
-      });
-      continue;
-    }
-    if (arg === "--alt") {
-      opts.alt = true;
-      continue;
-    }
-    if (arg === "--assets") {
-      const raw = rest.shift();
-      if (!raw) throw new Error("--assets requires a directory path");
-      opts.assets = path.isAbsolute(raw) ? raw : path.resolve(REPO_ROOT, raw);
-      continue;
-    }
-    if (arg === "--profile") {
-      opts.profile = true;
-      continue;
-    }
-    if (arg === "--json") {
-      opts.json = true;
-      continue;
-    }
-    if (arg === "--warmup") {
-      opts.warmup = true;
-      continue;
-    }
-    if (arg.startsWith("-")) {
-      throw new Error(`Unknown option: ${arg}\n\n${usage()}`);
-    }
-    if (opts.input) {
-      throw new Error(`Unexpected extra argument: ${arg}\n\n${usage()}`);
-    }
-    opts.input = arg;
-  }
-
-  return opts;
-}
-
-async function readBlueprintInput(inputPath: string): Promise<string> {
-  if (inputPath === "-") {
-    const chunks: Buffer[] = [];
-    for await (const chunk of stdin) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    return Buffer.concat(chunks).toString("utf8").trim();
-  }
-  return (await readFile(inputPath, "utf8")).trim();
 }
 
 function fmtMs(ms: number): string {
@@ -222,8 +97,7 @@ async function main(): Promise<void> {
     throw new Error("--warmup requires --profile");
   }
 
-  const inputPath = opts.input === "-" ? "-" : path.resolve(opts.input);
-  const source = await readBlueprintInput(inputPath);
+  const source = await readBlueprintInput(opts.input);
   if (!source) {
     throw new Error("Blueprint input is empty");
   }
@@ -256,7 +130,7 @@ async function main(): Promise<void> {
     runs.push({ label: "warm", profile: warm.profile });
 
     const png = await warm.toPngBuffer();
-    const outPath = path.resolve(opts.out);
+    const outPath = opts.out;
     await writeFile(outPath, png);
 
     const report: ProfileReport = {
@@ -281,7 +155,7 @@ async function main(): Promise<void> {
 
   const result = await renderer.render(doc, renderOpts);
   const png = await result.toPngBuffer();
-  const outPath = path.resolve(opts.out);
+  const outPath = opts.out;
   await writeFile(outPath, png);
 
   if (opts.profile) {

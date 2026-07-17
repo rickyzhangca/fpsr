@@ -6,6 +6,6 @@
     "lib": ["ES2022", "DOM"],
     "noEmit": true
   },
-  "include": ["src"],
+  "include": ["src", "test"],
   "exclude": ["src/tmp-*.ts"]
 }

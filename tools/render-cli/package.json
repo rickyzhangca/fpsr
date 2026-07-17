@@ -10,7 +10,7 @@
     "render": "tsx src/cli.ts",
     "bench:thread": "tsx src/thread-bench.ts",
     "build": "echo 'no build step'",
-    "test": "echo 'no tests yet'",
+    "test": "pnpm --workspace-root exec vp test run tools/render-cli/test",
     "lint": "vp lint",
     "typecheck": "tsc --noEmit",
     "format": "vp fmt"
