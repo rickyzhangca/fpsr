@@ -4,6 +4,9 @@ packages:
   - apps/*
 
 catalog:
+  "@types/node": 22.20.1
+  tsx: 4.23.0
+  typescript: 5.9.3
   vite: npm:@voidzero-dev/vite-plus-core@0.2.4
   vite-plus: 0.2.4
   vitest: 4.1.10

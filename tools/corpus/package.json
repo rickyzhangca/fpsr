@@ -19,9 +19,9 @@
     "skia-canvas": "^2.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.10.7",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   }

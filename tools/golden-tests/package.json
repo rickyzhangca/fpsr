@@ -19,13 +19,13 @@
     "skia-canvas": "^2.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
+    "@types/node": "catalog:",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",
-    "tsx": "^4.23.0",
-    "typescript": "^5.9.3",
-    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
     "vite-plus": "catalog:",
-    "vitest": "4.1.10"
+    "vitest": "catalog:"
   }
 }

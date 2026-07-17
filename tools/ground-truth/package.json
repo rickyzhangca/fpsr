@@ -25,11 +25,11 @@
     "skia-canvas": "^2.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.10.7",
+    "@types/node": "catalog:",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   }
