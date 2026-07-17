@@ -2,15 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type WheelEvent as ReactWheelEvent,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 const ZOOM_MIN = 0.05;
 const ZOOM_MAX = 16;
 /** Initial fit never exceeds true size — only zoom out to fit, never zoom in. */
@@ -342,9 +334,12 @@ export const PreviewCanvasFrame = ({
       viewport.removeEventListener("pointercancel", onPointerUp);
     };
   }, [ready, commitView]);
-  const onWheel = useCallback(
-    (event: ReactWheelEvent<HTMLDivElement>) => {
-      if (!ready) return;
+  // Native non-passive listeners: React's onWheel is passive, so preventDefault
+  // cannot stop browser page-zoom on trackpad pinch / Safari gesture events.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !ready) return;
+    const onWheel = (event: WheelEvent) => {
       // Trackpad pinch sets ctrlKey; two-finger scroll should bubble to the page.
       if (!event.ctrlKey) return;
       event.preventDefault();
@@ -355,9 +350,22 @@ export const PreviewCanvasFrame = ({
       const originY = event.clientY - rect.top - rect.height / 2;
       const factor = Math.exp(-event.deltaY * PINCH_ZOOM_STEP);
       applyZoomAt(viewRef.current.zoom * factor, originX, originY);
-    },
-    [applyZoomAt, ready],
-  );
+    };
+    const preventGesture = (event: Event) => {
+      event.preventDefault();
+    };
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    // Safari pinch-zoom fires gesture* instead of (or in addition to) wheel.
+    viewport.addEventListener("gesturestart", preventGesture);
+    viewport.addEventListener("gesturechange", preventGesture);
+    viewport.addEventListener("gestureend", preventGesture);
+    return () => {
+      viewport.removeEventListener("wheel", onWheel);
+      viewport.removeEventListener("gesturestart", preventGesture);
+      viewport.removeEventListener("gesturechange", preventGesture);
+      viewport.removeEventListener("gestureend", preventGesture);
+    };
+  }, [ready, applyZoomAt]);
   const zoomBy = useCallback(
     (delta: number) => {
       applyZoomAt(viewRef.current.zoom + delta, 0, 0);
@@ -379,7 +387,6 @@ export const PreviewCanvasFrame = ({
           "absolute inset-0 touch-none overflow-hidden select-none",
           ready ? (dragging ? "cursor-grabbing" : "cursor-grab") : "opacity-0",
         )}
-        onWheel={onWheel}
       >
         <div
           className="absolute top-1/2 left-1/2 will-change-transform"
