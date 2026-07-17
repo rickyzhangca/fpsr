@@ -155,7 +155,7 @@ export function discoverPlaceableTiles(raw: DataRaw): string[] {
     }
   }
   // Sibling right-hazard tiles (placed by rotating the left item in-game).
-  for (const n of [...names]) {
+  for (const n of names) {
     if (n.endsWith("-left")) {
       const right = `${n.slice(0, -5)}-right`;
       if (raw.tile?.[right]) names.add(right);

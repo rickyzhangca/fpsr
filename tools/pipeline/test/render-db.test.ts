@@ -11,36 +11,33 @@ function isFiniteNumber(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
 }
 
-function assertSpriteVariant(v: SpriteVariant | null, framesLen: number, pathHint: string): void {
+function assertSpriteVariant(v: SpriteVariant | null, framesLen: number): void {
   if (v == null) return;
-  expect(isFiniteNumber(v.frame), `${pathHint}.frame`).toBe(true);
+  expect(isFiniteNumber(v.frame)).toBe(true);
   expect(v.frame).toBeGreaterThanOrEqual(0);
   expect(v.frame).toBeLessThan(framesLen);
-  expect(isFiniteNumber(v.scale), `${pathHint}.scale`).toBe(true);
+  expect(isFiniteNumber(v.scale)).toBe(true);
   expect(Array.isArray(v.shift) && v.shift.length === 2).toBe(true);
 }
 
-function assertEntity(name: string, e: EntityRenderDef, framesLen: number): void {
+function assertEntity(e: EntityRenderDef, framesLen: number): void {
   expect(typeof e.kind).toBe("string");
   expect(typeof e.protoType).toBe("string");
   expect(e.collisionBox).toHaveLength(2);
   expect(e.selectionBox).toHaveLength(2);
   expect(Array.isArray(e.graphics)).toBe(true);
-  for (const [gi, g] of e.graphics.entries()) {
+  for (const g of e.graphics) {
     expect(["single", "direction4", "direction8", "direction16", "resolver"]).toContain(g.indexing);
     expect(typeof g.layer).toBe("string");
     expect(g.variants && typeof g.variants).toBe("object");
-    for (const [vk, arr] of Object.entries(g.variants)) {
-      expect(Array.isArray(arr), `${name}.graphics[${gi}].variants.${vk}`).toBe(true);
-      for (const [ii, v] of arr.entries()) {
-        assertSpriteVariant(v, framesLen, `${name}/${gi}/${vk}/${ii}`);
+    for (const arr of Object.values(g.variants)) {
+      expect(Array.isArray(arr)).toBe(true);
+      for (const v of arr) {
+        assertSpriteVariant(v, framesLen);
       }
     }
   }
-  if (e.icon != null) {
-    expect(e.icon).toBeGreaterThanOrEqual(0);
-    expect(e.icon).toBeLessThan(framesLen);
-  }
+  expect(e.icon == null || (e.icon >= 0 && e.icon < framesLen)).toBe(true);
 }
 
 function collectFrameIds(db: RenderDb): Set<number> {
@@ -111,13 +108,13 @@ describe("render-db contract", () => {
       expect(a.width).toBeGreaterThan(0);
       expect(a.height).toBeGreaterThan(0);
     }
-    for (const [i, f] of db.frames.entries()) {
+    for (const f of db.frames) {
       for (const k of ["a", "x", "y", "w", "h", "ox", "oy", "sw", "sh"] as const) {
-        expect(isFiniteNumber(f[k]), `frames[${i}].${k}`).toBe(true);
+        expect(isFiniteNumber(f[k])).toBe(true);
       }
     }
-    for (const [name, e] of Object.entries(db.entities)) {
-      assertEntity(name, e, db.frames.length);
+    for (const e of Object.values(db.entities)) {
+      assertEntity(e, db.frames.length);
     }
     for (const [name, t] of Object.entries(db.tiles)) {
       expect(t.color).toHaveLength(4);
@@ -125,14 +122,15 @@ describe("render-db contract", () => {
         expect(f).toBeGreaterThanOrEqual(0);
         expect(f).toBeLessThan(db.frames.length);
       }
-      if (t.material) {
-        expect(t.material.sheet).toBeGreaterThanOrEqual(0);
-        expect(t.material.sheet).toBeLessThan(db.frames.length);
-        expect(t.material.count).toBeGreaterThan(0);
-        expect(t.material.patchW).toBeGreaterThan(0);
-        expect(t.material.patchH).toBeGreaterThan(0);
-        expect(t.material.tilePx).toBeGreaterThan(0);
-      }
+      expect(
+        t.material == null ||
+          (t.material.sheet >= 0 &&
+            t.material.sheet < db.frames.length &&
+            t.material.count > 0 &&
+            t.material.patchW > 0 &&
+            t.material.patchH > 0 &&
+            t.material.tilePx > 0),
+      ).toBe(true);
       expect(name.length).toBeGreaterThan(0);
     }
   });
@@ -247,10 +245,10 @@ describe("render-db contract", () => {
 
     for (const name of ["legacy-straight-rail", "legacy-curved-rail"] as const) {
       const rail = db.entities[name];
-      expect(rail?.kind, name).toBe("rail");
-      expect(rail?.protoType, name).toBe(name);
-      expect(rail?.graphics.length, name).toBeGreaterThan(0);
-      expect(db.icons[`entity/${name}`], `entity/${name} icon`).toBeTypeOf("number");
+      expect(rail?.kind).toBe("rail");
+      expect(rail?.protoType).toBe(name);
+      expect(rail?.graphics.length).toBeGreaterThan(0);
+      expect(db.icons[`entity/${name}`]).toBeTypeOf("number");
     }
 
     const loco = db.entities.locomotive;

@@ -2626,6 +2626,22 @@ async function withPlaceholderIfEmpty(
   };
 }
 
+async function finalizeEntityDef(
+  bank: FrameBank,
+  p: Record<string, unknown>,
+  def: EntityRenderDef,
+  placeholders: { name: string; reason: string }[],
+  name: string,
+  emptyReason: string,
+): Promise<EntityRenderDef> {
+  let finalized = await withPlaceholderIfEmpty(bank, p, def, emptyReason, placeholders, name);
+  finalized = withWireAnchors(finalized, p);
+  finalized = await withCircuitConnectorGraphics(bank, finalized, p);
+  finalized = await withBeltConnectorGraphics(bank, finalized, p);
+  finalized = await withBeltReaderGraphics(bank, finalized, p);
+  return withPipeCovers(bank, finalized, p);
+}
+
 async function distillCombinatorSprites(
   bank: FrameBank,
   p: Record<string, unknown>,
@@ -3470,13 +3486,7 @@ async function distillEntity(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     def = baseEntity(kind, protoType, p, []);
-    def = await withPlaceholderIfEmpty(bank, p, def, `distill error: ${msg}`, placeholders, name);
-    def = withWireAnchors(def, p);
-    def = await withCircuitConnectorGraphics(bank, def, p);
-    def = await withBeltConnectorGraphics(bank, def, p);
-    def = await withBeltReaderGraphics(bank, def, p);
-    def = await withPipeCovers(bank, def, p);
-    return def;
+    return finalizeEntityDef(bank, p, def, placeholders, name, `distill error: ${msg}`);
   }
 
   // Ensure kind matches heuristic (some helpers hardcode kind).
@@ -3490,25 +3500,7 @@ async function distillEntity(
     def = { ...def, protoType };
   }
 
-  def = await withPlaceholderIfEmpty(
-    bank,
-    p,
-    def,
-    "no usable graphics resolved",
-    placeholders,
-    name,
-  );
-  if (!def.data?.wireAnchors && !def.data?.wireAnchorsOutput) {
-    def = withWireAnchors(def, p);
-  } else {
-    // Still merge output anchors if only input was set by a helper.
-    def = withWireAnchors(def, p);
-  }
-  def = await withCircuitConnectorGraphics(bank, def, p);
-  def = await withBeltConnectorGraphics(bank, def, p);
-  def = await withBeltReaderGraphics(bank, def, p);
-  def = await withPipeCovers(bank, def, p);
-  return def;
+  return finalizeEntityDef(bank, p, def, placeholders, name, "no usable graphics resolved");
 }
 
 async function distillIcon(
