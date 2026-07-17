@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import type { Blueprint } from "fpsr";
+import { createStore, Provider } from "jotai";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { encodedByteSize, formatByteSize } from "./blueprint-meta";
 import { BlueprintSummary } from "./blueprint-summary";
+import { VIEWER_PREFERENCE_KEYS } from "./viewer-preferences";
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
@@ -26,6 +28,7 @@ describe("BlueprintSummary", () => {
     ).IS_REACT_ACT_ENVIRONMENT = true;
     host = document.createElement("div");
     document.body.append(host);
+    localStorage.clear();
   });
   afterEach(() => {
     host.remove();
@@ -167,5 +170,40 @@ describe("BlueprintSummary", () => {
     expect(host.textContent).toContain("Hidden when collapsed");
     expect(host.textContent).toContain("Components");
     act(() => root.unmount());
+  });
+
+  it("restores the collapsed summary in a fresh store", () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "Persistent summary",
+      entities: [],
+    };
+    const firstRoot = createRoot(host);
+    act(() => {
+      firstRoot.render(
+        <Provider store={createStore()}>
+          <BlueprintSummary blueprint={blueprint} tileSize="0×0 tiles" />
+        </Provider>,
+      );
+    });
+    act(() => {
+      host
+        .querySelector('[aria-label="Collapse summary"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(localStorage.getItem(VIEWER_PREFERENCE_KEYS.summaryExpanded)).toBe("false");
+    act(() => firstRoot.unmount());
+
+    const secondRoot = createRoot(host);
+    act(() => {
+      secondRoot.render(
+        <Provider store={createStore()}>
+          <BlueprintSummary blueprint={blueprint} tileSize="0×0 tiles" />
+        </Provider>,
+      );
+    });
+    expect(host.querySelector('[aria-label="Expand summary"]')).toBeTruthy();
+    act(() => secondRoot.unmount());
   });
 });

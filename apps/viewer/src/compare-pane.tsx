@@ -10,11 +10,13 @@ import {
   decode,
   type BlueprintDocument,
 } from "fpsr";
+import { useAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { PaneMessage } from "./pane-message";
 import { renderPreview } from "./preview-renderer";
 import { PreviewCanvasFrame } from "./preview-canvas-frame";
 import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
+import { comparePreferencesAtom } from "./viewer-preferences";
 interface GoldenCase {
   name: string;
   bp: string;
@@ -36,8 +38,14 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
   const [goldenUrl, setGoldenUrl] = useState<string | null>(null);
   const [groundTruthUrl, setGroundTruthUrl] = useState<string | null>(null);
   const [groundTruthMissing, setGroundTruthMissing] = useState(false);
-  const [overlayOpacity, setOverlayOpacity] = useState(50);
-  const [showDifference, setShowDifference] = useState(false);
+  const [comparePreferences, setComparePreferences] = useAtom(comparePreferencesAtom);
+  const { overlayOpacity, showDifference } = comparePreferences;
+  const setOverlayOpacity = (value: number) => {
+    setComparePreferences((previous) => ({ ...previous, overlayOpacity: value }));
+  };
+  const setShowDifference = (value: boolean) => {
+    setComparePreferences((previous) => ({ ...previous, showDifference: value }));
+  };
   const [dimensions, setDimensions] = useState<{
     width: number;
     height: number;

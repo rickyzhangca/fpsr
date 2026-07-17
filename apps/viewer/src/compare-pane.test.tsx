@@ -37,6 +37,7 @@ describe("ComparePane", () => {
     };
     host = document.createElement("div");
     document.body.append(host);
+    localStorage.clear();
     mocks.blit.mockReset();
     mocks.renderPreview.mockReset();
     mocks.closeBitmap.mockReset();

@@ -11,7 +11,8 @@ import {
   selectBlueprint,
   selectBook,
 } from "fpsr";
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { useAtom } from "jotai";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
 import pipePlantBp from "../../../fixtures/golden/pipe-plant.bp.txt?raw";
@@ -38,6 +39,7 @@ import { SidebarPanels } from "./sidebar-panels";
 import { resolveSidebarSelection } from "./sidebar-selection";
 import { SidebarSelectionTrigger } from "./sidebar-selection-trigger";
 import { type SidebarSelectableKind, type SidebarSource } from "./sidebar-tree";
+import { activeTabAtom, isViewerTab } from "./viewer-preferences";
 
 const ComparePane = lazy(() =>
   import("./compare-pane").then(({ ComparePane }) => ({ default: ComparePane })),
@@ -56,8 +58,8 @@ const ManualBlueprintDialog = lazy(() =>
 const MobileSidebar = lazy(() =>
   import("./mobile-sidebar").then(({ MobileSidebar }) => ({ default: MobileSidebar })),
 );
-type Tab = "preview" | "process" | "performance" | "compare";
-const LAST_VIEW_KEY = "fpsr-viewer:last-view";
+const LAST_VIEW_KEY = "fpsr-viewer:last-view:v1";
+const LEGACY_LAST_VIEW_KEY = "fpsr-viewer:last-view";
 const SAMPLES = [
   { id: "smoke", label: "Smoke", value: smokeBp.trim() },
   { id: "belt-ring", label: "Belt ring", value: beltRingBp.trim() },
@@ -94,12 +96,13 @@ interface LastView {
 }
 const readLastView = (): LastView | null => {
   try {
-    const raw = localStorage.getItem(LAST_VIEW_KEY);
+    const raw = localStorage.getItem(LAST_VIEW_KEY) ?? localStorage.getItem(LEGACY_LAST_VIEW_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LastView>;
     if (typeof parsed.sourceId !== "string") return null;
     const path =
-      Array.isArray(parsed.path) && parsed.path.every((n) => typeof n === "number")
+      Array.isArray(parsed.path) &&
+      parsed.path.every((index) => Number.isInteger(index) && index >= 0)
         ? parsed.path
         : null;
     const kind: SidebarSelectableKind = parsed.kind === "book" ? "book" : "blueprint";
@@ -109,7 +112,11 @@ const readLastView = (): LastView | null => {
   }
 };
 const writeLastView = (view: LastView): void => {
-  localStorage.setItem(LAST_VIEW_KEY, JSON.stringify(view));
+  try {
+    localStorage.setItem(LAST_VIEW_KEY, JSON.stringify(view));
+  } catch {
+    // Last-view restoration is best-effort when storage is unavailable.
+  }
 };
 const tryDecode = (
   source: string,
@@ -232,6 +239,7 @@ const LazyPaneFallback = () => {
   );
 };
 export const App = () => {
+  const selectionRevisionRef = useRef(0);
   const [initial] = useState(initialSelection);
   const [selectedSourceId, setSelectedSourceId] = useState(initial.sourceId);
   const [selectedPath, setSelectedPath] = useState<number[] | null>(initial.path);
@@ -246,12 +254,13 @@ export const App = () => {
   const [manualOpen, setManualOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileSidebarMounted, setMobileSidebarMounted] = useState(false);
-  const [tab, setTab] = useState<Tab>("preview");
+  const [tab, setTab] = useAtom(activeTabAtom);
   const [tileSize, setTileSize] = useState("—");
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
   const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
   useEffect(() => {
     let cancelled = false;
+    const initialSelectionRevision = selectionRevisionRef.current;
     void listCustoms()
       .then((records) => {
         if (cancelled) return;
@@ -271,7 +280,7 @@ export const App = () => {
         setCustomSources(sources);
         setDecodeStatsBySource((prev) => ({ ...prev, ...stats }));
         const last = readLastView();
-        if (last) {
+        if (last && selectionRevisionRef.current === initialSelectionRevision) {
           const source =
             BUILT_IN_SOURCE_BY_ID.get(last.sourceId) ?? sources.find((s) => s.id === last.sourceId);
           if (source) {
@@ -327,6 +336,7 @@ export const App = () => {
       };
       setCustomSources((prev) => [...prev, next]);
       setDecodeStatsBySource((prev) => ({ ...prev, [record.id]: stats }));
+      selectionRevisionRef.current += 1;
       setSelectedSourceId(record.id);
       setSelectedPath(resolveActivePath(decoded));
       setSelectedKind("blueprint");
@@ -351,6 +361,7 @@ export const App = () => {
       const wasCustom = customSources.some((s) => s.id === selectedSourceId);
       setCustomSources([]);
       if (wasCustom) {
+        selectionRevisionRef.current += 1;
         setSelectedSourceId(DEFAULT_SAMPLE.id);
         setSelectedPath(null);
         setSelectedKind("blueprint");
@@ -360,6 +371,7 @@ export const App = () => {
     }
   };
   const onTreeSelect = (sourceId: string, path: number[], kind: SidebarSelectableKind) => {
+    selectionRevisionRef.current += 1;
     const normalizedPath = path.length === 0 ? null : path;
     if (
       sourceId !== selectedSourceId ||
@@ -495,7 +507,9 @@ export const App = () => {
 
                 <Tabs
                   value={tab}
-                  onValueChange={(value) => setTab(value as Tab)}
+                  onValueChange={(value) => {
+                    if (isViewerTab(value)) setTab(value);
+                  }}
                   className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
                 >
                   <TabsList variant="line" className="mx-1 mt-1">

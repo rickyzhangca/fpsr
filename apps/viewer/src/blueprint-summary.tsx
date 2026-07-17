@@ -1,6 +1,6 @@
 import { encode, type Blueprint } from "fpsr";
+import { useAtom } from "jotai";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { useState } from "react";
 import { BlueprintComponents } from "./blueprint-components";
 import {
   encodedByteSize,
@@ -11,6 +11,7 @@ import {
 import { Button } from "./components/ui/button";
 import { CopyableBlueprintIcons } from "./copyable-blueprint-icons";
 import { FactorioRichText } from "./factorio-rich-text";
+import { summaryExpandedAtom } from "./viewer-preferences";
 
 export const BlueprintSummary = ({
   blueprint,
@@ -25,7 +26,7 @@ export const BlueprintSummary = ({
   /** Original Factorio string when this is a top-level blueprint document. */
   sourceString?: string;
 }) => {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useAtom(summaryExpandedAtom);
   const byteSize = formatByteSize(sourceBytes ?? encodedByteSize(blueprint));
   const getBlueprintString = () => sourceString ?? encode({ blueprint });
 

@@ -22,6 +22,7 @@
     "clsx": "^2.1.1",
     "fpsr": "workspace:*",
     "idb": "^8.0.3",
+    "jotai": "^2.20.2",
     "lucide-react": "^1.24.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

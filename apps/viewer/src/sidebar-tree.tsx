@@ -9,12 +9,17 @@ import {
 import { hotkeysCoreFeature, selectionFeature, syncDataLoaderFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
 import { type BlueprintDocument, type BookTreeItemKind, type Icon, buildBookTree } from "fpsr";
+import { useAtom } from "jotai";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BlueprintIcons } from "./blueprint-icons";
 import { FactorioItemIcon } from "./factorio-item-icon";
 import { FactorioRichText } from "./factorio-rich-text";
+import { sidebarExpansionAtom, type SidebarSectionId } from "./viewer-preferences";
 const INDENT_PX = 12;
 const ROOT_ID = "root";
+const sameItemIds = (left: string[], right: string[]): boolean => {
+  return left.length === right.length && left.every((itemId, index) => itemId === right[index]);
+};
 const KIND_ICON_KEY: Record<BookTreeItemKind, string> = {
   book: "item/blueprint-book",
   blueprint: "item/blueprint",
@@ -164,6 +169,7 @@ const formatRenderDuration = (durationMs: number): string => {
 };
 export type SidebarSelectableKind = "book" | "blueprint";
 export const SidebarTree = ({
+  sectionId,
   sources,
   selectedSourceId,
   selectedPath,
@@ -171,6 +177,7 @@ export const SidebarTree = ({
   renderProgress,
   onSelect,
 }: {
+  sectionId: SidebarSectionId;
   sources: SidebarSource[];
   selectedSourceId: SidebarSourceId;
   selectedPath: number[] | null;
@@ -183,9 +190,31 @@ export const SidebarTree = ({
   const progressItemId = renderProgress
     ? selectionId(renderProgress.sourceId, renderProgress.path)
     : null;
-  const [expandedItems, setExpandedItems] = useState<string[]>(() =>
-    ancestorIdsForSelection(selectedSourceId, selectedPath),
+  const [expandedItemsBySection, setExpandedItemsBySection] = useAtom(sidebarExpansionAtom);
+  const persistedExpandedItems = expandedItemsBySection[sectionId];
+  const applyingPersistedExpansionRef = useRef(false);
+  const [expandedItems, setExpandedItems] = useState<string[]>(
+    () => persistedExpandedItems ?? ancestorIdsForSelection(selectedSourceId, selectedPath),
   );
+  const expandedItemsRef = useRef(expandedItems);
+  expandedItemsRef.current = expandedItems;
+  useEffect(() => {
+    if (!persistedExpandedItems) return;
+    if (sameItemIds(expandedItemsRef.current, persistedExpandedItems)) return;
+    applyingPersistedExpansionRef.current = true;
+    setExpandedItems(persistedExpandedItems);
+  }, [persistedExpandedItems]);
+  useEffect(() => {
+    if (applyingPersistedExpansionRef.current) {
+      applyingPersistedExpansionRef.current = false;
+      return;
+    }
+    setExpandedItemsBySection((previous) => {
+      const current = previous[sectionId];
+      if (current && sameItemIds(current, expandedItems)) return previous;
+      return { ...previous, [sectionId]: expandedItems };
+    });
+  }, [expandedItems, sectionId, setExpandedItemsBySection]);
   useEffect(() => {
     setExpandedItems((prev) => {
       const next = new Set(prev.filter((id) => id in items));

@@ -10,6 +10,7 @@ import {
   type DecodeStats,
   type RenderMeasurement,
 } from "fpsr";
+import { useAtom } from "jotai";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { countEntitiesByName, formatGameVersion } from "./blueprint-meta";
@@ -23,6 +24,7 @@ import {
   type PreviewRenderResult,
 } from "./preview-renderer";
 import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
+import { previewPreferencesAtom } from "./viewer-preferences";
 const FULL_PIXELS_PER_TILE = 64;
 const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
 const WEBP_QUALITY = 0.9;
@@ -76,11 +78,23 @@ export const PreviewPane = ({
     result: PreviewRenderResult;
     promises: Partial<Record<ExportFormat, Promise<Blob>>>;
   } | null>(null);
-  const [limitTo4k, setLimitTo4k] = useState(true);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("webp");
-  const [altMode, setAltMode] = useState(true);
-  const [showCoords, setShowCoords] = useState(false);
-  const [showCheckerboard, setShowCheckerboard] = useState(true);
+  const [previewPreferences, setPreviewPreferences] = useAtom(previewPreferencesAtom);
+  const { limitTo4k, exportFormat, altMode, showCoords, showCheckerboard } = previewPreferences;
+  const setLimitTo4k = (value: boolean) => {
+    setPreviewPreferences((previous) => ({ ...previous, limitTo4k: value }));
+  };
+  const setExportFormat = (value: ExportFormat) => {
+    setPreviewPreferences((previous) => ({ ...previous, exportFormat: value }));
+  };
+  const setAltMode = (value: boolean) => {
+    setPreviewPreferences((previous) => ({ ...previous, altMode: value }));
+  };
+  const setShowCoords = (value: boolean) => {
+    setPreviewPreferences((previous) => ({ ...previous, showCoords: value }));
+  };
+  const setShowCheckerboard = (value: boolean) => {
+    setPreviewPreferences((previous) => ({ ...previous, showCheckerboard: value }));
+  };
   const [preflighting, setPreflighting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

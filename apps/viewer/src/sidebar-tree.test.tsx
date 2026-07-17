@@ -20,6 +20,7 @@ describe("SidebarTree render progress", () => {
     ).IS_REACT_ACT_ENVIRONMENT = true;
     host = document.createElement("div");
     document.body.append(host);
+    localStorage.clear();
   });
   afterEach(() => {
     host.remove();
@@ -32,6 +33,7 @@ describe("SidebarTree render progress", () => {
     act(() => {
       root.render(
         <SidebarTree
+          sectionId="demos"
           sources={[{ id: "large", label: "Large factory", doc }]}
           selectedSourceId="large"
           selectedPath={null}
@@ -54,6 +56,7 @@ describe("SidebarTree render progress", () => {
     act(() => {
       root.render(
         <SidebarTree
+          sectionId="demos"
           sources={[{ id: "large", label: "Large factory", doc }]}
           selectedSourceId="large"
           selectedPath={null}

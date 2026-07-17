@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Blueprint, BlueprintDocument, DrawList } from "fpsr";
+import { useAtom } from "jotai";
 import { CircleCheck, CircleSlash } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapter-checks";
@@ -10,6 +11,7 @@ import { formatDrawList } from "./format-draw-list";
 import { JsonViewer } from "./json-viewer";
 import { cn } from "./lib/utils";
 import { planPreview } from "./preview-renderer";
+import { processPreferencesAtom } from "./viewer-preferences";
 const ProcessPanel = ({
   title,
   index,
@@ -76,7 +78,11 @@ export const ProcessPane = ({
   const [drawList, setDrawList] = useState<DrawList | null>(null);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [drawLoading, setDrawLoading] = useState(false);
-  const [organizeDrawCommands, setOrganizeDrawCommands] = useState(true);
+  const [processPreferences, setProcessPreferences] = useAtom(processPreferencesAtom);
+  const { organizeDrawCommands, panelLayout } = processPreferences;
+  const setOrganizeDrawCommands = (value: boolean) => {
+    setProcessPreferences((previous) => ({ ...previous, organizeDrawCommands: value }));
+  };
   const decodedValue = blueprint ?? doc;
   const drawValue =
     drawError || !drawList ? null : organizeDrawCommands ? formatDrawList(drawList) : drawList;
@@ -111,10 +117,17 @@ export const ProcessPane = ({
   return (
     <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
       <ResizablePanelGroup
+        id="process-panels"
         orientation="horizontal"
+        defaultLayout={panelLayout ?? undefined}
+        onLayoutChanged={(layout, meta) => {
+          if (meta.isUserInteraction) {
+            setProcessPreferences((previous) => ({ ...previous, panelLayout: layout }));
+          }
+        }}
         className="h-full min-h-[480px] min-w-[540px] flex-1 gap-0.5"
       >
-        <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
+        <ResizablePanel id="decoded" defaultSize="40" minSize={160} className="min-h-0">
           <ProcessPanel title="Decoded JSON" index={0} maxIndex={2} scrollContent={false}>
             <JsonViewer value={decodedValue} />
           </ProcessPanel>
@@ -122,7 +135,7 @@ export const ProcessPane = ({
 
         <ResizableHandle withHandle handleOnly disableDoubleClick />
 
-        <ResizablePanel defaultSize={40} minSize={160} className="min-h-0">
+        <ResizablePanel id="draw" defaultSize="40" minSize={160} className="min-h-0">
           <ProcessPanel
             title="Draw commands"
             index={1}
@@ -156,7 +169,7 @@ export const ProcessPane = ({
 
         <ResizableHandle withHandle handleOnly disableDoubleClick />
 
-        <ResizablePanel defaultSize={20} minSize={160} className="min-h-0">
+        <ResizablePanel id="checks" defaultSize="20" minSize={160} className="min-h-0">
           <ProcessPanel title="Checks" index={2} maxIndex={2}>
             <ChecksPanel blueprint={blueprint} />
           </ProcessPanel>

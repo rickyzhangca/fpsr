@@ -77,6 +77,7 @@ describe("PreviewPane alt-mode toggle", () => {
     };
     host = document.createElement("div");
     document.body.append(host);
+    localStorage.clear();
     mocks.renderPreview.mockReset();
     mocks.measurePreview.mockReset();
     mocks.clearPreview.mockReset();

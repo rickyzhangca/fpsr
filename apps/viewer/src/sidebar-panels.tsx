@@ -44,6 +44,7 @@ export const SidebarPanels = ({
       <section className="flex flex-col gap-2">
         <p className="text-muted-foreground text-sm">Demos</p>
         <SidebarTree
+          sectionId="demos"
           sources={sampleSources}
           selectedSourceId={selectedSourceId}
           selectedPath={selectedPath}
@@ -56,6 +57,7 @@ export const SidebarPanels = ({
       <section className="flex flex-col gap-2">
         <p className="text-muted-foreground text-sm">Tests</p>
         <SidebarTree
+          sectionId="tests"
           sources={testSources}
           selectedSourceId={selectedSourceId}
           selectedPath={selectedPath}
@@ -97,6 +99,7 @@ export const SidebarPanels = ({
         </div>
 
         <SidebarTree
+          sectionId="custom"
           sources={customSources}
           selectedSourceId={selectedSourceId}
           selectedPath={selectedPath}
