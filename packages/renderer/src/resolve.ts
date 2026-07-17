@@ -209,7 +209,7 @@ export function buildBeltTileIndex(
 
     if (def.kind === "splitter") {
       const dir = cardinalDirection(entity.direction);
-      const raw = def.data?.tileSize as [number, number] | undefined;
+      const raw = def.data?.tileSize;
       // tileSize is the north-facing footprint (wide × short). N/S stay [2,1];
       // E/W rotate to [1,2] — matches Factorio collision and structure art.
       const baseW = raw?.[0] ?? 2;
@@ -757,7 +757,7 @@ function buildFluidPipeSides(entities: BlueprintEntity[], db: RenderDb): Map<str
     const def = db.entities[entity.name];
     if (!def?.data?.fluidConnections) continue;
     if (def.kind === "pipe") continue;
-    const fc = def.data.fluidConnections as Record<string, [number, number][]>;
+    const fc = def.data.fluidConnections;
     const d = cardinalDirection(entity.direction);
     // Re-derive facing from offset: side = dominant axis from entity center to pipe tile.
     for (const [ox, oy] of fc[String(d)] ?? []) {
@@ -809,7 +809,7 @@ function pipeMask(
             return true;
           }
         }
-        const fc = nd.data?.fluidConnections as Record<string, [number, number][]> | undefined;
+        const fc = nd.data?.fluidConnections;
         if (fc) {
           const d = cardinalDirection(n.direction);
           for (const [ox, oy] of fc[String(d)] ?? []) {
@@ -838,7 +838,7 @@ function heatPipeMask(entity: BlueprintEntity, grid: NeighborGrid, db: RenderDb)
       const nd = db.entities[n.name];
       if (!nd) continue;
       if (nd.kind === "heat-pipe") return true;
-      const hc = nd.data?.heatConnections as Record<string, [number, number][]> | undefined;
+      const hc = nd.data?.heatConnections;
       if (!hc) continue;
       const d = cardinalDirection(n.direction);
       for (const [ox, oy] of hc[String(d)] ?? []) {

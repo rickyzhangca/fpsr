@@ -272,6 +272,88 @@ export type EntityKind =
   | "vehicle"
   | "train";
 
+export type DirectionalConnectionMap = Record<string, [number, number][]>;
+
+export interface WireAnchorSet {
+  copper?: [number, number];
+  red?: [number, number];
+  green?: [number, number];
+}
+
+export type WireAnchorMap = Record<string, WireAnchorSet>;
+
+export interface PipeCoverGraphics {
+  covers: (SpriteVariant | null)[];
+  shadows?: (SpriteVariant | null)[];
+}
+
+export type WireConnectorLayerName =
+  | "connector_shadow"
+  | "connector_main"
+  | "wire_pins_shadow"
+  | "wire_pins"
+  | "led_blue_off";
+
+export interface WireConnectorGraphics {
+  indexing: "direction4" | "direction16" | "single";
+  layers: Partial<Record<WireConnectorLayerName, (SpriteVariant | null)[]>>;
+}
+
+export interface CombinatorGraphics {
+  symbols: Record<string, (SpriteVariant | null)[]>;
+}
+
+export interface BeltConnectorGraphics {
+  indexing: "belt-topology";
+  layers: {
+    frame_shadow?: (SpriteVariant | null)[][];
+    frame_main?: (SpriteVariant | null)[][];
+    frame_back_patch?: (SpriteVariant | null)[];
+    wire_horizontal?: (SpriteVariant | null)[][];
+    wire_vertical?: (SpriteVariant | null)[][];
+    led_red?: (SpriteVariant | null)[];
+    led_green?: (SpriteVariant | null)[];
+    led_blue?: (SpriteVariant | null)[];
+  };
+}
+
+export interface BeltReaderGraphics {
+  indexing: "belt-reader-band-nesw";
+  layers: {
+    layer: RenderLayerName;
+    variants: (SpriteVariant | null)[][];
+  }[];
+}
+
+/** Stable, additive payload shared by the offline pipeline and runtime planner. */
+export interface EntityRenderData {
+  tileSize?: [number, number];
+  fluidConnections?: DirectionalConnectionMap;
+  heatConnections?: DirectionalConnectionMap;
+  fluidBoxesRequireFluidRecipe?: boolean;
+  pipeCovers?: PipeCoverGraphics;
+  wireAnchors?: WireAnchorMap;
+  wireAnchorsOutput?: WireAnchorMap;
+  wireConnectorGraphics?: WireConnectorGraphics;
+  combinatorGraphics?: CombinatorGraphics;
+  beltConnectorGraphics?: BeltConnectorGraphics;
+  beltReaderGraphics?: BeltReaderGraphics;
+  orientationCount?: number;
+  backEqualsFront?: boolean;
+  wheelsGroupIndex?: number;
+  jointDistance?: number;
+  connectionDistance?: number;
+  cannonGroupIndices?: number[];
+  cannonBaseHeight?: number;
+  cannonBaseShiftWhenVertical?: number;
+  cannonBaseShiftWhenHorizontal?: number;
+  colorMaskGroupIndex?: number;
+  colorMaskGroupIndices?: number[];
+  defaultColor?: [number, number, number, number];
+  placeholder?: boolean;
+  placeholderReason?: string;
+}
+
 export interface EntityRenderDef {
   kind: EntityKind;
   /** Factorio prototype type (e.g. "transport-belt"), for resolver heuristics. */
@@ -287,7 +369,7 @@ export interface EntityRenderDef {
    * wire connection anchor points per direction, splitter half offsets, ...).
    * Additive extension point — resolver code owns its shape per kind.
    */
-  data?: Record<string, unknown>;
+  data?: EntityRenderData;
   /** Icon frame for alt-mode fallbacks and the viewer. */
   icon?: FrameId;
   /** Factorio prototype placement rules for entity-info (alt-mode) overlays. */

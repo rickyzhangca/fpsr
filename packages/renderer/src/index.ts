@@ -210,7 +210,12 @@ export type {
 
 export type {
   AtlasMeta,
+  BeltConnectorGraphics,
+  BeltReaderGraphics,
+  CombinatorGraphics,
+  DirectionalConnectionMap,
   EntityKind,
+  EntityRenderData,
   EntityRenderDef,
   FactorioRenderLayerName,
   FpsrRenderLayerName,
@@ -222,4 +227,9 @@ export type {
   SpriteVariant,
   TileMaterialAtlas,
   TileRenderDef,
+  PipeCoverGraphics,
+  WireAnchorMap,
+  WireAnchorSet,
+  WireConnectorGraphics,
+  WireConnectorLayerName,
 } from "./types/render-db.js";

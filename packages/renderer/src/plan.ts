@@ -29,12 +29,18 @@ import {
   compareDrawCmd,
 } from "./types/draw-list.js";
 import type {
+  BeltConnectorGraphics,
+  BeltReaderGraphics,
+  CombinatorGraphics,
   EntityRenderDef,
   FrameMeta,
+  PipeCoverGraphics,
   RenderDb,
   RenderLayerName,
   SpriteVariant,
   TileMaterialAtlas,
+  WireAnchorMap,
+  WireConnectorGraphics,
 } from "./types/render-db.js";
 import { WIRE_CONNECTOR_ID, type WireColor, wireConnectorColor } from "./wire-connectors.js";
 
@@ -176,10 +182,8 @@ function emitPipeCovers(
   for (const { entity, def } of byNumber.values()) {
     // Pipes already draw their own joints; covers are for machine fluid-box flanges.
     if (def.kind === "pipe" || def.protoType === "pipe-to-ground") continue;
-    const pc = def.data?.pipeCovers as
-      | { covers?: (SpriteVariant | null)[]; shadows?: (SpriteVariant | null)[] }
-      | undefined;
-    const fc = def.data?.fluidConnections as Record<string, [number, number][]> | undefined;
+    const pc: PipeCoverGraphics | undefined = def.data?.pipeCovers;
+    const fc = def.data?.fluidConnections;
     if (!pc?.covers || !fc) continue;
 
     const d = cardinalDirection(entity.direction ?? 0);
@@ -557,20 +561,14 @@ function includeCmdBounds(
   }
 }
 
-type WireAnchorSet = {
-  copper?: [number, number];
-  red?: [number, number];
-  green?: [number, number];
-};
-
-function isDirection4AnchorMap(anchors: Record<string, WireAnchorSet>): boolean {
+function isDirection4AnchorMap(anchors: WireAnchorMap): boolean {
   const keys = Object.keys(anchors);
   return keys.length > 0 && keys.every((k) => k === "0" || k === "1" || k === "2" || k === "3");
 }
 
 function wireAnchorDirIndex(
   direction: number | undefined,
-  anchors: Record<string, WireAnchorSet> | undefined,
+  anchors: WireAnchorMap | undefined,
 ): string {
   if (!anchors) return "0";
   // Prefer direction16 → direction4 (when 4-way map) → direction8 → direction4 → "0".
@@ -603,10 +601,8 @@ function wireEndpoint(
     connectorId === WIRE_CONNECTOR_ID.combinator_output_red ||
     connectorId === WIRE_CONNECTOR_ID.combinator_output_green ||
     connectorId === WIRE_CONNECTOR_ID.power_switch_right_copper;
-  const primary = (useOutput ? def.data?.wireAnchorsOutput : def.data?.wireAnchors) as
-    | Record<string, WireAnchorSet>
-    | undefined;
-  const fallback = def.data?.wireAnchors as Record<string, WireAnchorSet> | undefined;
+  const primary = useOutput ? def.data?.wireAnchorsOutput : def.data?.wireAnchors;
+  const fallback = def.data?.wireAnchors;
   const anchors = primary && Object.keys(primary).length > 0 ? primary : fallback;
   const key =
     def.kind === "belt" && beltVariation !== undefined
@@ -710,20 +706,6 @@ function wiredEntityNumbers(bp: Blueprint): Set<number> {
   return out;
 }
 
-type WireConnectorGraphics = {
-  indexing?: "direction4" | "direction16" | "single";
-  layers?: Partial<
-    Record<
-      "connector_shadow" | "connector_main" | "wire_pins_shadow" | "wire_pins" | "led_blue_off",
-      (SpriteVariant | null)[]
-    >
-  >;
-};
-
-type CombinatorGraphics = {
-  symbols?: Record<string, (SpriteVariant | null)[]>;
-};
-
 function combinatorDisplayKey(entity: BlueprintEntity, def: EntityRenderDef): string | undefined {
   const behavior = entity.control_behavior;
   if (!behavior) return undefined;
@@ -754,7 +736,7 @@ function emitCombinatorDisplay(
   bounds: DrawList["bounds"] | null,
 ): DrawList["bounds"] | null {
   const key = combinatorDisplayKey(entity, def);
-  const graphics = def.data?.combinatorGraphics as CombinatorGraphics | undefined;
+  const graphics: CombinatorGraphics | undefined = def.data?.combinatorGraphics;
   const variants = key ? graphics?.symbols?.[key] : undefined;
   if (!variants) return bounds;
   const variant = variants[dir16ToIndex(entity.direction ?? 0, "direction4")] ?? variants[0];
@@ -820,7 +802,7 @@ function emitCircuitConnectors(
     const entry = byNumber.get(entityNumber);
     if (!entry) continue;
     const { entity, def } = entry;
-    const graphics = def.data?.wireConnectorGraphics as WireConnectorGraphics | undefined;
+    const graphics: WireConnectorGraphics | undefined = def.data?.wireConnectorGraphics;
     if (!graphics?.layers) continue;
     const index = connectorDirIndex(entity, def, graphics, poleDirs);
     const sortYObject = entity.position.y + def.collisionBox[1][1];
@@ -869,22 +851,6 @@ function emitCircuitConnectors(
   return b;
 }
 
-type BeltConnectorGraphics = {
-  indexing?: string;
-  layers?: {
-    frame_shadow?: (SpriteVariant | null)[][];
-    frame_main?: (SpriteVariant | null)[][];
-    frame_back_patch?: (SpriteVariant | null)[];
-    /** Décor wires near red/green LED — output / enable. */
-    wire_horizontal?: (SpriteVariant | null)[][];
-    /** Décor wires near blue LED — input / read. */
-    wire_vertical?: (SpriteVariant | null)[][];
-    led_red?: (SpriteVariant | null)[];
-    led_green?: (SpriteVariant | null)[];
-    led_blue?: (SpriteVariant | null)[];
-  };
-};
-
 /**
  * Emit transport-belt circuit connector cage + LEDs on
  * transport-belt-circuit-connector (35), above transport-belt (27).
@@ -913,7 +879,7 @@ function emitBeltCircuitConnectors(
     const entry = byNumber.get(entityNumber);
     if (!entry || entry.def.kind !== "belt") continue;
     const { entity, def } = entry;
-    const graphics = def.data?.beltConnectorGraphics as BeltConnectorGraphics | undefined;
+    const graphics: BeltConnectorGraphics | undefined = def.data?.beltConnectorGraphics;
     if (!graphics?.layers) continue;
 
     const variation = beltVariations.get(entityNumber) ?? 0;
@@ -994,11 +960,6 @@ function buildBeltConnectorVariations(
   return out;
 }
 
-type BeltReaderGraphics = {
-  indexing?: string;
-  layers?: { layer: RenderLayerName; variants: (SpriteVariant | null)[][] }[];
-};
-
 /** Official belt_reader layers (already above transport-belt in Factorio enum). */
 function paintBeltReaderLayer(official: RenderLayerName): number {
   return RENDER_LAYERS[official] ?? RENDER_LAYERS["transport-belt-reader"];
@@ -1030,7 +991,7 @@ function emitBeltReaders(
     if (!entry) continue;
     const { entity, def } = entry;
     if (def.kind !== "belt" && def.kind !== "underground-belt") continue;
-    const graphics = def.data?.beltReaderGraphics as BeltReaderGraphics | undefined;
+    const graphics: BeltReaderGraphics | undefined = def.data?.beltReaderGraphics;
     if (!graphics?.layers?.length) continue;
 
     const slots = beltReaderSlots(entity, def, beltIndex, readerEntities);
