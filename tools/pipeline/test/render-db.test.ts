@@ -205,6 +205,79 @@ describe("render-db contract", () => {
     expect(db.icons["item/lane-splitter"]).not.toBe(db.icons["item/splitter"]);
   });
 
+  it("distills reactor lower pipes and per-port connection patches", async () => {
+    const db = await loadDb();
+    const reactor = db.entities["nuclear-reactor"];
+    expect(reactor?.data?.heatConnections?.["0"]).toHaveLength(12);
+    expect(reactor?.data?.heatConnectionPatchGroupIndices).toHaveLength(1);
+    const patchIndex = reactor?.data?.heatConnectionPatchGroupIndices?.[0];
+    expect(patchIndex).toBeTypeOf("number");
+    const patchGroup = patchIndex == null ? undefined : reactor?.graphics[patchIndex];
+    expect(patchGroup?.layer).toBe("lower-object");
+    expect(patchGroup?.variants.connected).toHaveLength(12);
+    expect(patchGroup?.variants.disconnected).toHaveLength(12);
+  });
+
+  it("distills elevated-rail guard fences above rails and rail supports below them", async () => {
+    const db = await loadDb();
+    for (const name of [
+      "elevated-straight-rail",
+      "elevated-half-diagonal-rail",
+      "elevated-curved-rail-a",
+      "elevated-curved-rail-b",
+    ]) {
+      const layers = db.entities[name]?.graphics.map((group) => group.layer) ?? [];
+      expect(layers).toContain("elevated-lower-object");
+      expect(layers).toContain("elevated-higher-object");
+    }
+
+    const rampLayers = db.entities["rail-ramp"]?.graphics.map((group) => group.layer) ?? [];
+    expect(rampLayers).toContain("lower-object-above-shadow");
+    expect(rampLayers).toContain("object");
+
+    const support = db.entities["rail-support"];
+    expect(support?.graphics.some((group) => group.layer === "object")).toBe(true);
+    expect(support?.graphics.some((group) => group.layer === "elevated-object")).toBe(false);
+  });
+
+  it("keeps every segmented guard-fence slice on curved and half-diagonal elevated rails", async () => {
+    const db = await loadDb();
+    for (const name of [
+      "elevated-half-diagonal-rail",
+      "elevated-curved-rail-a",
+      "elevated-curved-rail-b",
+    ]) {
+      const directionZeroLayers =
+        db.entities[name]?.graphics
+          .filter((group) => group.variants.default?.[0] != null)
+          .map((group) => group.layer) ?? [];
+      expect(directionZeroLayers.filter((layer) => layer === "elevated-lower-object")).toHaveLength(
+        4,
+      );
+      expect(
+        directionZeroLayers.filter((layer) => layer === "elevated-higher-object"),
+      ).toHaveLength(4);
+    }
+  });
+
+  it("keeps elevated rail-deck and rail-ramp shadows", async () => {
+    const db = await loadDb();
+    const expectedShadowGroups: Record<string, number> = {
+      "elevated-straight-rail": 3,
+      "elevated-half-diagonal-rail": 5,
+      "elevated-curved-rail-a": 5,
+      "elevated-curved-rail-b": 5,
+      "rail-ramp": 1,
+    };
+    for (const [name, expected] of Object.entries(expectedShadowGroups)) {
+      const shadows =
+        db.entities[name]?.graphics.filter(
+          (group) => group.layer === "shadow" && group.variants.default?.[0] != null,
+        ) ?? [];
+      expect(shadows).toHaveLength(expected);
+    }
+  });
+
   it("every referenced FrameId exists and fits its atlas", async () => {
     const db = await loadDb();
     const used = collectFrameIds(db);
