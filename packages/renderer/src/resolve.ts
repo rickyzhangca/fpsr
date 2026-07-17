@@ -114,6 +114,8 @@ export interface ResolveContext {
   beltIndex: Map<string, BeltOccupant[]>;
   fluidPipeSides: Map<string, Set<string>>;
   poleDirs: Map<number, number>;
+  /** Use platform cargo-bay body/connection art (hub or space-platform tiles). */
+  preferPlatformGraphics: boolean;
 }
 
 /**
@@ -881,6 +883,7 @@ function variantKeyFor(
   grid: NeighborGrid,
   db: RenderDb,
   fluidPipeSides: Map<string, Set<string>>,
+  opts?: { preferPlatformGraphics?: boolean },
 ): string {
   switch (def.kind) {
     case "underground-belt":
@@ -895,6 +898,12 @@ function variantKeyFor(
     case "gate":
       return gateVariantKey(entity);
     default:
+      if (
+        opts?.preferPlatformGraphics &&
+        def.graphics.some((g) => g.variants.platform !== undefined)
+      ) {
+        return "platform";
+      }
       return "default";
   }
 }
@@ -1099,7 +1108,26 @@ export function createResolveContext(blueprint: Blueprint, db: RenderDb): Resolv
     entities,
     (entity) => db.entities[entity.name]?.protoType === "electric-pole",
   );
-  return { blueprint, db, entities, grid, beltIndex, fluidPipeSides, poleDirs };
+  const preferPlatformGraphics = blueprintPrefersPlatformGraphics(blueprint, entities);
+  return {
+    blueprint,
+    db,
+    entities,
+    grid,
+    beltIndex,
+    fluidPipeSides,
+    poleDirs,
+    preferPlatformGraphics,
+  };
+}
+
+/** Space-platform hub or foundation tiles → use platform cargo-bay art. */
+export function blueprintPrefersPlatformGraphics(
+  blueprint: Blueprint,
+  entities: BlueprintEntity[] = blueprint.entities ?? [],
+): boolean {
+  if (entities.some((e) => e.name === "space-platform-hub")) return true;
+  return (blueprint.tiles ?? []).some((t) => t.name.startsWith("space-platform-"));
 }
 
 export function resolveWithContext(
@@ -1108,7 +1136,8 @@ export function resolveWithContext(
   opts?: ResolveOptions,
 ): ResolvedEntity[] {
   const beltEndings = opts?.beltEndings ?? true;
-  const { beltIndex, db, entities, fluidPipeSides, grid, poleDirs } = context;
+  const { beltIndex, db, entities, fluidPipeSides, grid, poleDirs, preferPlatformGraphics } =
+    context;
   const out: ResolvedEntity[] = [];
 
   for (const entity of entities) {
@@ -1118,7 +1147,9 @@ export function resolveWithContext(
       continue;
     }
 
-    const variantKey = variantKeyFor(entity, def, grid, db, fluidPipeSides);
+    const variantKey = variantKeyFor(entity, def, grid, db, fluidPipeSides, {
+      preferPlatformGraphics,
+    });
     const selections: LayerSelection[] = [];
 
     for (let group = 0; group < def.graphics.length; group++) {

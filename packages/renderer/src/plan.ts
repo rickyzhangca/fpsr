@@ -1,4 +1,5 @@
 import { planAltModeCommands, planRequestPinCommands } from "./alt-mode.js";
+import { emitCargoBayConnections } from "./cargo-bay-connections.js";
 import { entityInfoSilhouettePadPx } from "./icon-silhouette.js";
 import { migrateTo2x } from "./migrate.js";
 import { type PlanProfile, nowMs } from "./profile.js";
@@ -235,6 +236,8 @@ export interface PlanOptions {
 
 const OBJECT_SORT_LAYERS: ReadonlySet<RenderLayerName> = new Set([
   "lower-object",
+  "lower-object-above-shadow",
+  "lower-object-overlay",
   "object-under",
   "object",
   "higher-object-under",
@@ -1228,6 +1231,12 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
   bounds = emitPipeCovers(bp, db, byNumber, commands, bounds);
   bounds = emitWires(bp, byNumber, poleDirs, beltVariations, commands, bounds);
   bounds = emitTrainChains(bp, byNumber, commands, bounds);
+  const commandsBeforeConnections = commands.length;
+  emitCargoBayConnections(bp, db, resolveContext.preferPlatformGraphics, commands);
+  for (let i = commandsBeforeConnections; i < commands.length; i++) {
+    const cmd = commands[i];
+    if (cmd) bounds = includeCmdBounds(bounds, cmd, db.frames);
+  }
   if (profile) profile.overlaysMs = nowMs() - t;
 
   t = profile ? nowMs() : 0;
