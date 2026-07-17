@@ -1,61 +1,109 @@
-import type { Blueprint } from "fpsr";
+import { encode, type Blueprint } from "fpsr";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { useState } from "react";
 import { BlueprintComponents } from "./blueprint-components";
-import { BlueprintIcons } from "./blueprint-icons";
 import {
   encodedByteSize,
   formatByteSize,
   formatGameVersion,
   formatSnapping,
 } from "./blueprint-meta";
+import { Button } from "./components/ui/button";
+import { CopyableBlueprintIcons } from "./copyable-blueprint-icons";
 import { FactorioRichText } from "./factorio-rich-text";
+
 export const BlueprintSummary = ({
   blueprint,
   tileSize,
   sourceBytes,
+  sourceString,
 }: {
   blueprint: Blueprint;
   tileSize: string;
   /** Exact encoded source size when this is a bare blueprint document. */
   sourceBytes?: number;
+  /** Original Factorio string when this is a top-level blueprint document. */
+  sourceString?: string;
 }) => {
+  const [expanded, setExpanded] = useState(true);
   const byteSize = formatByteSize(sourceBytes ?? encodedByteSize(blueprint));
+  const getBlueprintString = () => sourceString ?? encode({ blueprint });
+
   return (
-    <div className="flex shrink-0 gap-4 p-4">
-      <BlueprintIcons icons={blueprint.icons} />
+    <div className="relative shrink-0">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="absolute top-2 right-2 z-10"
+        aria-expanded={expanded}
+        aria-label={expanded ? "Collapse summary" : "Expand summary"}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        {expanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
+      </Button>
 
-      <div className="flex flex-col gap-3">
-        <div>
-          <h2 className="font-medium text-lg text-foreground">
-            <FactorioRichText text={blueprint.label} fallback="<Unnamed blueprint>" size="lg" />
-          </h2>
-          <dd className="text-muted-foreground text-sm">
-            <FactorioRichText text={blueprint.description} fallback="No description" size="sm" />
-          </dd>
+      {expanded ? (
+        <div className="flex gap-4 p-4 pr-12">
+          <CopyableBlueprintIcons icons={blueprint.icons} getBlueprintString={getBlueprintString} />
+
+          <div className="flex min-w-0 flex-col gap-3">
+            <div>
+              <h2 className="font-medium text-lg text-foreground">
+                <FactorioRichText text={blueprint.label} fallback="<Unnamed blueprint>" size="lg" />
+              </h2>
+              <dd className="text-muted-foreground text-sm">
+                <FactorioRichText
+                  text={blueprint.description}
+                  fallback="No description"
+                  size="sm"
+                />
+              </dd>
+            </div>
+
+            <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+              <div>
+                <dt className="text-muted-foreground">Version</dt>
+                <dd className="tabular-nums text-foreground">
+                  {formatGameVersion(blueprint.version)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Size</dt>
+                <dd className="tabular-nums text-foreground">{tileSize}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Snapping</dt>
+                <dd className="text-foreground">{formatSnapping(blueprint)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Byte size</dt>
+                <dd className="tabular-nums text-foreground">{byteSize}</dd>
+              </div>
+            </dl>
+
+            <div className="shrink-0 pt-1">
+              <BlueprintComponents entities={blueprint.entities} tiles={blueprint.tiles} />
+            </div>
+          </div>
         </div>
-
-        <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Version</dt>
-            <dd className="tabular-nums text-foreground">{formatGameVersion(blueprint.version)}</dd>
+      ) : (
+        <div className="flex items-center gap-3 p-3 pr-12">
+          <CopyableBlueprintIcons
+            icons={blueprint.icons}
+            size={40}
+            getBlueprintString={getBlueprintString}
+          />
+          <div className="min-w-0">
+            <h2 className="truncate font-medium text-foreground">
+              <FactorioRichText text={blueprint.label} fallback="<Unnamed blueprint>" />
+            </h2>
+            <dd className="truncate text-muted-foreground text-sm">
+              <FactorioRichText text={blueprint.description} fallback="No description" size="sm" />
+            </dd>
           </div>
-          <div>
-            <dt className="text-muted-foreground">Size</dt>
-            <dd className="tabular-nums text-foreground">{tileSize}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Snapping</dt>
-            <dd className="text-foreground">{formatSnapping(blueprint)}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Byte size</dt>
-            <dd className="tabular-nums text-foreground">{byteSize}</dd>
-          </div>
-        </dl>
-
-        <div className="shrink-0 pt-1">
-          <BlueprintComponents entities={blueprint.entities} tiles={blueprint.tiles} />
         </div>
-      </div>
+      )}
     </div>
   );
 };

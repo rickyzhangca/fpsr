@@ -1,19 +1,27 @@
-import type { BlueprintBook } from "fpsr";
-import { BlueprintIcons } from "./blueprint-icons";
+import { encode, type BlueprintBook } from "fpsr";
 import { encodedBookByteSize, formatByteSize } from "./blueprint-meta";
+import { CopyableBlueprintIcons } from "./copyable-blueprint-icons";
 import { FactorioRichText } from "./factorio-rich-text";
+
 export const BookSummary = ({
   book,
   sourceBytes,
+  sourceString,
 }: {
   book: BlueprintBook;
   /** Exact encoded source size when this is the top-level book document. */
   sourceBytes?: number;
+  /** Original Factorio string when this is a top-level book document. */
+  sourceString?: string;
 }) => {
   const byteSize = formatByteSize(sourceBytes ?? encodedBookByteSize(book));
   return (
     <div className="flex shrink-0 gap-4 p-4">
-      <BlueprintIcons icons={book.icons} backgroundKey="item/blueprint-book" />
+      <CopyableBlueprintIcons
+        icons={book.icons}
+        backgroundKey="item/blueprint-book"
+        getBlueprintString={() => sourceString ?? encode({ blueprint_book: book })}
+      />
 
       <div className="flex flex-col gap-3">
         <div>

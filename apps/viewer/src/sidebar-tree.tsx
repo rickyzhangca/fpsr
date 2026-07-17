@@ -43,6 +43,8 @@ export interface SidebarSource {
   id: SidebarSourceId;
   label: string;
   doc: BlueprintDocument;
+  /** Original Factorio blueprint string when available (top-level source). */
+  raw?: string;
 }
 export interface SidebarRenderProgress {
   sourceId: SidebarSourceId;

@@ -3,6 +3,8 @@ import type { Blueprint } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { encodedByteSize, formatByteSize } from "./blueprint-meta";
+import { BlueprintSummary } from "./blueprint-summary";
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
@@ -14,8 +16,6 @@ vi.mock("./viewer-assets", () => ({
     loadRenderDb: vi.fn().mockResolvedValue({ tiles: {} }),
   },
 }));
-import { BlueprintSummary } from "./blueprint-summary";
-import { encodedByteSize, formatByteSize } from "./blueprint-meta";
 describe("BlueprintSummary", () => {
   let host: HTMLDivElement;
   beforeEach(() => {
@@ -134,6 +134,38 @@ describe("BlueprintSummary", () => {
     });
     expect(host.textContent).toContain("No description");
     expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
+    act(() => root.unmount());
+  });
+  it("collapses and expands the summary details", () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "Toggle test",
+      description: "Hidden when collapsed",
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+    const root = createRoot(host);
+    act(() => {
+      root.render(<BlueprintSummary blueprint={blueprint} tileSize="1×1 tiles" />);
+    });
+    expect(host.textContent).toContain("Hidden when collapsed");
+    expect(host.textContent).toContain("Components");
+    const toggle = host.querySelector('[aria-label="Collapse summary"]');
+    expect(toggle).toBeTruthy();
+    act(() => {
+      toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host.textContent).toContain("Toggle test");
+    expect(host.textContent).toContain("Hidden when collapsed");
+    expect(host.textContent).not.toContain("Components");
+    expect(host.querySelector('[aria-label="Expand summary"]')).toBeTruthy();
+    act(() => {
+      host
+        .querySelector('[aria-label="Expand summary"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host.textContent).toContain("Hidden when collapsed");
+    expect(host.textContent).toContain("Components");
     act(() => root.unmount());
   });
 });

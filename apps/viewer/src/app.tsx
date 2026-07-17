@@ -142,7 +142,15 @@ const decodeBuiltInSources = (
   return sources.flatMap((source) => {
     const decoded = tryDecode(source.value);
     return decoded
-      ? [{ id: source.id, label: source.label, doc: decoded.doc, stats: decoded.stats }]
+      ? [
+          {
+            id: source.id,
+            label: source.label,
+            doc: decoded.doc,
+            raw: source.value,
+            stats: decoded.stats,
+          },
+        ]
       : [];
   });
 };
@@ -256,6 +264,7 @@ export const App = () => {
             id: record.id,
             label: sourceLabel(decoded.doc, "Untitled"),
             doc: decoded.doc,
+            raw: record.raw,
           });
           stats[record.id] = decoded.stats;
         }
@@ -291,7 +300,8 @@ export const App = () => {
   }, [selectionReady, selectedSourceId, selectedPath, selectedKind]);
   const allSources = [...SAMPLE_SOURCES, ...TEST_SOURCES, ...customSources];
   const sourceById = new Map(allSources.map((source) => [source.id, source]));
-  const activeDoc = sourceById.get(selectedSourceId)?.doc ?? null;
+  const activeSource = sourceById.get(selectedSourceId) ?? null;
+  const activeDoc = activeSource?.doc ?? null;
   const selectedBook = resolveSelectedBook(activeDoc, selectedPath, selectedKind);
   const selectedBlueprint = resolveSelectedBlueprint(activeDoc, selectedPath, selectedKind);
   useEffect(() => {
@@ -313,6 +323,7 @@ export const App = () => {
         id: record.id,
         label,
         doc: decoded,
+        raw: trimmed,
       };
       setCustomSources((prev) => [...prev, next]);
       setDecodeStatsBySource((prev) => ({ ...prev, [record.id]: stats }));
@@ -457,6 +468,11 @@ export const App = () => {
                       ? activeDecodeStats?.inputChars
                       : undefined
                   }
+                  sourceString={
+                    activeDoc?.blueprint_book && selectedPath == null
+                      ? activeSource?.raw
+                      : undefined
+                  }
                 />
                 <PaneMessage className="border-t">
                   Select a blueprint in the sidebar to view it
@@ -469,6 +485,7 @@ export const App = () => {
                     blueprint={selectedBlueprint}
                     tileSize={tileSize}
                     sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
+                    sourceString={activeDoc?.blueprint ? activeSource?.raw : undefined}
                   />
                 ) : (
                   <PaneMessage className="min-h-32 flex-none">
