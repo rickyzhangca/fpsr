@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "
 import path from "node:path";
 import { packAtlases } from "./atlas.js";
 import { asOffset2, splitBeltFrameMain } from "./belt-connector-split.js";
+import { entityKindForProtoType, routeEntityPrototype } from "./distill/domains/index.js";
 import {
   discoverPlaceableEntities,
   discoverPlaceableTiles,
@@ -27,6 +28,9 @@ import {
   spriteSize,
 } from "./sprite.js";
 import type {
+  BeltConnectorGraphics,
+  BeltReaderGraphics,
+  EntityRenderData,
   DataRaw,
   EntityKind,
   EntityRenderDef,
@@ -36,6 +40,8 @@ import type {
   RenderLayerName,
   SpriteVariant,
   TileRenderDef,
+  WireAnchorSet,
+  WireConnectorGraphics,
 } from "./types.js";
 import { verifyAssetBundle } from "./verify.js";
 
@@ -233,11 +239,11 @@ function computeHeatConnections(p: Record<string, unknown>): Record<string, [num
 function withFluidData(
   def: EntityRenderDef,
   p: Record<string, unknown>,
-  extra?: Record<string, unknown>,
+  extra?: EntityRenderData,
 ): EntityRenderDef {
   const fluidConnections = computeFluidConnections(p);
   const heatConnections = computeHeatConnections(p);
-  const data: Record<string, unknown> = { ...def.data, ...extra };
+  const data: EntityRenderData = { ...def.data, ...extra };
   if (Object.keys(fluidConnections).length > 0) data.fluidConnections = fluidConnections;
   if (Object.keys(heatConnections).length > 0) data.heatConnections = heatConnections;
   if (p.fluid_boxes_off_when_no_fluid_recipe === true) {
@@ -341,11 +347,7 @@ async function withPipeCovers(
   };
 }
 
-type WireAnchorPoint = {
-  copper?: [number, number];
-  red?: [number, number];
-  green?: [number, number];
-};
+type WireAnchorPoint = WireAnchorSet;
 
 function readWirePoint(
   wire: Record<string, unknown> | undefined,
@@ -484,7 +486,7 @@ function withWireAnchors(def: EntityRenderDef, p: Record<string, unknown>): Enti
     }
   }
   const wireAnchorsOutput = computeWireAnchorsOutput(p);
-  const data: Record<string, unknown> = { ...def.data };
+  const data: EntityRenderData = { ...def.data };
   if (Object.keys(wireAnchors).length > 0) data.wireAnchors = wireAnchors;
   if (Object.keys(wireAnchorsOutput).length > 0) data.wireAnchorsOutput = wireAnchorsOutput;
   if (!data.wireAnchors && !data.wireAnchorsOutput) return def;
@@ -529,7 +531,7 @@ function resolveCircuitConnectorList(
 async function distillCircuitConnectorGraphics(
   bank: FrameBank,
   p: Record<string, unknown>,
-): Promise<Record<string, unknown> | undefined> {
+): Promise<WireConnectorGraphics | undefined> {
   const list = resolveCircuitConnectorList(p);
   if (!list?.length) return undefined;
 
@@ -600,11 +602,11 @@ type BeltConnectorFrameSprites = Partial<
 async function distillBeltConnectorGraphics(
   bank: FrameBank,
   p: Record<string, unknown>,
-): Promise<Record<string, unknown> | undefined> {
+): Promise<BeltConnectorGraphics | undefined> {
   const cfs = p.connector_frame_sprites as BeltConnectorFrameSprites | undefined;
   if (!cfs) return undefined;
 
-  const layers: Record<string, unknown> = {};
+  const layers: BeltConnectorGraphics["layers"] = {};
   const list = resolveCircuitConnectorList(p);
 
   for (const key of BELT_CONNECTOR_FRAME_KEYS) {
@@ -621,7 +623,9 @@ async function distillBeltConnectorGraphics(
         const info = await bank.addSprite(sheet, 0, v);
         variants.push(bank.toVariant(info));
       }
-      layers[key] = variants;
+      if (key === "frame_back_patch") layers.frame_back_patch = variants;
+      else if (key === "frame_main") layers.frame_main = variants.map((variant) => [variant]);
+      else layers.frame_shadow = variants.map((variant) => [variant]);
       continue;
     }
 
@@ -682,7 +686,9 @@ async function distillBeltConnectorGraphics(
         wireVGrid.push(vRow);
       }
     }
-    layers[key] = grid;
+    if (key === "frame_main") layers.frame_main = grid;
+    else if (key === "frame_shadow") layers.frame_shadow = grid;
+    else layers.frame_back_patch = grid.map((row) => row[0] ?? null);
     if (splitMain) {
       layers.wire_horizontal = wireHGrid;
       layers.wire_vertical = wireVGrid;
@@ -745,13 +751,13 @@ type BeltReaderLayerEntry = {
 async function distillBeltReaderGraphics(
   bank: FrameBank,
   p: Record<string, unknown>,
-): Promise<Record<string, unknown> | undefined> {
+): Promise<BeltReaderGraphics | undefined> {
   const bas = p.belt_animation_set as { belt_reader?: BeltReaderLayerEntry[] } | undefined;
   const readers = bas?.belt_reader;
   if (!Array.isArray(readers) || readers.length === 0) return undefined;
 
   const layers: {
-    layer: string;
+    layer: RenderLayerName;
     /** [band][frame] = StraightSolid/Open/Curved/Ending × N/E/S/W */
     variants: (SpriteVariant | null)[][];
   }[] = [];
@@ -3161,58 +3167,6 @@ async function distillGenericFallback(
   return baseEntity(kind, protoType, p, []);
 }
 
-function kindForProtoType(protoType: string): EntityKind {
-  switch (protoType) {
-    case "transport-belt":
-      return "belt";
-    case "underground-belt":
-      return "underground-belt";
-    case "loader":
-    case "loader-1x1":
-    case "linked-belt":
-      return "loader";
-    case "splitter":
-    case "lane-splitter":
-      return "splitter";
-    case "pipe":
-    case "infinity-pipe":
-      return "pipe";
-    case "heat-pipe":
-      return "heat-pipe";
-    case "wall":
-      return "wall";
-    case "gate":
-      return "gate";
-    case "inserter":
-      return "inserter";
-    case "assembling-machine":
-      return "assembler";
-    case "straight-rail":
-    case "half-diagonal-rail":
-    case "curved-rail-a":
-    case "curved-rail-b":
-    case "legacy-straight-rail":
-    case "legacy-curved-rail":
-    case "elevated-straight-rail":
-    case "elevated-half-diagonal-rail":
-    case "elevated-curved-rail-a":
-    case "elevated-curved-rail-b":
-    case "rail-ramp":
-      return "rail";
-    case "rail-signal":
-    case "rail-chain-signal":
-      return "rail-signal";
-    case "locomotive":
-    case "cargo-wagon":
-    case "fluid-wagon":
-    case "artillery-wagon":
-    case "infinity-cargo-wagon":
-      return "train";
-    default:
-      return "simple";
-  }
-}
-
 async function distillEntity(
   bank: FrameBank,
   name: string,
@@ -3220,22 +3174,16 @@ async function distillEntity(
   p: Record<string, unknown>,
   placeholders: { name: string; reason: string }[],
 ): Promise<EntityRenderDef> {
-  const kind = kindForProtoType(protoType);
+  const kind = entityKindForProtoType(protoType);
+  const { strategy } = routeEntityPrototype(protoType);
   let def: EntityRenderDef;
 
   try {
-    switch (protoType) {
-      case "container":
-      case "proxy-container":
-      case "linked-container":
-      case "simple-entity-with-owner":
-      case "simple-entity-with-force":
-      case "electric-energy-interface":
-      case "heat-interface":
+    switch (strategy) {
+      case "simple-picture":
         def = await distillSimplePicture(bank, p, protoType);
         break;
-      case "logistic-container":
-      case "infinity-container": {
+      case "logistic-container": {
         if (p.picture) {
           def = await distillSimplePicture(bank, p, protoType);
         } else {
@@ -3249,7 +3197,7 @@ async function distillEntity(
         }
         break;
       }
-      case "assembling-machine": {
+      case "assembler": {
         def = await distillAssembler(bank, p, protoType);
         break;
       }
@@ -3274,11 +3222,7 @@ async function distillEntity(
       case "electric-pole":
         def = await distillElectricPole(bank, p);
         break;
-      case "solar-panel":
-        def = await distillSimplePicture(bank, p, protoType);
-        break;
       case "accumulator":
-      case "lightning-attractor":
         def = await distillAccumulator(bank, p);
         // distillAccumulator hardcodes protoType "accumulator"
         def = { ...def, protoType };
@@ -3330,50 +3274,38 @@ async function distillEntity(
         def = await distillStorageTank(bank, p);
         break;
       case "pump":
-      case "valve":
         def = await distillPump(bank, p);
         def = { ...def, protoType };
         break;
       case "offshore-pump":
         def = await distillOffshorePump(bank, p);
         break;
-      case "generator":
-      case "burner-generator":
+      case "steam-engine":
         def = await distillSteamEngine(bank, p, protoType);
         break;
       case "reactor":
         def = await distillReactor(bank, p);
         def = { ...def, protoType };
         break;
-      case "transport-belt":
+      case "belt":
         def = await distillBelt(bank, p, protoType);
         break;
       case "underground-belt":
         def = await distillUndergroundBelt(bank, p, protoType);
         break;
       case "loader":
-      case "loader-1x1":
         def = await distillLoader(bank, p, protoType);
         break;
       case "linked-belt":
         def = await distillLinkedBelt(bank, p);
         break;
       case "splitter":
-      case "lane-splitter":
         def = await distillSplitter(bank, p, protoType);
         break;
-      case "straight-rail":
-      case "half-diagonal-rail":
-      case "curved-rail-a":
-      case "curved-rail-b":
-      case "legacy-straight-rail":
-      case "legacy-curved-rail":
+      case "rail-ground":
         def = await distillRail(bank, p, protoType, false);
         break;
-      case "elevated-straight-rail":
-      case "elevated-half-diagonal-rail":
-      case "elevated-curved-rail-a":
-      case "elevated-curved-rail-b":
+      case "rail-elevated":
         def = await distillRail(bank, p, protoType, true);
         break;
       case "rail-ramp":
@@ -3383,21 +3315,12 @@ async function distillEntity(
         def = await distillRailSupport(bank, p);
         break;
       case "rail-signal":
-      case "rail-chain-signal":
         def = await distillRailSignal(bank, p, protoType);
         break;
-      case "locomotive":
-      case "cargo-wagon":
-      case "fluid-wagon":
-      case "artillery-wagon":
-      case "infinity-cargo-wagon":
+      case "train":
         def = await distillTrain(bank, p, protoType);
         break;
-      case "arithmetic-combinator":
-      case "decider-combinator":
-      case "constant-combinator":
-      case "selector-combinator":
-      case "display-panel":
+      case "combinator":
         def = await distillCombinatorSprites(bank, p, protoType);
         break;
       case "power-switch":
@@ -3412,15 +3335,10 @@ async function distillEntity(
       case "train-stop":
         def = await distillTrainStop(bank, p);
         break;
-      case "ammo-turret":
-      case "electric-turret":
-      case "fluid-turret":
-      case "artillery-turret":
+      case "turret":
         def = await distillTurret(bank, p, protoType);
         break;
-      case "space-platform-hub":
-      case "cargo-bay":
-      case "cargo-landing-pad":
+      case "space-structure":
         def = await distillGraphicsSetPictureArray(bank, p, protoType);
         break;
       case "fusion-reactor":
@@ -3450,13 +3368,13 @@ async function distillEntity(
           indexing: "single",
         }).then((g) => baseEntity("simple", protoType, p, g));
         break;
-      case "programmable-speaker":
+      case "speaker":
         def = await layersFromSprite(bank, p.sprite as RawSprite, {
           layer: guessedLayer("object", "entity body; dump has no render_layer"),
           indexing: "single",
         }).then((g) => baseEntity("simple", protoType, p, g));
         break;
-      case "car":
+      case "vehicle":
         def = await distillVehicle(bank, p, protoType);
         break;
       case "spider-vehicle":
@@ -3471,15 +3389,14 @@ async function distillEntity(
           },
         ).then((g) => baseEntity("simple", protoType, p, g));
         break;
-      case "construction-robot":
-      case "logistic-robot":
+      case "robot":
         def = await layersFromSprite(bank, p.idle as RawSprite, {
           layer: guessedLayer("object", "entity body; dump has no render_layer"),
           indexing: "single",
           frame: 0,
         }).then((g) => baseEntity("simple", protoType, p, g));
         break;
-      default:
+      case "generic":
         def = await distillGenericFallback(bank, p, protoType, kind);
         break;
     }

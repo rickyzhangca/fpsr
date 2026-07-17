@@ -1,7 +1,12 @@
 /** The renderer owns the RenderDb contract; the pipeline only produces it. */
 export type {
   AtlasMeta,
+  BeltConnectorGraphics,
+  BeltReaderGraphics,
+  CombinatorGraphics,
+  DirectionalConnectionMap,
   EntityKind,
+  EntityRenderData,
   EntityRenderDef,
   FactorioRenderLayerName,
   FpsrRenderLayerName,
@@ -13,6 +18,11 @@ export type {
   SpriteVariant,
   TileMaterialAtlas,
   TileRenderDef,
+  PipeCoverGraphics,
+  WireAnchorMap,
+  WireAnchorSet,
+  WireConnectorGraphics,
+  WireConnectorLayerName,
 } from "fpsr";
 
 /** Loose Factorio sprite / animation table from data-raw-dump.json. */

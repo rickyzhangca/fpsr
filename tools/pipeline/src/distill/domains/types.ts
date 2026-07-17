@@ -1,0 +1,63 @@
+export type DistillDomain = "logistics" | "combat" | "space" | "production" | "other";
+
+export type DistillStrategy =
+  | "generic"
+  | "simple-picture"
+  | "logistic-container"
+  | "assembler"
+  | "furnace"
+  | "inserter"
+  | "electric-pole"
+  | "accumulator"
+  | "lab"
+  | "radar"
+  | "beacon"
+  | "mining-drill"
+  | "pipe-to-ground"
+  | "pipe"
+  | "infinity-pipe"
+  | "heat-pipe"
+  | "wall"
+  | "gate"
+  | "boiler"
+  | "storage-tank"
+  | "pump"
+  | "offshore-pump"
+  | "steam-engine"
+  | "reactor"
+  | "belt"
+  | "underground-belt"
+  | "loader"
+  | "linked-belt"
+  | "splitter"
+  | "rail-ground"
+  | "rail-elevated"
+  | "rail-ramp"
+  | "rail-support"
+  | "rail-signal"
+  | "train"
+  | "combinator"
+  | "power-switch"
+  | "roboport"
+  | "rocket-silo"
+  | "train-stop"
+  | "turret"
+  | "space-structure"
+  | "fusion-reactor"
+  | "fusion-generator"
+  | "thruster"
+  | "asteroid-collector"
+  | "agricultural-tower"
+  | "lamp"
+  | "land-mine"
+  | "speaker"
+  | "vehicle"
+  | "spider-vehicle"
+  | "robot";
+
+export type DistillDomainRoutes = Readonly<Record<string, DistillStrategy>>;
+
+export interface DistillRoute {
+  domain: DistillDomain;
+  strategy: DistillStrategy;
+}
