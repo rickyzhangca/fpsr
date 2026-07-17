@@ -249,6 +249,8 @@ export interface LayerGroup {
  *   runtime-tint masks (apply `entity.color` / `defaultColor` at plan time).
  * - `defaultColor`: prototype `color` for rolling stock when the blueprint omits it.
  * - `fluidConnections` / `heatConnections` / `tileSize` / … (see M2).
+ * - `heatConnectionPatchGroupIndices`: graphics groups whose `connected` /
+ *   `disconnected` variations correspond by index to `heatConnections` ports.
  * - `pipeCovers`: `{ covers: SpriteVariant[4], shadows?: SpriteVariant[4] }` —
  *   fluid-box pipe covers (N/E/S/W). Planner draws a cover on each *unconnected*
  *   port's adjacent tile (Factorio: pictures when no FluidBox is connected).
@@ -365,6 +367,7 @@ export interface EntityRenderData {
   tileSize?: [number, number];
   fluidConnections?: DirectionalConnectionMap;
   heatConnections?: DirectionalConnectionMap;
+  heatConnectionPatchGroupIndices?: number[];
   fluidBoxesRequireFluidRecipe?: boolean;
   pipeCovers?: PipeCoverGraphics;
   wireAnchors?: WireAnchorMap;

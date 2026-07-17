@@ -381,6 +381,62 @@ describe("resolve", () => {
     // Pipe should see a connection toward the boiler (east).
     expect(pipeEnt?.selections[0]?.variantKey).toBe("0100");
   });
+
+  it("connects heat pipes to heat exchanger ports in every direction", () => {
+    const cases = [
+      { direction: 0, pipe: { x: 0, y: 1.5 }, mask: "1000" },
+      { direction: 4, pipe: { x: -1.5, y: 0 }, mask: "0100" },
+      { direction: 8, pipe: { x: 0, y: -1.5 }, mask: "0010" },
+      { direction: 12, pipe: { x: 1.5, y: 0 }, mask: "0001" },
+    ] as const;
+
+    for (const { direction, pipe, mask } of cases) {
+      const out = resolve(
+        bp([
+          {
+            entity_number: 1,
+            name: "heat-exchanger",
+            position: { x: 0, y: 0 },
+            direction,
+          },
+          { entity_number: 2, name: "heat-pipe", position: pipe },
+        ]),
+        FIXTURE_DB,
+      );
+      const heatPipe = out.find((r) => r.entity.entity_number === 2);
+      expect(heatPipe?.selections[0]?.variantKey).toBe(mask);
+    }
+  });
+
+  it("connects the facing heat-port patches of adjacent nuclear reactors", () => {
+    const patchGroup =
+      FIXTURE_DB.entities["nuclear-reactor"]?.data?.heatConnectionPatchGroupIndices?.[0];
+    expect(patchGroup).toBeTypeOf("number");
+
+    const out = resolve(
+      bp([
+        { entity_number: 1, name: "nuclear-reactor", position: { x: 0, y: 0 } },
+        { entity_number: 2, name: "nuclear-reactor", position: { x: 5, y: 0 } },
+        { entity_number: 3, name: "nuclear-reactor", position: { x: 0, y: 5 } },
+        { entity_number: 4, name: "nuclear-reactor", position: { x: 5, y: 5 } },
+      ]),
+      FIXTURE_DB,
+    );
+    const patches = (entityNumber: number) =>
+      out
+        .find((entry) => entry.entity.entity_number === entityNumber)
+        ?.selections.filter((selection) => selection.group === patchGroup) ?? [];
+    const connectedPatchIndexes = (entityNumber: number) =>
+      patches(entityNumber)
+        .filter((selection) => selection.variantKey === "connected")
+        .map((selection) => selection.index);
+
+    for (const entityNumber of [1, 2, 3, 4]) expect(patches(entityNumber)).toHaveLength(12);
+    expect(connectedPatchIndexes(1)).toEqual([3, 4, 5, 6, 7, 8]);
+    expect(connectedPatchIndexes(2)).toEqual([6, 7, 8, 9, 10, 11]);
+    expect(connectedPatchIndexes(3)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(connectedPatchIndexes(4)).toEqual([0, 1, 2, 9, 10, 11]);
+  });
 });
 
 describe("trainOrientationIndex", () => {

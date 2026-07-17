@@ -113,6 +113,8 @@ export interface ResolveContext {
   grid: NeighborGrid;
   beltIndex: Map<string, BeltOccupant[]>;
   fluidPipeSides: Map<string, Set<string>>;
+  /** Heat-pipe tile -> sides connected to a non-heat-pipe entity's heat port. */
+  heatPipeSides?: Map<string, Set<string>>;
   poleDirs: Map<number, number>;
   /** Use platform cargo-bay body/connection art (hub or space-platform tiles). */
   preferPlatformGraphics: boolean;
@@ -171,6 +173,13 @@ function posKey(x: number, y: number): string {
 
 type NeighborGrid = Map<string, BlueprintEntity[]>;
 
+interface HeatPortOccupant {
+  entityNumber: number;
+  direction: 0 | 4 | 8 | 12;
+}
+
+type HeatPortGrid = Map<string, HeatPortOccupant[]>;
+
 export interface BeltOccupant {
   entity: BlueprintEntity;
   def: EntityRenderDef;
@@ -185,6 +194,55 @@ function buildNeighborGrid(entities: BlueprintEntity[]): NeighborGrid {
     else grid.set(key, [e]);
   }
   return grid;
+}
+
+/** Outward cardinal direction of a distilled heat-connection target offset. */
+function heatPortDirection(ox: number, oy: number): 0 | 4 | 8 | 12 {
+  if (Math.abs(ox) >= Math.abs(oy)) return ox >= 0 ? 4 : 12;
+  return oy >= 0 ? 8 : 0;
+}
+
+/**
+ * Index the source tile and facing of every heat port. `heatConnections` stores
+ * the adjacent target tile, so step one tile inward to recover the source.
+ */
+function buildHeatPortGrid(entities: BlueprintEntity[], db: RenderDb): HeatPortGrid {
+  const ports: HeatPortGrid = new Map();
+  for (const entity of entities) {
+    const def = db.entities[entity.name];
+    const connections = def?.data?.heatConnections;
+    if (!connections) continue;
+    const d = cardinalDirection(entity.direction);
+    for (const [ox, oy] of connections[String(d)] ?? []) {
+      const direction = heatPortDirection(ox, oy);
+      const [dx, dy] = DIR_DELTA[direction];
+      const key = posKey(entity.position.x + ox - dx, entity.position.y + oy - dy);
+      const list = ports.get(key);
+      const occupant = { entityNumber: entity.entity_number, direction };
+      if (list) list.push(occupant);
+      else ports.set(key, [occupant]);
+    }
+  }
+  return ports;
+}
+
+function heatPortConnected(
+  entity: BlueprintEntity,
+  targetOffset: [number, number],
+  heatPorts: HeatPortGrid,
+  grid: NeighborGrid,
+  db: RenderDb,
+): boolean {
+  const [ox, oy] = targetOffset;
+  const direction = heatPortDirection(ox, oy);
+  const targetX = entity.position.x + ox;
+  const targetY = entity.position.y + oy;
+  if (hasNeighbor(grid, targetX, targetY, (n) => db.entities[n.name]?.kind === "heat-pipe")) {
+    return true;
+  }
+  return (heatPorts.get(posKey(targetX, targetY)) ?? []).some(
+    (port) => port.entityNumber !== entity.entity_number && port.direction === opposite(direction),
+  );
 }
 
 /**
@@ -786,6 +844,35 @@ function buildFluidPipeSides(entities: BlueprintEntity[], db: RenderDb): Map<str
   return map;
 }
 
+/**
+ * Map: heat-pipe-tile-key -> NESW sides that connect to a non-heat-pipe
+ * entity via heatConnections. Large heat entities are indexed by their actual
+ * port tile because their entity center is not necessarily adjacent to it.
+ */
+function buildHeatPipeSides(entities: BlueprintEntity[], db: RenderDb): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const entity of entities) {
+    const def = db.entities[entity.name];
+    if (!def?.data?.heatConnections || def.kind === "heat-pipe") continue;
+    const d = cardinalDirection(entity.direction);
+    for (const [ox, oy] of def.data.heatConnections[String(d)] ?? []) {
+      const pipeX = entity.position.x + ox;
+      const pipeY = entity.position.y + oy;
+      const pk = posKey(pipeX, pipeY);
+      const dx = entity.position.x - pipeX;
+      const dy = entity.position.y - pipeY;
+      const side = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "e" : "w") : dy > 0 ? "s" : "n";
+      let set = map.get(pk);
+      if (!set) {
+        set = new Set();
+        map.set(pk, set);
+      }
+      set.add(side);
+    }
+  }
+  return map;
+}
+
 function pipeMask(
   entity: BlueprintEntity,
   grid: NeighborGrid,
@@ -831,9 +918,15 @@ function pipeMask(
   return `${n}${e}${s}${w}`;
 }
 
-function heatPipeMask(entity: BlueprintEntity, grid: NeighborGrid, db: RenderDb): string {
+function heatPipeMask(
+  entity: BlueprintEntity,
+  grid: NeighborGrid,
+  db: RenderDb,
+  heatPipeSides: Map<string, Set<string>>,
+): string {
   const { x, y } = entity.position;
-  const check = (nx: number, ny: number): boolean => {
+  const check = (nx: number, ny: number, side: string): boolean => {
+    if (heatPipeSides.get(posKey(x, y))?.has(side)) return true;
     const neighbors = grid.get(posKey(nx, ny));
     if (!neighbors) return false;
     for (const n of neighbors) {
@@ -851,10 +944,10 @@ function heatPipeMask(entity: BlueprintEntity, grid: NeighborGrid, db: RenderDb)
     }
     return false;
   };
-  const n = check(x, y - 1) ? "1" : "0";
-  const e = check(x + 1, y) ? "1" : "0";
-  const s = check(x, y + 1) ? "1" : "0";
-  const w = check(x - 1, y) ? "1" : "0";
+  const n = check(x, y - 1, "n") ? "1" : "0";
+  const e = check(x + 1, y, "e") ? "1" : "0";
+  const s = check(x, y + 1, "s") ? "1" : "0";
+  const w = check(x - 1, y, "w") ? "1" : "0";
   return `${n}${e}${s}${w}`;
 }
 
@@ -883,6 +976,7 @@ function variantKeyFor(
   grid: NeighborGrid,
   db: RenderDb,
   fluidPipeSides: Map<string, Set<string>>,
+  heatPipeSides: Map<string, Set<string>>,
   opts?: { preferPlatformGraphics?: boolean },
 ): string {
   switch (def.kind) {
@@ -892,7 +986,7 @@ function variantKeyFor(
     case "pipe":
       return pipeMask(entity, grid, db, fluidPipeSides);
     case "heat-pipe":
-      return heatPipeMask(entity, grid, db);
+      return heatPipeMask(entity, grid, db, heatPipeSides);
     case "wall":
       return wallMask(entity, grid, db);
     case "gate":
@@ -1103,6 +1197,7 @@ export function createResolveContext(blueprint: Blueprint, db: RenderDb): Resolv
   const grid = buildNeighborGrid(entities);
   const beltIndex = buildBeltTileIndex(entities, db);
   const fluidPipeSides = buildFluidPipeSides(entities, db);
+  const heatPipeSides = buildHeatPipeSides(entities, db);
   const poleDirs = buildPowerPoleDirections(
     blueprint,
     entities,
@@ -1116,6 +1211,7 @@ export function createResolveContext(blueprint: Blueprint, db: RenderDb): Resolv
     grid,
     beltIndex,
     fluidPipeSides,
+    heatPipeSides,
     poleDirs,
     preferPlatformGraphics,
   };
@@ -1138,6 +1234,8 @@ export function resolveWithContext(
   const beltEndings = opts?.beltEndings ?? true;
   const { beltIndex, db, entities, fluidPipeSides, grid, poleDirs, preferPlatformGraphics } =
     context;
+  const heatPipeSides = context.heatPipeSides ?? buildHeatPipeSides(entities, db);
+  const heatPorts = buildHeatPortGrid(entities, db);
   const out: ResolvedEntity[] = [];
 
   for (const entity of entities) {
@@ -1147,7 +1245,7 @@ export function resolveWithContext(
       continue;
     }
 
-    const variantKey = variantKeyFor(entity, def, grid, db, fluidPipeSides, {
+    const variantKey = variantKeyFor(entity, def, grid, db, fluidPipeSides, heatPipeSides, {
       preferPlatformGraphics,
     });
     const selections: LayerSelection[] = [];
@@ -1155,6 +1253,26 @@ export function resolveWithContext(
     for (let group = 0; group < def.graphics.length; group++) {
       const layerGroup = def.graphics[group];
       if (!layerGroup) continue;
+
+      if (def.data?.heatConnectionPatchGroupIndices?.includes(group)) {
+        const d = cardinalDirection(entity.direction);
+        for (const [portIndex, targetOffset] of (
+          def.data.heatConnections?.[String(d)] ?? []
+        ).entries()) {
+          const direction = heatPortDirection(targetOffset[0], targetOffset[1]);
+          const [dx, dy] = DIR_DELTA[direction];
+          selections.push({
+            group,
+            variantKey: heatPortConnected(entity, targetOffset, heatPorts, grid, db)
+              ? "connected"
+              : "disconnected",
+            index: portIndex,
+            shift: [targetOffset[0] - dx, targetOffset[1] - dy],
+          });
+        }
+        continue;
+      }
+
       const index = indexFor(entity, def, layerGroup, beltIndex, poleDirs);
       const key =
         layerGroup.variants[variantKey] !== undefined

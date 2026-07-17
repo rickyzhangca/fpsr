@@ -554,6 +554,91 @@ describe("drawlist snapshots (committed render-db)", () => {
     assertSnapshot("rail-loop-small", list);
   });
 
+  it("elevated rail support stays below the track and red guard fences stay above it", () => {
+    const list = planDrawList(
+      bp([
+        { entity_number: 1, name: "rail-support", position: { x: 0, y: 3 }, direction: 0 },
+        {
+          entity_number: 2,
+          name: "elevated-straight-rail",
+          position: { x: 0, y: 0 },
+          direction: 4,
+        },
+      ]),
+      db,
+    );
+    const support = list.commands.filter((command) => command.entity === 1);
+    const rail = list.commands.filter((command) => command.entity === 2);
+
+    expect(support.some((command) => command.layer === RENDER_LAYERS.object)).toBe(true);
+    expect(support.some((command) => command.layer === RENDER_LAYERS["elevated-object"])).toBe(
+      false,
+    );
+    expect(
+      rail.some((command) => command.layer === RENDER_LAYERS["elevated-rail-metal"]),
+    ).toBe(true);
+    expect(rail.some((command) => command.layer === RENDER_LAYERS["elevated-lower-object"])).toBe(
+      true,
+    );
+    expect(rail.some((command) => command.layer === RENDER_LAYERS["elevated-higher-object"])).toBe(
+      true,
+    );
+
+    const supportBodyIndex = list.commands.findIndex(
+      (command) => command.entity === 1 && command.layer === RENDER_LAYERS.object,
+    );
+    const railDeckIndex = list.commands.findIndex(
+      (command) =>
+        command.entity === 2 && command.layer === RENDER_LAYERS["elevated-rail-stone-path-lower"],
+    );
+    expect(supportBodyIndex).toBeGreaterThanOrEqual(0);
+    expect(railDeckIndex).toBeGreaterThan(supportBodyIndex);
+    assertSnapshot("elevated-rail-support", list);
+  });
+
+  it("draws both segmented guard-fence slices around elevated curves", () => {
+    const list = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "elevated-curved-rail-a",
+          position: { x: 0, y: 0 },
+          direction: 0,
+        },
+      ]),
+      db,
+    );
+    const rail = list.commands.filter((command) => command.entity === 1);
+
+    expect(
+      rail.filter((command) => command.layer === RENDER_LAYERS["elevated-lower-object"]),
+    ).toHaveLength(4);
+    expect(
+      rail.filter((command) => command.layer === RENDER_LAYERS["elevated-higher-object"]),
+    ).toHaveLength(4);
+    // Four fence slices plus the elevated rail-deck shadow.
+    expect(rail.filter((command) => command.layer === RENDER_LAYERS.shadow)).toHaveLength(5);
+    assertSnapshot("elevated-curved-rail-fence", list);
+  });
+
+  it("draws the rail ramp body shadow", () => {
+    const list = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "rail-ramp",
+          position: { x: 0, y: 0 },
+          direction: 0,
+        },
+      ]),
+      db,
+    );
+    const ramp = list.commands.filter((command) => command.entity === 1);
+
+    expect(ramp.filter((command) => command.layer === RENDER_LAYERS.shadow)).toHaveLength(1);
+    assertSnapshot("rail-ramp-shadow", list);
+  });
+
   it("wired-poles: copper chain + red/green cross links", () => {
     const entities: BlueprintEntity[] = [
       { entity_number: 1, name: "small-electric-pole", position: { x: 0.5, y: 0.5 } },
