@@ -1,7 +1,6 @@
 import { planAltModeCommands, planRequestPinCommands } from "./alt-mode.js";
 import { entityInfoSilhouettePadPx } from "./icon-silhouette.js";
 import { migrateTo2x } from "./migrate.js";
-import { buildPowerPoleDirections } from "./pole-orientation.js";
 import { type PlanProfile, nowMs } from "./profile.js";
 import {
   type BeltOccupant,
@@ -9,13 +8,13 @@ import {
   beltCircuitConnectorVariation,
   beltConnectorBackPatchIndex,
   beltReaderSlots,
-  buildBeltTileIndex,
   cardinalDirection,
   collectBeltReaderEntities,
+  createResolveContext,
   dir16ToIndex,
   isBeltCircuitInputEnabled,
   isBeltCircuitOutputEnabled,
-  resolve,
+  resolveWithContext,
 } from "./resolve.js";
 import { TRAIN_CHAIN_JOINT_RADIUS, buildTrainChainGeometry } from "./train-chains.js";
 import type { Blueprint, BlueprintEntity, Color } from "./types/blueprint.js";
@@ -1161,7 +1160,8 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
   }
 
   const tResolve = profile ? nowMs() : 0;
-  const resolved = resolve(bp, db, undefined, { beltEndings });
+  const resolveContext = createResolveContext(bp, db);
+  const resolved = resolveWithContext(resolveContext, undefined, { beltEndings });
   if (profile) profile.resolveMs = nowMs() - tResolve;
 
   const byNumber = new Map<number, { entity: BlueprintEntity; def: EntityRenderDef }>();
@@ -1258,12 +1258,7 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
   }
 
   t = profile ? nowMs() : 0;
-  const poleDirs = buildPowerPoleDirections(
-    bp,
-    bp.entities ?? [],
-    (e) => db.entities[e.name]?.protoType === "electric-pole",
-  );
-  const beltIndex = buildBeltTileIndex(bp.entities ?? [], db);
+  const { beltIndex, poleDirs } = resolveContext;
   const beltVariations = buildBeltConnectorVariations(bp, byNumber, beltIndex);
   const readerEntities = collectBeltReaderEntities(bp, db, beltIndex);
   bounds = emitCircuitConnectors(bp, db, byNumber, poleDirs, commands, bounds);

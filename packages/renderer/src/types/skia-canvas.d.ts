@@ -2,7 +2,7 @@
 declare module "skia-canvas" {
   export class Image {
     clear(): void;
-    decode(data: Buffer | Uint8Array): Promise<void> | void;
+    decode(data: Uint8Array): Promise<void> | void;
   }
 
   export class Canvas {
@@ -10,6 +10,6 @@ declare module "skia-canvas" {
     width: number;
     height: number;
     getContext(type: "2d"): unknown;
-    toBuffer(mime?: string, options?: { quality?: number }): Buffer | Promise<Buffer>;
+    toBuffer(mime?: string, options?: { quality?: number }): Uint8Array | Promise<Uint8Array>;
   }
 }

@@ -9,7 +9,7 @@ import path from "node:path";
 import type { AssetManifest, AssetSource, AssetTier } from "./assets.js";
 import type { RenderDb } from "./types/render-db.js";
 
-type SkiaLoadImage = (src: string | Buffer | Uint8Array) => Promise<CanvasImageSource>;
+type SkiaLoadImage = (src: string | Uint8Array) => Promise<CanvasImageSource>;
 
 async function loadSkiaLoadImage(): Promise<SkiaLoadImage> {
   try {

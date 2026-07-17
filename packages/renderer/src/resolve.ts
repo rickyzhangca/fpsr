@@ -105,6 +105,17 @@ export interface ResolveOptions {
   beltEndings?: boolean;
 }
 
+/** Shared neighbor indexes for one blueprint planning pass. */
+export interface ResolveContext {
+  blueprint: Blueprint;
+  db: RenderDb;
+  entities: BlueprintEntity[];
+  grid: NeighborGrid;
+  beltIndex: Map<string, BeltOccupant[]>;
+  fluidPipeSides: Map<string, Set<string>>;
+  poleDirs: Map<number, number>;
+}
+
 /**
  * Map a 16-way blueprint direction to a layer variant index per the indexing
  * contract in render-db.ts.
@@ -1077,20 +1088,27 @@ export function railDirectionIndex(direction: number, foldTo4: boolean): number 
  * Unknown entity names are skipped; when `warningsOut` is provided, a message
  * is pushed for each skip.
  */
-export function resolve(
-  bp: Blueprint,
-  db: RenderDb,
+/** Build indexes for an already migrated blueprint. */
+export function createResolveContext(blueprint: Blueprint, db: RenderDb): ResolveContext {
+  const entities = blueprint.entities ?? [];
+  const grid = buildNeighborGrid(entities);
+  const beltIndex = buildBeltTileIndex(entities, db);
+  const fluidPipeSides = buildFluidPipeSides(entities, db);
+  const poleDirs = buildPowerPoleDirections(
+    blueprint,
+    entities,
+    (entity) => db.entities[entity.name]?.protoType === "electric-pole",
+  );
+  return { blueprint, db, entities, grid, beltIndex, fluidPipeSides, poleDirs };
+}
+
+export function resolveWithContext(
+  context: ResolveContext,
   warningsOut?: string[],
   opts?: ResolveOptions,
 ): ResolvedEntity[] {
   const beltEndings = opts?.beltEndings ?? true;
-  bp = migrateTo2x(bp);
-  const entities = bp.entities ?? [];
-  const grid = buildNeighborGrid(entities);
-  const beltIndex = buildBeltTileIndex(entities, db);
-  const fluidPipeSides = buildFluidPipeSides(entities, db);
-  const isElectricPole = (e: BlueprintEntity) => db.entities[e.name]?.protoType === "electric-pole";
-  const poleDirs = buildPowerPoleDirections(bp, entities, isElectricPole);
+  const { beltIndex, db, entities, fluidPipeSides, grid, poleDirs } = context;
   const out: ResolvedEntity[] = [];
 
   for (const entity of entities) {
@@ -1271,4 +1289,13 @@ export function resolve(
   }
 
   return out;
+}
+
+export function resolve(
+  bp: Blueprint,
+  db: RenderDb,
+  warningsOut?: string[],
+  opts?: ResolveOptions,
+): ResolvedEntity[] {
+  return resolveWithContext(createResolveContext(migrateTo2x(bp), db), warningsOut, opts);
 }

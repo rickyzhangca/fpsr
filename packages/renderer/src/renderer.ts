@@ -28,7 +28,7 @@ export interface CanvasLike {
   height: number;
   getContext(type: "2d"): Canvas2DContextLike | null;
   convertToBlob?(options?: { type?: string; quality?: number }): Promise<Blob>;
-  toBuffer?(mime?: string, options?: { quality?: number }): Buffer | Promise<Buffer>;
+  toBuffer?(mime?: string, options?: { quality?: number }): Uint8Array | Promise<Uint8Array>;
 }
 
 export type CreateCanvasFn = (width: number, height: number) => CanvasLike;

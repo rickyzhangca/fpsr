@@ -41,10 +41,6 @@ function validateDocument(doc: unknown): BlueprintDocument {
   return doc as BlueprintDocument;
 }
 
-function decodeCompressed(source: string): BlueprintDocument {
-  return decodeCompressedWithStats(source).doc;
-}
-
 function decodeCompressedWithStats(source: string): { doc: BlueprintDocument; stats: DecodeStats } {
   const tTotal = nowMs();
   const versionByte = source[0];
