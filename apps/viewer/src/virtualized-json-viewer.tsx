@@ -5,7 +5,7 @@ import {
   ScrollAreaViewport,
   ScrollBar,
 } from "@/components/ui/scroll-area";
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { Virtuoso, type ListRange, type ScrollerProps } from "react-virtuoso";
 import { highlightJsonPage } from "./json-highlight-client";
 import type { JsonHighlightToken } from "./json-highlight-protocol";
@@ -59,7 +59,7 @@ const HighlightedLine = ({ tokens }: { tokens: JsonHighlightToken[] }) => {
   ));
 };
 export const VirtualizedJsonViewer = ({ code }: { code: string }) => {
-  const lineStarts = useMemo(() => buildLineStarts(code), [code]);
+  const lineStarts = buildLineStarts(code);
   const [cache, setCache] = useState<PageCache>(() => ({ code, pages: new Map() }));
   const pendingPagesRef = useRef(new Set<string>());
   const latestRangeRef = useRef<ListRange | null>(null);
@@ -73,51 +73,45 @@ export const VirtualizedJsonViewer = ({ code }: { code: string }) => {
     pendingPagesRef.current.clear();
   }
   const pages = cache.code === code ? cache.pages : EMPTY_PAGES;
-  const requestRange = useCallback(
-    (range: ListRange) => {
-      const generation = generationRef.current;
-      for (const pageIndex of jsonPagesForRange(
-        range.startIndex,
-        range.endIndex,
-        lineStarts.length,
-      )) {
-        if (pages.has(pageIndex)) continue;
-        const pendingKey = `${generation}:${pageIndex}`;
-        if (pendingPagesRef.current.has(pendingKey)) continue;
-        pendingPagesRef.current.add(pendingKey);
-        const pageCode = jsonPageCode(code, lineStarts, pageIndex);
-        void highlightJsonPage(pageCode)
-          .then((lines) => {
-            if (generation !== generationRef.current) return;
-            setCache((previous) => {
-              const nextPages = previous.code === code ? new Map(previous.pages) : new Map();
-              nextPages.delete(pageIndex);
-              nextPages.set(pageIndex, lines);
-              trimPageCache(nextPages);
-              return { code, pages: nextPages };
-            });
-          })
-          .catch(() => {
-            // Highlighting is progressive enhancement; plain text remains visible.
-          })
-          .finally(() => {
-            pendingPagesRef.current.delete(pendingKey);
+  const requestRange = (range: ListRange) => {
+    const generation = generationRef.current;
+    for (const pageIndex of jsonPagesForRange(
+      range.startIndex,
+      range.endIndex,
+      lineStarts.length,
+    )) {
+      if (pages.has(pageIndex)) continue;
+      const pendingKey = `${generation}:${pageIndex}`;
+      if (pendingPagesRef.current.has(pendingKey)) continue;
+      pendingPagesRef.current.add(pendingKey);
+      const pageCode = jsonPageCode(code, lineStarts, pageIndex);
+      void highlightJsonPage(pageCode)
+        .then((lines) => {
+          if (generation !== generationRef.current) return;
+          setCache((previous) => {
+            const nextPages = previous.code === code ? new Map(previous.pages) : new Map();
+            nextPages.delete(pageIndex);
+            nextPages.set(pageIndex, lines);
+            trimPageCache(nextPages);
+            return { code, pages: nextPages };
           });
-      }
-    },
-    [code, lineStarts, pages],
-  );
-  const scheduleRange = useCallback(
-    (delay = RANGE_SETTLE_MS) => {
-      if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = undefined;
-        const range = latestRangeRef.current;
-        if (range && !scrollingRef.current) requestRange(range);
-      }, delay);
-    },
-    [requestRange],
-  );
+        })
+        .catch(() => {
+          // Highlighting is progressive enhancement; plain text remains visible.
+        })
+        .finally(() => {
+          pendingPagesRef.current.delete(pendingKey);
+        });
+    }
+  };
+  const scheduleRange = (delay = RANGE_SETTLE_MS) => {
+    if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = undefined;
+      const range = latestRangeRef.current;
+      if (range && !scrollingRef.current) requestRange(range);
+    }, delay);
+  };
   useEffect(
     () => () => {
       if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);

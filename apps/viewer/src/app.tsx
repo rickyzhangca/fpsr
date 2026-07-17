@@ -11,7 +11,7 @@ import {
   selectBlueprint,
   selectBook,
 } from "fpsr";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
 import pipePlantBp from "../../../fixtures/golden/pipe-plant.bp.txt?raw";
@@ -182,6 +182,31 @@ const resolveStoredSelection = (
     return { path: resolveActivePath(doc), kind: "blueprint" };
   }
 };
+const resolveSelectedBook = (
+  doc: BlueprintDocument | null,
+  path: number[] | null,
+  kind: SidebarSelectableKind,
+): BlueprintBook | null => {
+  if (!doc || kind !== "book") return null;
+  try {
+    return selectBook(doc, path ?? undefined);
+  } catch {
+    return null;
+  }
+};
+const resolveSelectedBlueprint = (
+  doc: BlueprintDocument | null,
+  path: number[] | null,
+  kind: SidebarSelectableKind,
+): Blueprint | null => {
+  if (!doc || kind !== "blueprint") return null;
+  try {
+    if (doc.blueprint) return doc.blueprint;
+    return doc.blueprint_book ? selectBlueprint(doc, path ?? undefined) : null;
+  } catch {
+    return null;
+  }
+};
 const initialSelection = (): LastView => {
   const last = readLastView();
   if (last) {
@@ -219,9 +244,8 @@ export const App = () => {
   const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const records = await listCustoms();
+    void listCustoms()
+      .then((records) => {
         if (cancelled) return;
         const sources: SidebarSource[] = [];
         const stats: Record<string, DecodeStats> = {};
@@ -248,14 +272,15 @@ export const App = () => {
             setSelectedKind(resolved.kind);
           }
         }
-      } catch (e) {
+      })
+      .catch((e: unknown) => {
         if (!cancelled) {
           toast.error(decodeErrorMessage(e));
         }
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setSelectionReady(true);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
@@ -264,41 +289,17 @@ export const App = () => {
     if (!selectionReady) return;
     writeLastView({ sourceId: selectedSourceId, path: selectedPath, kind: selectedKind });
   }, [selectionReady, selectedSourceId, selectedPath, selectedKind]);
-  const allSources = useMemo(
-    () => [...SAMPLE_SOURCES, ...TEST_SOURCES, ...customSources],
-    [customSources],
-  );
-  const sourceById = useMemo(
-    () => new Map(allSources.map((source) => [source.id, source])),
-    [allSources],
-  );
+  const allSources = [...SAMPLE_SOURCES, ...TEST_SOURCES, ...customSources];
+  const sourceById = new Map(allSources.map((source) => [source.id, source]));
   const activeDoc = sourceById.get(selectedSourceId)?.doc ?? null;
-  const selectedBook: BlueprintBook | null = useMemo(() => {
-    if (!activeDoc || selectedKind !== "book") return null;
-    try {
-      return selectBook(activeDoc, selectedPath ?? undefined);
-    } catch {
-      return null;
-    }
-  }, [activeDoc, selectedKind, selectedPath]);
-  const selectedBlueprint: Blueprint | null = useMemo(() => {
-    if (!activeDoc || selectedKind !== "blueprint") return null;
-    try {
-      if (activeDoc.blueprint) return activeDoc.blueprint;
-      if (activeDoc.blueprint_book) {
-        return selectBlueprint(activeDoc, selectedPath ?? undefined);
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }, [activeDoc, selectedKind, selectedPath]);
+  const selectedBook = resolveSelectedBook(activeDoc, selectedPath, selectedKind);
+  const selectedBlueprint = resolveSelectedBlueprint(activeDoc, selectedPath, selectedKind);
   useEffect(() => {
     setTileSize("—");
     setPerfReport(null);
   }, [selectedBlueprint]);
   const activeDecodeStats = decodeStatsBySource[selectedSourceId] ?? null;
-  const addCustomFromString = useCallback(async (source: string) => {
+  const addCustomFromString = async (source: string) => {
     const trimmed = source.trim();
     if (!trimmed) {
       toast.error("Paste a blueprint string first.");
@@ -324,16 +325,16 @@ export const App = () => {
       toast.error(decodeErrorMessage(e));
       return false;
     }
-  }, []);
-  const handlePaste = useCallback(async () => {
+  };
+  const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
       await addCustomFromString(text);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read clipboard.");
     }
-  }, [addCustomFromString]);
-  const clearAllCustoms = useCallback(async () => {
+  };
+  const clearAllCustoms = async () => {
     try {
       await clearCustoms();
       const wasCustom = customSources.some((s) => s.id === selectedSourceId);
@@ -346,7 +347,7 @@ export const App = () => {
     } catch (e) {
       toast.error(decodeErrorMessage(e));
     }
-  }, [customSources, selectedSourceId]);
+  };
   const onTreeSelect = (sourceId: string, path: number[], kind: SidebarSelectableKind) => {
     const normalizedPath = path.length === 0 ? null : path;
     if (
@@ -384,10 +385,7 @@ export const App = () => {
     [selectedSourceId, selectedPath],
   );
   const isGoldenSelected = SAMPLE_SOURCE_IDS.has(selectedSourceId);
-  const sidebarSelection = useMemo(
-    () => resolveSidebarSelection(allSources, selectedSourceId, selectedPath),
-    [allSources, selectedSourceId, selectedPath],
-  );
+  const sidebarSelection = resolveSidebarSelection(allSources, selectedSourceId, selectedPath);
   const sidebarPanelProps = {
     sampleSources: SAMPLE_SOURCES,
     testSources: TEST_SOURCES,

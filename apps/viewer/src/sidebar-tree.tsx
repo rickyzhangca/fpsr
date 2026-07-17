@@ -31,6 +31,14 @@ export interface SidebarTreeItem {
   icons?: Icon[];
   children: string[];
 }
+const EMPTY_ITEM: SidebarTreeItem = {
+  id: "",
+  sourceId: "",
+  path: [],
+  label: "",
+  kind: "blueprint",
+  children: [],
+};
 export interface SidebarSource {
   id: SidebarSourceId;
   label: string;
@@ -194,17 +202,6 @@ export const SidebarTree = ({
     () => expandedItems.filter((id) => id in items),
     [expandedItems, items],
   );
-  const emptyItem = useMemo<SidebarTreeItem>(
-    () => ({
-      id: "",
-      sourceId: "",
-      path: [],
-      label: "",
-      kind: "blueprint",
-      children: [],
-    }),
-    [],
-  );
   const tree = useTree<SidebarTreeItem>({
     rootItemId: ROOT_ID,
     indent: INDENT_PX,
@@ -233,7 +230,7 @@ export const SidebarTree = ({
     dataLoader: {
       // Never return undefined — headless-tree may still ask for deleted IDs
       // until rebuildTree runs after sources change.
-      getItem: (itemId) => items[itemId] ?? { ...emptyItem, id: itemId },
+      getItem: (itemId) => items[itemId] ?? { ...EMPTY_ITEM, id: itemId },
       getChildren: (itemId) => items[itemId]?.children ?? [],
     },
     features: [syncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],

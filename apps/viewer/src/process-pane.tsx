@@ -4,7 +4,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Blueprint, BlueprintDocument, DrawList } from "fpsr";
 import { CircleCheck, CircleSlash } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapter-checks";
 import { formatDrawList } from "./format-draw-list";
 import { JsonViewer } from "./json-viewer";
@@ -49,7 +49,7 @@ const ProcessPanel = ({
   );
 };
 const ChecksPanel = ({ blueprint }: { blueprint: Blueprint | null }) => {
-  const checks = useMemo(() => getAdapterChecks(blueprint), [blueprint]);
+  const checks = getAdapterChecks(blueprint);
   return (
     <ul className="flex flex-col gap-1 p-3">
       {checks.map(({ id, used }) => (
@@ -78,10 +78,8 @@ export const ProcessPane = ({
   const [drawLoading, setDrawLoading] = useState(false);
   const [organizeDrawCommands, setOrganizeDrawCommands] = useState(true);
   const decodedValue = blueprint ?? doc;
-  const drawValue = useMemo(() => {
-    if (drawError || !drawList) return null;
-    return organizeDrawCommands ? formatDrawList(drawList) : drawList;
-  }, [drawError, drawList, organizeDrawCommands]);
+  const drawValue =
+    drawError || !drawList ? null : organizeDrawCommands ? formatDrawList(drawList) : drawList;
   useEffect(() => {
     if (!blueprint) {
       setDrawList(null);

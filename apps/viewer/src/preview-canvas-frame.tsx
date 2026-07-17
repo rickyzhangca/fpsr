@@ -366,15 +366,12 @@ export const PreviewCanvasFrame = ({
       viewport.removeEventListener("gestureend", preventGesture);
     };
   }, [ready, applyZoomAt]);
-  const zoomBy = useCallback(
-    (delta: number) => {
-      applyZoomAt(viewRef.current.zoom + delta, 0, 0);
-    },
-    [applyZoomAt],
-  );
-  const onReset = useCallback(() => {
+  const zoomBy = (delta: number) => {
+    applyZoomAt(viewRef.current.zoom + delta, 0, 0);
+  };
+  const onReset = () => {
     commitView({ zoom: fitZoomRef.current, panX: 0, panY: 0 });
-  }, [commitView]);
+  };
   const transition = spring && !dragging ? SPRING_TRANSITION : "none";
   return (
     <div

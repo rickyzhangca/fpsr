@@ -1,5 +1,5 @@
 import type { Blueprint } from "fpsr";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { countBlueprintComponentsByName } from "./blueprint-meta";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
 import { FactorioItemIcon } from "./factorio-item-icon";
@@ -27,10 +27,7 @@ export const BlueprintComponents = ({
       cancelled = true;
     };
   }, []);
-  const counts = useMemo(
-    () => countBlueprintComponentsByName(entities, tiles, tileItemByName),
-    [entities, tiles, tileItemByName],
-  );
+  const counts = countBlueprintComponentsByName(entities, tiles, tileItemByName);
   return (
     <div className="w-fit rounded-lg flex flex-col overflow-hidden border bg-card">
       <p className="px-2 py-1 border-b text-sm">Components</p>

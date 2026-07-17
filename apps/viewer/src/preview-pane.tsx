@@ -10,13 +10,7 @@ import {
   type DecodeStats,
   type RenderMeasurement,
 } from "fpsr";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { countEntitiesByName, formatGameVersion } from "./blueprint-meta";
 import type { PerfReport } from "./perf-report";
@@ -225,17 +219,23 @@ export const PreviewPane = ({
       setLoading(true);
       onRenderProgress?.({ value: 1, label: "Queued" });
       timer = window.setTimeout(() => {
-        void (async () => {
-          let completed = false;
-          try {
-            const display = canvasRef.current;
-            if (!display) return;
-            const result = await renderPreview(display, doc, {
-              ...renderOptions,
-              maxOutputSize: limitTo4k ? MAX_OUTPUT_SIZE : undefined,
-              signal: controller.signal,
-              onProgress: onRenderProgress,
-            });
+        const finishRender = (completed: boolean) => {
+          if (gen !== renderGenRef.current) return;
+          setLoading(false);
+          if (!completed) onRenderProgress?.(null);
+        };
+        const display = canvasRef.current;
+        if (!display) {
+          finishRender(false);
+          return;
+        }
+        void renderPreview(display, doc, {
+          ...renderOptions,
+          maxOutputSize: limitTo4k ? MAX_OUTPUT_SIZE : undefined,
+          signal: controller.signal,
+          onProgress: onRenderProgress,
+        })
+          .then((result) => {
             if (gen !== renderGenRef.current) return;
             const profile = result.profile;
             if (profile) {
@@ -259,14 +259,18 @@ export const PreviewPane = ({
             }
             setDimensions({ width: result.width, height: result.height });
             setLastResult(result);
-            completed = true;
             onRenderProgress?.({
               value: 100,
               label: "Complete",
               durationMs: result.wallMs,
             });
-          } catch (e) {
-            if (controller.signal.aborted) return;
+            finishRender(true);
+          })
+          .catch((e: unknown) => {
+            if (controller.signal.aborted) {
+              finishRender(false);
+              return;
+            }
             if (gen !== renderGenRef.current) return;
             const message = e instanceof Error ? e.message : "Render failed";
             setAssetsMissing(isMissingAssetsError(message));
@@ -275,13 +279,8 @@ export const PreviewPane = ({
             setLastResult(null);
             setHoverTile(null);
             onPerfReport?.(null);
-          } finally {
-            if (gen === renderGenRef.current) {
-              setLoading(false);
-              if (!completed) onRenderProgress?.(null);
-            }
-          }
-        })();
+            finishRender(false);
+          });
       }, 150);
     };
     if (limitTo4k) {
@@ -334,7 +333,7 @@ export const PreviewPane = ({
     onRenderProgress,
     fullResApproval,
   ]);
-  const handleDownload = useCallback(() => {
+  const handleDownload = () => {
     if (!exportBlob) return;
     const filename = `${stripRichText(blueprint?.label).replace(/[^\w.-]+/g, "_") || "blueprint"}.${exportFormat}`;
     try {
@@ -349,57 +348,55 @@ export const PreviewPane = ({
       const message = e instanceof Error ? e.message : "Download failed";
       toast.error(message);
     }
-  }, [exportBlob, blueprint?.label, exportFormat, exportLabel]);
-  const handleCopy = useCallback(async () => {
+  };
+  const handleCopy = async () => {
     if (!exportBlob) return;
+    const mime = EXPORT_OPTIONS[exportFormat].type;
+    if (typeof ClipboardItem.supports === "function" && !ClipboardItem.supports(mime)) {
+      toast.error(`${exportLabel} images are not supported by this browser's clipboard`);
+      return;
+    }
     try {
-      const mime = EXPORT_OPTIONS[exportFormat].type;
-      if (typeof ClipboardItem.supports === "function" && !ClipboardItem.supports(mime)) {
-        throw new Error(`${exportLabel} images are not supported by this browser's clipboard`);
-      }
       await navigator.clipboard.write([new ClipboardItem({ [mime]: exportBlob })]);
       toast.success(`${exportLabel} copied to clipboard`);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Copy failed";
       toast.error(message);
     }
-  }, [exportBlob, exportFormat, exportLabel]);
-  const handlePointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLCanvasElement>) => {
-      if (!showCoords || !lastResult) {
-        setHoverTile(null);
-        return;
-      }
-      const canvas = event.currentTarget;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) {
-        setHoverTile(null);
-        return;
-      }
-      const scaleX = lastResult.width / rect.width;
-      const scaleY = lastResult.height / rect.height;
-      const px = (event.clientX - rect.left) * scaleX;
-      const py = (event.clientY - rect.top) * scaleY;
-      const ppt = resultPixelsPerTile(lastResult);
-      const { minX, minY, maxX, maxY } = lastResult.tileFrame;
-      const tx = minX + px / ppt;
-      const ty = minY + py / ppt;
-      if (tx < minX || ty < minY || tx >= maxX || ty >= maxY) {
-        setHoverTile(null);
-        return;
-      }
-      setHoverTile({
-        cellX: Math.floor(tx),
-        cellY: Math.floor(ty),
-        tx,
-        ty,
-      });
-    },
-    [showCoords, lastResult],
-  );
-  const handlePointerLeave = useCallback(() => {
+  };
+  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!showCoords || !lastResult) {
+      setHoverTile(null);
+      return;
+    }
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      setHoverTile(null);
+      return;
+    }
+    const scaleX = lastResult.width / rect.width;
+    const scaleY = lastResult.height / rect.height;
+    const px = (event.clientX - rect.left) * scaleX;
+    const py = (event.clientY - rect.top) * scaleY;
+    const ppt = resultPixelsPerTile(lastResult);
+    const { minX, minY, maxX, maxY } = lastResult.tileFrame;
+    const tx = minX + px / ppt;
+    const ty = minY + py / ppt;
+    if (tx < minX || ty < minY || tx >= maxX || ty >= maxY) {
+      setHoverTile(null);
+      return;
+    }
+    setHoverTile({
+      cellX: Math.floor(tx),
+      cellY: Math.floor(ty),
+      tx,
+      ty,
+    });
+  };
+  const handlePointerLeave = () => {
     setHoverTile(null);
-  }, []);
+  };
   if (!doc || !blueprint) {
     return null;
   }
