@@ -13,6 +13,7 @@ export function entityInfoSilhouettePadPx(
 
 export interface ImageDataContext {
   drawImage(image: CanvasImageSource, dx: number, dy: number): void;
+  createImageData?(sw: number, sh: number): ImageData;
   getImageData(sx: number, sy: number, sw: number, sh: number): ImageData;
   putImageData(data: ImageData, dx: number, dy: number): void;
 }
@@ -28,69 +29,28 @@ export function blurAlphaBox(
 
   const r = Math.floor(radius);
   if (r <= 0) return src;
+  const alpha = new Uint8Array(width * height);
+  for (let pixel = 0; pixel < alpha.length; pixel++) alpha[pixel] = src[pixel * 4 + 3]!;
   const out = new Uint8ClampedArray(src.length);
-  const stride = width + 1;
-  const integral = new Uint32Array((width + 1) * (height + 1));
-
-  // Integral alpha image makes every clipped box sum O(1). Keeping the
-  // division until the final pixel preserves the previous rounding exactly.
-  for (let y = 0; y < height; y++) {
-    let rowSum = 0;
-    const srcRow = y * width;
-    const integralRow = (y + 1) * stride;
-    const previousRow = y * stride;
-    for (let x = 0; x < width; x++) {
-      rowSum += src[(srcRow + x) * 4 + 3]!;
-      integral[integralRow + x + 1] = integral[previousRow + x + 1]! + rowSum;
-    }
-  }
-
-  for (let y = 0; y < height; y++) {
-    const yMin = Math.max(0, y - r);
-    const yMax = Math.min(height - 1, y + r);
-    for (let x = 0; x < width; x++) {
-      const xMin = Math.max(0, x - r);
-      const xMax = Math.min(width - 1, x + r);
-      const left = xMin;
-      const right = xMax + 1;
-      const top = yMin;
-      const bottom = yMax + 1;
-      const sum =
-        integral[bottom * stride + right]! -
-        integral[top * stride + right]! -
-        integral[bottom * stride + left]! +
-        integral[top * stride + left]!;
-      const count = (right - left) * (bottom - top);
-      const i = (y * width + x) * 4;
-      out[i] = 0;
-      out[i + 1] = 0;
-      out[i + 2] = 0;
-      out[i + 3] = count === 0 ? 0 : Math.round(sum / count);
-    }
-  }
+  writeBlurredBlackRgba(alpha, out, width, height, r);
   return out;
 }
 
 /** Box dilation on the alpha channel; output RGB is solid black. */
-export function dilateAlphaBox(
+function dilateAlphaChannel(
   src: Uint8ClampedArray,
   width: number,
   height: number,
   radius: number,
-): Uint8ClampedArray {
+): Uint8Array {
   if (radius <= 0) {
-    const out = new Uint8ClampedArray(src.length);
-    for (let i = 0; i < src.length; i += 4) {
-      out[i] = 0;
-      out[i + 1] = 0;
-      out[i + 2] = 0;
-      out[i + 3] = src[i + 3]!;
-    }
+    const out = new Uint8Array(width * height);
+    for (let pixel = 0; pixel < out.length; pixel++) out[pixel] = src[pixel * 4 + 3]!;
     return out;
   }
 
   const r = Math.floor(radius);
-  if (r <= 0) return dilateAlphaBox(src, width, height, 0);
+  if (r <= 0) return dilateAlphaChannel(src, width, height, 0);
 
   const horizontal = new Uint8Array(width * height);
   const deque = new Int32Array(Math.max(width, height));
@@ -118,8 +78,8 @@ export function dilateAlphaBox(
     }
   }
 
-  // Vertical sliding maximum, writing the final black RGBA image.
-  const out = new Uint8ClampedArray(src.length);
+  // Vertical sliding maximum.
+  const out = new Uint8Array(width * height);
   for (let x = 0; x < width; x++) {
     let head = 0;
     let tail = 0;
@@ -137,13 +97,88 @@ export function dilateAlphaBox(
       }
       const removeBefore = y - r;
       while (tail > head && deque[head]! < removeBefore) head++;
-      const i = (y * width + x) * 4;
-      out[i] = 0;
-      out[i + 1] = 0;
-      out[i + 2] = 0;
-      out[i + 3] = horizontal[deque[head]! * width + x]!;
+      out[y * width + x] = horizontal[deque[head]! * width + x]!;
     }
   }
+  return out;
+}
+
+function writeBlurredBlackRgba(
+  alpha: Uint8Array,
+  target: Uint8ClampedArray,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const r = Math.floor(radius);
+  if (r <= 0) {
+    for (let pixel = 0; pixel < alpha.length; pixel++) {
+      const i = pixel * 4;
+      target[i] = 0;
+      target[i + 1] = 0;
+      target[i + 2] = 0;
+      target[i + 3] = alpha[pixel]!;
+    }
+    return;
+  }
+
+  const stride = width + 1;
+  const integral = new Uint32Array((width + 1) * (height + 1));
+  for (let y = 0; y < height; y++) {
+    let rowSum = 0;
+    const srcRow = y * width;
+    const integralRow = (y + 1) * stride;
+    const previousRow = y * stride;
+    for (let x = 0; x < width; x++) {
+      rowSum += alpha[srcRow + x]!;
+      integral[integralRow + x + 1] = integral[previousRow + x + 1]! + rowSum;
+    }
+  }
+
+  for (let y = 0; y < height; y++) {
+    const top = Math.max(0, y - r);
+    const bottom = Math.min(height, y + r + 1);
+    for (let x = 0; x < width; x++) {
+      const left = Math.max(0, x - r);
+      const right = Math.min(width, x + r + 1);
+      const sum =
+        integral[bottom * stride + right]! -
+        integral[top * stride + right]! -
+        integral[bottom * stride + left]! +
+        integral[top * stride + left]!;
+      const i = (y * width + x) * 4;
+      target[i] = 0;
+      target[i + 1] = 0;
+      target[i + 2] = 0;
+      target[i + 3] = Math.round(sum / ((right - left) * (bottom - top)));
+    }
+  }
+}
+
+/** Box dilation on the alpha channel; output RGB is solid black. */
+export function dilateAlphaBox(
+  src: Uint8ClampedArray,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8ClampedArray {
+  const alpha = dilateAlphaChannel(src, width, height, radius);
+  const out = new Uint8ClampedArray(src.length);
+  writeBlurredBlackRgba(alpha, out, width, height, 0);
+  return out;
+}
+
+/** Fused silhouette operation used by the canvas path to avoid RGBA intermediates. */
+export function dilateAndBlurAlphaBox(
+  src: Uint8ClampedArray,
+  width: number,
+  height: number,
+  dilateRadius: number,
+  blurRadius: number,
+): Uint8ClampedArray {
+  const alpha = dilateAlphaChannel(src, width, height, dilateRadius);
+  const out = new Uint8ClampedArray(src.length);
+  writeBlurredBlackRgba(alpha, out, width, height, blurRadius);
   return out;
 }
 
@@ -151,6 +186,38 @@ export interface SilhouetteCanvasLike {
   width: number;
   height: number;
   getContext(type: "2d"): ImageDataContext | null;
+}
+
+/** Bake from an already-cropped icon without reading back a second offscreen canvas. */
+export function bakeEntityInfoSilhouetteFromImageData(
+  iconData: ImageData,
+  createCanvas: (width: number, height: number) => SilhouetteCanvasLike,
+  dilateRadius = ENTITY_INFO_SILHOUETTE_RADIUS_PX,
+  blurRadius = ENTITY_INFO_SILHOUETTE_BLUR_PX,
+): CanvasImageSource | undefined {
+  const iconWidth = iconData.width;
+  const iconHeight = iconData.height;
+  const pad = entityInfoSilhouettePadPx(dilateRadius, blurRadius);
+  const width = iconWidth + 2 * pad;
+  const height = iconHeight + 2 * pad;
+  const canvas = createCanvas(width, height);
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return undefined;
+
+  const imageData = ctx.createImageData?.(width, height) ?? ctx.getImageData(0, 0, width, height);
+  for (let y = 0; y < iconHeight; y++) {
+    for (let x = 0; x < iconWidth; x++) {
+      const source = (y * iconWidth + x) * 4 + 3;
+      const target = ((y + pad) * width + x + pad) * 4 + 3;
+      imageData.data[target] = iconData.data[source]!;
+    }
+  }
+  const alpha = dilateAlphaChannel(imageData.data, width, height, dilateRadius);
+  writeBlurredBlackRgba(alpha, imageData.data, width, height, blurRadius);
+  ctx.putImageData(imageData, 0, 0);
+  return canvas as unknown as CanvasImageSource;
 }
 
 /**
@@ -176,11 +243,8 @@ export function bakeEntityInfoSilhouette(
 
   ctx.drawImage(iconImage, pad, pad);
   const imageData = ctx.getImageData(0, 0, width, height);
-  let pixels = dilateAlphaBox(imageData.data, width, height, dilateRadius);
-  if (blurRadius > 0) {
-    pixels = blurAlphaBox(pixels, width, height, blurRadius);
-  }
-  imageData.data.set(pixels);
+  const alpha = dilateAlphaChannel(imageData.data, width, height, dilateRadius);
+  writeBlurredBlackRgba(alpha, imageData.data, width, height, blurRadius);
   ctx.putImageData(imageData, 0, 0);
   return canvas as unknown as CanvasImageSource;
 }

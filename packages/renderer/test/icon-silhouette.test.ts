@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  bakeEntityInfoSilhouetteFromImageData,
   blurAlphaBox,
+  dilateAndBlurAlphaBox,
   dilateAlphaBox,
   ENTITY_INFO_SILHOUETTE_BLUR_PX,
   ENTITY_INFO_SILHOUETTE_RADIUS_PX,
@@ -101,6 +103,35 @@ describe("icon silhouette alpha ops", () => {
     );
   });
 
+  it("bakes directly from cropped image data without reading the output canvas", () => {
+    const icon = {
+      width: 2,
+      height: 1,
+      data: new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 64]),
+    } as ImageData;
+    let written: ImageData | undefined;
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => undefined,
+        createImageData: (width: number, height: number) =>
+          ({ width, height, data: new Uint8ClampedArray(width * height * 4) }) as ImageData,
+        getImageData: () => {
+          throw new Error("output canvas should not be read");
+        },
+        putImageData: (data: ImageData) => {
+          written = data;
+        },
+      }),
+    };
+
+    expect(bakeEntityInfoSilhouetteFromImageData(icon, () => canvas, 1, 1)).toBe(canvas);
+    expect(written?.width).toBe(6);
+    expect(written?.height).toBe(5);
+    expect(written?.data.some((value, index) => index % 4 === 3 && value > 0)).toBe(true);
+  });
+
   it("matches the naive alpha operations across randomized masks and edge sizes", () => {
     let seed = 0x51f15e;
     const randomByte = (): number => {
@@ -122,6 +153,9 @@ describe("icon silhouette alpha ops", () => {
         );
         expect(dilateAlphaBox(src, width, height, radius)).toEqual(
           naiveDilate(src, width, height, radius),
+        );
+        expect(dilateAndBlurAlphaBox(src, width, height, radius, radius)).toEqual(
+          blurAlphaBox(dilateAlphaBox(src, width, height, radius), width, height, radius),
         );
       }
     }

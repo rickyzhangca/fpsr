@@ -5,8 +5,10 @@ import * as canvas2d from "./canvas2d.js";
 import { computeTileFrame, type TileFrame } from "./frame.js";
 import {
   bakeEntityInfoSilhouette,
+  bakeEntityInfoSilhouetteFromImageData,
   ENTITY_INFO_SILHOUETTE_BLUR_PX,
   ENTITY_INFO_SILHOUETTE_RADIUS_PX,
+  type ImageDataContext,
   type SilhouetteCanvasLike,
 } from "./icon-silhouette.js";
 import { planDrawList } from "./plan.js";
@@ -421,6 +423,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       t = wantProfile ? nowMs() : 0;
       reportProgress(opts, { stage: "baking-icons" });
       const iconImages = new Map<number, CanvasImageSource>();
+      const iconImageData = new Map<number, ImageData>();
       const silhouetteImages = new Map<number, CanvasImageSource>();
       const seenIconKeys = new Set<string>();
       const seenSilhouetteKeys = new Set<string>();
@@ -470,6 +473,16 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
           const image = iconCanvas as unknown as CanvasImageSource;
           iconImages.set(cmd.frame, image);
           iconImageCache.set(iconKey, image);
+          const readableContext = iconContext as unknown as Partial<ImageDataContext>;
+          if (
+            cmd.backingStyle !== "request-pin" &&
+            typeof readableContext.getImageData === "function"
+          ) {
+            iconImageData.set(
+              cmd.frame,
+              readableContext.getImageData(0, 0, packedWidth, packedHeight),
+            );
+          }
           iconCacheMisses++;
         }
 
@@ -492,14 +505,22 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         }
         const iconSource = iconImages.get(cmd.frame);
         if (!iconSource) continue;
-        const silhouette = bakeEntityInfoSilhouette(
-          iconSource,
-          packedWidth,
-          packedHeight,
-          createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
-          dilateRadius,
-          blurRadius,
-        );
+        const sourceData = iconImageData.get(cmd.frame);
+        const silhouette = sourceData
+          ? bakeEntityInfoSilhouetteFromImageData(
+              sourceData,
+              createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
+              dilateRadius,
+              blurRadius,
+            )
+          : bakeEntityInfoSilhouette(
+              iconSource,
+              packedWidth,
+              packedHeight,
+              createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
+              dilateRadius,
+              blurRadius,
+            );
         if (silhouette) {
           silhouetteImages.set(cmd.frame, silhouette);
           silhouetteImageCache.set(silhouetteKey, silhouette);
