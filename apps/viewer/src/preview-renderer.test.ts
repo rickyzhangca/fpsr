@@ -63,6 +63,28 @@ describe("PreviewRenderWorkerClient", () => {
     worker.respond({ type: "measured", requestId: request.requestId, measurement });
     await expect(pending).resolves.toEqual(measurement);
   });
+  it("plans in the worker without attaching a canvas", async () => {
+    const worker = new FakeWorker();
+    const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
+    await flushReady(worker);
+    const blueprint = doc.blueprint;
+    if (!blueprint) throw new Error("expected blueprint fixture");
+    const pending = client.plan(blueprint, { altMode: true });
+    await vi.waitFor(() => {
+      expect(worker.posts.at(-1)?.message.type).toBe("plan");
+    });
+    const request = worker.posts.at(-1)?.message;
+    if (request?.type !== "plan") throw new Error("expected plan request");
+    expect(request).toMatchObject({ blueprint, options: { altMode: true } });
+    expect(worker.posts.some((post) => post.message.type === "attach")).toBe(false);
+    const drawList = {
+      schema: 1 as const,
+      commands: [],
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+    };
+    worker.respond({ type: "planned", requestId: request.requestId, drawList });
+    await expect(pending).resolves.toEqual(drawList);
+  });
   it("transfers a canvas once, reuses its surface, and proxies image export", async () => {
     const worker = new FakeWorker();
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);

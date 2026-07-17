@@ -1,6 +1,8 @@
 import {
   type AssetEvent,
+  type Blueprint,
   type BlueprintDocument,
+  type DrawList,
   type RenderImageOptions,
   type RenderOptions,
   type RenderMeasurement,
@@ -11,6 +13,7 @@ import {
   type PreviewRenderProgress,
   type RenderWorkerRequest,
   type RenderWorkerResponse,
+  type WorkerPlanOptions,
   type WorkerRenderOptions,
 } from "./render-worker-protocol";
 export interface PreviewRenderResult {
@@ -46,7 +49,12 @@ interface PendingMeasure {
   resolve(measurement: RenderMeasurement): void;
   reject(error: Error): void;
 }
-type PendingRequest = PendingRender | PendingExport | PendingMeasure;
+interface PendingPlan {
+  kind: "plan";
+  resolve(drawList: DrawList): void;
+  reject(error: Error): void;
+}
+type PendingRequest = PendingRender | PendingExport | PendingMeasure | PendingPlan;
 const abortError = (): DOMException => {
   return new DOMException("The render was aborted", "AbortError");
 };
@@ -133,6 +141,15 @@ export class PreviewRenderWorkerClient {
       this.worker.postMessage(request);
     });
   }
+  async plan(blueprint: Blueprint, options: WorkerPlanOptions): Promise<DrawList> {
+    await this.waitUntilReady();
+    const requestId = this.nextRequestId++;
+    return new Promise<DrawList>((resolve, reject) => {
+      this.pending.set(requestId, { kind: "plan", resolve, reject });
+      const request: RenderWorkerRequest = { type: "plan", requestId, blueprint, options };
+      this.worker.postMessage(request);
+    });
+  }
   clear(canvas: HTMLCanvasElement): boolean {
     const surfaceId = this.surfaces.get(canvas);
     if (!surfaceId) return false;
@@ -179,6 +196,10 @@ export class PreviewRenderWorkerClient {
     }
     if (response.type === "measured") {
       if (pending.kind === "measure") pending.resolve(response.measurement);
+      return;
+    }
+    if (response.type === "planned") {
+      if (pending.kind === "plan") pending.resolve(response.drawList);
       return;
     }
     if (pending.kind !== "render") return;
@@ -261,6 +282,15 @@ export const measurePreview = async (
     throw new Error("Preview measurement requires a browser with Web Workers support.");
   }
   return getWorkerClient().measure(doc, options);
+};
+export const planPreview = async (
+  blueprint: Blueprint,
+  options: WorkerPlanOptions = {},
+): Promise<DrawList> => {
+  if (typeof Worker === "undefined") {
+    throw new Error("Preview planning requires a browser with Web Workers support.");
+  }
+  return getWorkerClient().plan(blueprint, options);
 };
 export const clearPreview = (canvas: HTMLCanvasElement): void => {
   if (workerClient?.clear(canvas)) return;

@@ -2,14 +2,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { type Blueprint, type BlueprintDocument, type DrawList, planDrawList } from "fpsr";
+import type { Blueprint, BlueprintDocument, DrawList } from "fpsr";
 import { CircleCheck, CircleSlash } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapter-checks";
 import { formatDrawList } from "./format-draw-list";
 import { JsonViewer } from "./json-viewer";
 import { cn } from "./lib/utils";
-import { viewerAssets } from "./viewer-assets";
+import { planPreview } from "./preview-renderer";
 const ProcessPanel = ({
   title,
   index,
@@ -55,7 +55,7 @@ const ChecksPanel = ({ blueprint }: { blueprint: Blueprint | null }) => {
       {checks.map(({ id, used }) => (
         <li key={id} className="flex items-center gap-2 text-sm">
           {used ? (
-            <CircleCheck className="size-4 shrink-0 text-green-600 dark:text-green-500" />
+            <CircleCheck className="size-4 shrink-0 text-primary" />
           ) : (
             <CircleSlash className="size-4 shrink-0 text-muted-foreground" />
           )}
@@ -95,9 +95,7 @@ export const ProcessPane = ({
     setDrawList(null);
     void (async () => {
       try {
-        const db = await viewerAssets.loadRenderDb();
-        if (gen !== planGenRef.current) return;
-        const list = planDrawList(blueprint, db, { altMode: true });
+        const list = await planPreview(blueprint, { altMode: true });
         if (gen !== planGenRef.current) return;
         setDrawList(list);
       } catch (e) {

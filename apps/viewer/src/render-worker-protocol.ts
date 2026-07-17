@@ -1,6 +1,9 @@
 import type {
   AssetEvent,
+  Blueprint,
   BlueprintDocument,
+  DrawList,
+  PlanOptions,
   RenderImageOptions,
   RenderOptions,
   RenderMeasurement,
@@ -9,6 +12,7 @@ import type {
   TileFrame,
 } from "fpsr";
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
+export type WorkerPlanOptions = Pick<PlanOptions, "altMode" | "beltEndings">;
 export interface PreviewRenderProgress {
   value: number;
   label: string;
@@ -36,6 +40,12 @@ export const toPreviewRenderProgress = (event: RenderProgressEvent): PreviewRend
   }
 };
 export type RenderWorkerRequest =
+  | {
+      type: "plan";
+      requestId: number;
+      blueprint: Blueprint;
+      options: WorkerPlanOptions;
+    }
   | {
       type: "measure";
       requestId: number;
@@ -71,6 +81,11 @@ export type RenderWorkerRequest =
       options: RenderImageOptions;
     };
 export type RenderWorkerResponse =
+  | {
+      type: "planned";
+      requestId: number;
+      drawList: DrawList;
+    }
   | {
       type: "measured";
       requestId: number;

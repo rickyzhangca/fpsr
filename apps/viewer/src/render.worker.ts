@@ -2,6 +2,7 @@ import {
   cdnAssets,
   createRenderer,
   nowMs,
+  planDrawList,
   type AssetEvent,
   type AssetTier,
   type CanvasLike,
@@ -145,6 +146,15 @@ const measure = async (
     postError(request.requestId, error);
   }
 };
+const plan = async (request: Extract<RenderWorkerRequest, { type: "plan" }>): Promise<void> => {
+  try {
+    const db = await assets.loadRenderDb();
+    const drawList = planDrawList(request.blueprint, db, request.options);
+    workerScope.postMessage({ type: "planned", requestId: request.requestId, drawList });
+  } catch (error) {
+    postError(request.requestId, error);
+  }
+};
 const exportImage = async (
   request: Extract<
     RenderWorkerRequest,
@@ -168,6 +178,9 @@ const exportImage = async (
 workerScope.onmessage = (event) => {
   const request = event.data;
   switch (request.type) {
+    case "plan":
+      void plan(request);
+      break;
     case "attach":
       surfaces.set(request.surfaceId, { canvas: request.canvas });
       break;
