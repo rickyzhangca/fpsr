@@ -109,6 +109,7 @@ describe("official-mod visual suite foundation", () => {
   });
 
   it("keeps each entity's poses on dedicated rows instead of flat 4-wide mixing", () => {
+    const isolatedSinglePoseRowLengths: number[] = [];
     for (const pageId of [
       "official-mods/space-age/production",
       "official-mods/space-age/space",
@@ -147,14 +148,16 @@ describe("official-mod visual suite foundation", () => {
               .map((cell) => cell.entityName!),
           ),
         ];
-        expect(singlePoseNames.length).toBeGreaterThan(0);
-        for (const name of singlePoseNames) {
-          const cell = cells.find((entry) => entry.entityName === name)!;
-          const row = rows.get(cell.cropTiles.top)!;
-          expect(row).toHaveLength(1);
-        }
+        isolatedSinglePoseRowLengths.push(
+          ...singlePoseNames.map((name) => {
+            const cell = cells.find((entry) => entry.entityName === name)!;
+            return rows.get(cell.cropTiles.top)!.length;
+          }),
+        );
       }
     }
+    expect(isolatedSinglePoseRowLengths.length).toBeGreaterThan(0);
+    expect(isolatedSinglePoseRowLengths.every((length) => length === 1)).toBe(true);
   });
 
   it("requires the exact all-official render metadata profile", () => {

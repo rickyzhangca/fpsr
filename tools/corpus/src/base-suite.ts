@@ -42,27 +42,6 @@ const SIDES = ["north", "east", "south", "west"] as const;
 type Side = (typeof SIDES)[number];
 export type BeltNeighborState = "absent" | "inbound" | "outbound";
 
-const SIDE_OFFSETS: Record<Side, Position> = {
-  north: { x: 0, y: -1 },
-  east: { x: 1, y: 0 },
-  south: { x: 0, y: 1 },
-  west: { x: -1, y: 0 },
-};
-
-const INBOUND_DIRECTIONS: Record<Side, number> = {
-  north: 8,
-  east: 12,
-  south: 0,
-  west: 4,
-};
-
-const OUTBOUND_DIRECTIONS: Record<Side, number> = {
-  north: 0,
-  east: 4,
-  south: 8,
-  west: 12,
-};
-
 export type BaseSuiteCaseKind =
   | "entity-pose"
   | "adjacency-mask"
@@ -199,10 +178,6 @@ interface MaterializedCase {
   placement: CasePlacement;
   bounds: CaseBounds;
   lattice: { x: 0 | 0.5; y: 0 | 0.5 };
-}
-
-function slugPart(value: string | number): string {
-  return String(value).padStart(2, "0");
 }
 
 function itemIcons(...names: string[]): Icon[] {
@@ -436,65 +411,6 @@ function poseCase(name: string, pose: EntityPose): CaseSpec {
       return { entities: [placed], focusEntityNumbers: [placed.entity_number] };
     },
   };
-}
-
-function adjacencyCases(name: string): CaseSpec[] {
-  return Array.from({ length: 16 }, (_, mask) => {
-    const connectedSides = SIDES.filter((_, index) => (mask & (1 << index)) !== 0);
-    return {
-      id: `connectivity/${name}/mask-${mask.toString(16).padStart(2, "0")}`,
-      caseKind: "adjacency-mask" as const,
-      entityName: name,
-      adjacency: { mask, sides: connectedSides },
-      place: ({ entity }) => {
-        const center = entity(name);
-        const neighbors = connectedSides.map((side) => entity(name, SIDE_OFFSETS[side]));
-        return {
-          entities: [center, ...neighbors],
-          focusEntityNumbers: [center.entity_number],
-        };
-      },
-    };
-  });
-}
-
-function decodeNeighborStates(index: number): Record<Side, BeltNeighborState> {
-  const values: BeltNeighborState[] = ["absent", "inbound", "outbound"];
-  let value = index;
-  const result = {} as Record<Side, BeltNeighborState>;
-  for (const side of SIDES) {
-    result[side] = values[value % values.length] ?? "absent";
-    value = Math.floor(value / values.length);
-  }
-  return result;
-}
-
-function beltNeighborhoodCases(name: string): CaseSpec[] {
-  return CARDINAL_DIRECTIONS.flatMap((centerDirection) =>
-    Array.from({ length: 3 ** SIDES.length }, (_, neighborhoodIndex) => {
-      const sides = decodeNeighborStates(neighborhoodIndex);
-      return {
-        id: `connectivity/${name}/d${slugPart(centerDirection)}/n${String(neighborhoodIndex).padStart(2, "0")}`,
-        caseKind: "belt-neighborhood" as const,
-        entityName: name,
-        beltNeighborhood: { centerDirection, sides },
-        place: ({ entity }) => {
-          const center = entity(name, undefined, { direction: centerDirection });
-          const neighbors = SIDES.flatMap((side) => {
-            const state = sides[side];
-            if (state === "absent") return [];
-            const direction =
-              state === "inbound" ? INBOUND_DIRECTIONS[side] : OUTBOUND_DIRECTIONS[side];
-            return [entity(name, SIDE_OFFSETS[side], { direction })];
-          });
-          return {
-            entities: [center, ...neighbors],
-            focusEntityNumbers: [center.entity_number],
-          };
-        },
-      };
-    }),
-  );
 }
 
 function tileCase(name: string): CaseSpec {
