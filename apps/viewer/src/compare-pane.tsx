@@ -11,6 +11,7 @@ import {
   type BlueprintDocument,
 } from "fpsr";
 import { useEffect, useRef, useState } from "react";
+import { PaneMessage } from "./pane-message";
 import { renderPreview } from "./preview-renderer";
 import { PreviewCanvasFrame } from "./preview-canvas-frame";
 import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
@@ -207,40 +208,16 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
     };
   }, [groundTruthUrl, selectedCase]);
   if (loadingCases) {
-    return (
-      <div className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
-          Loading golden cases…
-        </div>
-      </div>
-    );
+    return <PaneMessage loading>Loading golden cases…</PaneMessage>;
   }
   if (cases.length === 0) {
-    return (
-      <div className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
-          No golden cases found in fixtures/golden/cases.json.
-        </div>
-      </div>
-    );
+    return <PaneMessage>No golden cases found in fixtures/golden/cases.json.</PaneMessage>;
   }
   if (!caseName) {
-    return (
-      <div className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
-          Select a golden sample in the sidebar to compare.
-        </div>
-      </div>
-    );
+    return <PaneMessage>Select a golden sample in the sidebar to compare.</PaneMessage>;
   }
   if (!selectedCase) {
-    return (
-      <div className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
-          No golden case named “{caseName}”.
-        </div>
-      </div>
-    );
+    return <PaneMessage>No golden case named “{caseName}”.</PaneMessage>;
   }
   return (
     <div className="flex min-h-0 flex-col gap-4">

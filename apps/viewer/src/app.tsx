@@ -1,24 +1,5 @@
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import {
   type Blueprint,
   type BlueprintBook,
@@ -44,6 +25,7 @@ import { BlueprintSummary } from "./blueprint-summary";
 import { BookSummary } from "./book-summary";
 import { Logo } from "./components/logo";
 import { addCustom, clearCustoms, listCustoms } from "./custom-blueprints-db";
+import { PaneMessage } from "./pane-message";
 import type { PerfReport } from "./perf-report";
 import { PreviewPane } from "./preview-pane";
 import type { PreviewRenderProgress } from "./preview-renderer";
@@ -65,6 +47,14 @@ const PerformancePane = lazy(() =>
 );
 const ProcessPane = lazy(() =>
   import("./process-pane").then(({ ProcessPane }) => ({ default: ProcessPane })),
+);
+const ManualBlueprintDialog = lazy(() =>
+  import("./manual-blueprint-dialog").then(({ ManualBlueprintDialog }) => ({
+    default: ManualBlueprintDialog,
+  })),
+);
+const MobileSidebar = lazy(() =>
+  import("./mobile-sidebar").then(({ MobileSidebar }) => ({ default: MobileSidebar })),
 );
 type Tab = "preview" | "process" | "performance" | "compare";
 const LAST_VIEW_KEY = "fpsr-viewer:last-view";
@@ -222,7 +212,7 @@ export const App = () => {
   );
   const [manualOpen, setManualOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [manualDraft, setManualDraft] = useState("");
+  const [mobileSidebarMounted, setMobileSidebarMounted] = useState(false);
   const [tab, setTab] = useState<Tab>("preview");
   const [tileSize, setTileSize] = useState("—");
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
@@ -343,13 +333,6 @@ export const App = () => {
       toast.error(e instanceof Error ? e.message : "Could not read clipboard.");
     }
   }, [addCustomFromString]);
-  const handleManualSubmit = useCallback(async () => {
-    const ok = await addCustomFromString(manualDraft);
-    if (ok) {
-      setManualDraft("");
-      setManualOpen(false);
-    }
-  }, [addCustomFromString, manualDraft]);
   const clearAllCustoms = useCallback(async () => {
     try {
       await clearCustoms();
@@ -415,10 +398,7 @@ export const App = () => {
     renderProgress,
     onSelect: onTreeSelect,
     onPaste: () => void handlePaste(),
-    onManualOpen: () => {
-      setManualDraft("");
-      setManualOpen(true);
-    },
+    onManualOpen: () => setManualOpen(true),
     onClearAllCustoms: () => void clearAllCustoms(),
   };
   return (
@@ -430,25 +410,22 @@ export const App = () => {
         </h1>
 
         <div className="mx-2 pt-3 md:hidden">
-          <Drawer
-            open={sidebarOpen}
-            onOpenChange={setSidebarOpen}
-            showSwipeHandle
-            swipeDirection="down"
-          >
-            <DrawerTrigger render={<SidebarSelectionTrigger selection={sidebarSelection} />} />
-            <DrawerContent className="[--drawer-content-height:min(70vh,600px)]">
-              <DrawerHeader>
-                <DrawerTitle>Blueprints</DrawerTitle>
-                <DrawerDescription className="sr-only">
-                  Select a blueprint or blueprint book
-                </DrawerDescription>
-              </DrawerHeader>
-              <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+          <SidebarSelectionTrigger
+            selection={sidebarSelection}
+            aria-haspopup="dialog"
+            aria-expanded={sidebarOpen}
+            onClick={() => {
+              setMobileSidebarMounted(true);
+              setSidebarOpen(true);
+            }}
+          />
+          {mobileSidebarMounted && (
+            <Suspense fallback={null}>
+              <MobileSidebar open={sidebarOpen} onOpenChange={setSidebarOpen}>
                 <SidebarPanels {...sidebarPanelProps} />
-              </ScrollArea>
-            </DrawerContent>
-          </Drawer>
+              </MobileSidebar>
+            </Suspense>
+          )}
         </div>
 
         <ScrollArea className="hidden min-h-0 flex-1 md:flex" viewportClassName="scroll-fade">
@@ -456,32 +433,15 @@ export const App = () => {
         </ScrollArea>
       </aside>
 
-      <Dialog
-        open={manualOpen}
-        onOpenChange={(open) => {
-          setManualOpen(open);
-          if (!open) setManualDraft("");
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Enter blueprint string</DialogTitle>
-            <DialogDescription>
-              Paste a Factorio blueprint string to add it to Custom.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={manualDraft}
-            onChange={(e) => setManualDraft(e.target.value)}
-            placeholder="Paste a blueprint string here…"
-            className="h-40 resize-none font-mono text-xs"
+      {manualOpen && (
+        <Suspense fallback={null}>
+          <ManualBlueprintDialog
+            open={manualOpen}
+            onOpenChange={setManualOpen}
+            onSubmit={addCustomFromString}
           />
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <Button onClick={() => void handleManualSubmit()}>Add</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </Suspense>
+      )}
 
       <main className="m-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card md:ml-2 md:mr-3 md:my-3">
         <ScrollArea
@@ -500,9 +460,9 @@ export const App = () => {
                       : undefined
                   }
                 />
-                <div className="flex min-h-0 flex-1 flex-col items-center justify-center border-t px-4 py-4 text-sm text-muted-foreground">
+                <PaneMessage className="border-t">
                   Select a blueprint in the sidebar to view it
-                </div>
+                </PaneMessage>
               </>
             ) : (
               <>
@@ -513,11 +473,9 @@ export const App = () => {
                     sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
                   />
                 ) : (
-                  <div className="shrink-0 px-4 pt-4 pb-4">
-                    <div className="rounded-lg border border-dashed px-8 py-12 text-center text-muted-foreground">
-                      Decode a blueprint to preview rendering.
-                    </div>
-                  </div>
+                  <PaneMessage className="min-h-32 flex-none">
+                    Decode a blueprint to preview rendering.
+                  </PaneMessage>
                 )}
 
                 <Tabs
