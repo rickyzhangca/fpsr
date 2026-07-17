@@ -255,55 +255,21 @@ export const PreviewCanvasFrame = ({
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || !ready) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
-      // Ignore drags that start on overlay controls.
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("button, a, input, [data-no-pan]")) return;
-      event.preventDefault();
-      dragRef.current = {
-        pointerId: event.pointerId,
-        x: event.clientX,
-        y: event.clientY,
-        panX: viewRef.current.panX,
-        panY: viewRef.current.panY,
-      };
-      setDragging(true);
-      try {
-        viewport.setPointerCapture(event.pointerId);
-      } catch {
-        // Synthetic / non-active pointers (tests) may reject capture; drag still works via bubbling.
-      }
+
+    let onWindowPointerUp: (event: PointerEvent) => void = () => {};
+
+    const detachWindowDragListeners = () => {
+      window.removeEventListener("pointerup", onWindowPointerUp);
+      window.removeEventListener("pointercancel", onWindowPointerUp);
     };
-    const onPointerMove = (event: PointerEvent) => {
-      const drag = dragRef.current;
-      const shell = shellRef.current;
-      const { width: contentW, height: contentH } = sizeRef.current;
-      if (!drag || drag.pointerId !== event.pointerId || !shell || contentW <= 0 || contentH <= 0) {
-        return;
-      }
-      event.preventDefault();
-      const panX = drag.panX + (event.clientX - drag.x);
-      const panY = drag.panY + (event.clientY - drag.y);
-      // Rubberband past hard bounds while dragging; spring snaps back on release.
-      const pan = rubberbandPan(
-        viewRef.current.zoom,
-        panX,
-        panY,
-        shell.clientWidth,
-        shell.clientHeight,
-        contentW,
-        contentH,
-        RUBBERBAND_DISTANCE,
-      );
-      commitView({ zoom: viewRef.current.zoom, ...pan });
-    };
-    const onPointerUp = (event: PointerEvent) => {
-      if (dragRef.current?.pointerId !== event.pointerId) return;
+
+    const endDrag = (pointerId: number) => {
+      if (dragRef.current?.pointerId !== pointerId) return;
       dragRef.current = null;
       setDragging(false);
-      if (viewport.hasPointerCapture(event.pointerId)) {
-        viewport.releasePointerCapture(event.pointerId);
+      detachWindowDragListeners();
+      if (viewport.hasPointerCapture(pointerId)) {
+        viewport.releasePointerCapture(pointerId);
       }
       // Snap back from rubberband overscroll with spring transition.
       const shell = shellRef.current;
@@ -323,15 +289,85 @@ export const PreviewCanvasFrame = ({
         commitView({ zoom: prev.zoom, ...pan });
       }
     };
+
+    onWindowPointerUp = (event: PointerEvent) => {
+      endDrag(event.pointerId);
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      // Ignore drags that start on overlay controls.
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("button, a, input, [data-no-pan]")) return;
+      event.preventDefault();
+      dragRef.current = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        panX: viewRef.current.panX,
+        panY: viewRef.current.panY,
+      };
+      setDragging(true);
+      // Window fallback so release outside the viewport still ends the drag
+      // when setPointerCapture fails or is lost.
+      detachWindowDragListeners();
+      window.addEventListener("pointerup", onWindowPointerUp);
+      window.addEventListener("pointercancel", onWindowPointerUp);
+      try {
+        viewport.setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic / non-active pointers (tests) may reject capture; drag still works via bubbling.
+      }
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      // Release outside can miss pointerup; clear stale drag when no buttons are held.
+      if (event.buttons === 0) {
+        endDrag(event.pointerId);
+        return;
+      }
+      const shell = shellRef.current;
+      const { width: contentW, height: contentH } = sizeRef.current;
+      if (!shell || contentW <= 0 || contentH <= 0) return;
+      event.preventDefault();
+      const panX = drag.panX + (event.clientX - drag.x);
+      const panY = drag.panY + (event.clientY - drag.y);
+      // Rubberband past hard bounds while dragging; spring snaps back on release.
+      const pan = rubberbandPan(
+        viewRef.current.zoom,
+        panX,
+        panY,
+        shell.clientWidth,
+        shell.clientHeight,
+        contentW,
+        contentH,
+        RUBBERBAND_DISTANCE,
+      );
+      commitView({ zoom: viewRef.current.zoom, ...pan });
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      endDrag(event.pointerId);
+    };
+    const onLostPointerCapture = (event: PointerEvent) => {
+      endDrag(event.pointerId);
+    };
     viewport.addEventListener("pointerdown", onPointerDown);
     viewport.addEventListener("pointermove", onPointerMove);
     viewport.addEventListener("pointerup", onPointerUp);
     viewport.addEventListener("pointercancel", onPointerUp);
+    viewport.addEventListener("lostpointercapture", onLostPointerCapture);
     return () => {
+      detachWindowDragListeners();
+      if (dragRef.current) {
+        dragRef.current = null;
+        setDragging(false);
+      }
       viewport.removeEventListener("pointerdown", onPointerDown);
       viewport.removeEventListener("pointermove", onPointerMove);
       viewport.removeEventListener("pointerup", onPointerUp);
       viewport.removeEventListener("pointercancel", onPointerUp);
+      viewport.removeEventListener("lostpointercapture", onLostPointerCapture);
     };
   }, [ready, commitView]);
   // Native non-passive listeners: React's onWheel is passive, so preventDefault
