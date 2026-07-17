@@ -28,10 +28,10 @@ import {
   type PreviewRenderProgress,
   type PreviewRenderResult,
 } from "./preview-renderer";
+import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
 const FULL_PIXELS_PER_TILE = 64;
 const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
 const WEBP_QUALITY = 0.9;
-const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
 type ExportFormat = "webp" | "png";
 const EXPORT_OPTIONS = {
   webp: { type: "image/webp", quality: WEBP_QUALITY },
@@ -49,14 +49,6 @@ const formatSurfaceMemory = (width: number, height: number): string => {
   return bytes < 1024 * 1024 * 1024
     ? `${(bytes / 1024 / 1024).toFixed(0)} MB`
     : `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-};
-const isAssetsError = (message: string): boolean => {
-  return (
-    message.includes("Failed to fetch") ||
-    message.includes("404") ||
-    message.includes("Not found") ||
-    message.includes("ENOENT")
-  );
 };
 const resultPixelsPerTile = (result: PreviewRenderResult): number => {
   const tilesX = result.tileFrame.maxX - result.tileFrame.minX;
@@ -277,7 +269,7 @@ export const PreviewPane = ({
             if (controller.signal.aborted) return;
             if (gen !== renderGenRef.current) return;
             const message = e instanceof Error ? e.message : "Render failed";
-            setAssetsMissing(isAssetsError(message));
+            setAssetsMissing(isMissingAssetsError(message));
             setError(message);
             setDimensions(null);
             setLastResult(null);
@@ -488,7 +480,7 @@ export const PreviewPane = ({
       {assetsMissing && (
         <Alert className="shrink-0 mx-4">
           <AlertTitle>Assets missing</AlertTitle>
-          <AlertDescription className="font-mono text-xs">{ASSETS_HINT}</AlertDescription>
+          <AlertDescription className="font-mono text-xs">{ASSETS_MISSING_HINT}</AlertDescription>
         </Alert>
       )}
       {error && !assetsMissing && (

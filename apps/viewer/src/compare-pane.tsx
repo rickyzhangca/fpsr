@@ -13,21 +13,13 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { renderPreview } from "./preview-renderer";
 import { PreviewCanvasFrame } from "./preview-canvas-frame";
-const ASSETS_HINT = "Assets not found — run: pnpm assets:build";
+import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
 interface GoldenCase {
   name: string;
   bp: string;
   ppt: number;
   alt?: boolean;
 }
-const isAssetsError = (message: string): boolean => {
-  return (
-    message.includes("Failed to fetch") ||
-    message.includes("404") ||
-    message.includes("Not found") ||
-    message.includes("ENOENT")
-  );
-};
 export const ComparePane = ({ caseName }: { caseName: string | null }) => {
   const liveCanvasRef = useRef<HTMLCanvasElement>(null);
   const goldenCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -85,19 +77,21 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
     setGoldenUrl(`/golden/${selectedCase.name}.png`);
     setGroundTruthMissing(false);
     setGroundTruthUrl(null);
+    const controller = new AbortController();
     void (async () => {
       const gtUrl = `/ground-truth/${selectedCase.name}.game.png`;
       try {
-        const res = await fetch(gtUrl, { method: "HEAD" });
+        const res = await fetch(gtUrl, { method: "HEAD", signal: controller.signal });
         if (res.ok) {
           setGroundTruthUrl(gtUrl);
         } else {
           setGroundTruthMissing(true);
         }
       } catch {
-        setGroundTruthMissing(true);
+        if (!controller.signal.aborted) setGroundTruthMissing(true);
       }
     })();
+    return () => controller.abort();
   }, [selectedCase]);
   useEffect(() => {
     if (!selectedCase) return;
@@ -108,7 +102,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
     setAssetsMissing(false);
     void (async () => {
       try {
-        const bpRes = await fetch(`/golden/${selectedCase.bp}`);
+        const bpRes = await fetch(`/golden/${selectedCase.bp}`, { signal: controller.signal });
         if (!bpRes.ok) throw new Error(`Failed to load ${selectedCase.bp} (${bpRes.status})`);
         const source = (await bpRes.text()).trim();
         if (gen !== renderGenRef.current) return;
@@ -126,8 +120,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
           throw new Error(`Decode error: ${reason}`);
         }
         const liveCanvas = liveCanvasRef.current;
-        const overlayCanvas = overlayLiveRef.current;
-        if (!liveCanvas || !overlayCanvas) return;
+        if (!liveCanvas) return;
         const renderOptions = {
           pixelsPerTile: selectedCase.ppt,
           altMode: selectedCase.alt ?? true,
@@ -135,17 +128,33 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
           showCheckerboard: true,
           signal: controller.signal,
         };
-        const [result] = await Promise.all([
-          renderPreview(liveCanvas, doc, renderOptions),
-          renderPreview(overlayCanvas, doc, renderOptions),
-        ]);
+        const result = await renderPreview(liveCanvas, doc, renderOptions);
+        if (gen !== renderGenRef.current) return;
+        const overlayCanvas = overlayLiveRef.current;
+        if (overlayCanvas) {
+          const blob = await result.toPngBlob();
+          const bitmap = await createImageBitmap(blob);
+          try {
+            if (gen === renderGenRef.current) {
+              blitWithTileCheckerboard(
+                overlayCanvas,
+                bitmap,
+                result.width,
+                result.height,
+                selectedCase.ppt,
+              );
+            }
+          } finally {
+            bitmap.close();
+          }
+        }
         if (gen !== renderGenRef.current) return;
         setDimensions({ width: result.width, height: result.height });
       } catch (e) {
         if (controller.signal.aborted) return;
         if (gen !== renderGenRef.current) return;
         const message = e instanceof Error ? e.message : "Render failed";
-        setAssetsMissing(isAssetsError(message));
+        setAssetsMissing(isMissingAssetsError(message));
         setError(message);
         setDimensions(null);
       } finally {
@@ -158,8 +167,10 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
   }, [selectedCase]);
   useEffect(() => {
     if (!goldenUrl || !selectedCase) return;
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       const width = img.naturalWidth;
       const height = img.naturalHeight;
       const paint = (canvas: HTMLCanvasElement | null) => {
@@ -170,11 +181,18 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
       paint(overlayGoldenRef.current);
     };
     img.src = goldenUrl;
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.src = "";
+    };
   }, [goldenUrl, selectedCase]);
   useEffect(() => {
     if (!groundTruthUrl || !selectedCase) return;
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       const canvas = groundTruthCanvasRef.current;
       if (!canvas) return;
       const width = img.naturalWidth;
@@ -182,6 +200,11 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
       blitWithTileCheckerboard(canvas, img, width, height, selectedCase.ppt);
     };
     img.src = groundTruthUrl;
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.src = "";
+    };
   }, [groundTruthUrl, selectedCase]);
   if (loadingCases) {
     return (
@@ -248,7 +271,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
       </div>
 
       {blueprintString && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor="compare-bp">Blueprint string</Label>
           <Textarea
             id="compare-bp"
@@ -264,7 +287,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
       {assetsMissing && (
         <Alert>
           <AlertTitle>Assets missing</AlertTitle>
-          <AlertDescription className="font-mono text-xs">{ASSETS_HINT}</AlertDescription>
+          <AlertDescription className="font-mono text-xs">{ASSETS_MISSING_HINT}</AlertDescription>
         </Alert>
       )}
       {error && !assetsMissing && (
@@ -275,7 +298,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Live render
           </h3>
@@ -288,7 +311,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
           </PreviewCanvasFrame>
         </div>
 
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Committed golden
           </h3>
@@ -307,7 +330,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
           </PreviewCanvasFrame>
         </div>
 
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Game ground truth
           </h3>
@@ -330,7 +353,7 @@ export const ComparePane = ({ caseName }: { caseName: string | null }) => {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           Overlay
         </h3>
