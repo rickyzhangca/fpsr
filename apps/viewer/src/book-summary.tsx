@@ -16,19 +16,19 @@ export const BookSummary = ({
 }) => {
   const byteSize = formatByteSize(sourceBytes ?? encodedBookByteSize(book));
   return (
-    <div className="flex shrink-0 gap-4 p-4">
+    <div className="flex min-w-0 shrink-0 gap-4 overflow-hidden p-4">
       <CopyableBlueprintIcons
         icons={book.icons}
         backgroundKey="item/blueprint-book"
         getBlueprintString={() => sourceString ?? encode({ blueprint_book: book })}
       />
 
-      <div className="flex flex-col gap-3">
-        <div>
-          <h2 className="font-medium text-lg text-foreground">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="min-w-0">
+          <h2 className="break-words font-medium text-lg text-foreground">
             <FactorioRichText text={book.label} fallback="<Unnamed book>" size="lg" />
           </h2>
-          <dd className="text-muted-foreground text-sm">
+          <dd className="break-words text-muted-foreground text-sm">
             <FactorioRichText text={book.description} fallback="No description" size="sm" />
           </dd>
         </div>

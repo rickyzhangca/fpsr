@@ -461,11 +461,11 @@ export const App = () => {
 
       <main className="m-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card md:ml-2 md:mr-3 md:my-3">
         <ScrollArea
-          className="min-h-0 flex-1"
-          viewportClassName="scroll-fade"
-          contentClassName="h-full"
+          className="min-h-0 min-w-0 flex-1"
+          viewportClassName="scroll-fade overflow-x-hidden"
+          contentClassName="h-full w-full min-w-0!"
         >
-          <div className="flex h-full flex-col min-h-[640px]">
+          <div className="flex h-full min-h-[640px] w-full min-w-0 flex-col">
             {selectedBook ? (
               <>
                 <BookSummary

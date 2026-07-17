@@ -206,4 +206,33 @@ describe("BlueprintSummary", () => {
     expect(host.querySelector('[aria-label="Expand summary"]')).toBeTruthy();
     act(() => secondRoot.unmount());
   });
+
+  it("truncates long label and description when collapsed", () => {
+    const longLabel = "A".repeat(200);
+    const longDescription = "B".repeat(300);
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: longLabel,
+      description: longDescription,
+      entities: [],
+    };
+    localStorage.setItem(VIEWER_PREFERENCE_KEYS.summaryExpanded, "false");
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        <Provider store={createStore()}>
+          <BlueprintSummary blueprint={blueprint} tileSize="0×0 tiles" />
+        </Provider>,
+      );
+    });
+    expect(host.querySelector('[aria-label="Expand summary"]')).toBeTruthy();
+    const title = host.querySelector("h2");
+    const description = host.querySelector("dd");
+    expect(title?.className).toContain("truncate");
+    expect(description?.className).toContain("truncate");
+    expect(title?.parentElement?.className).toMatch(/min-w-0/);
+    expect(title?.parentElement?.className).toMatch(/overflow-hidden/);
+    act(() => root.unmount());
+  });
 });
