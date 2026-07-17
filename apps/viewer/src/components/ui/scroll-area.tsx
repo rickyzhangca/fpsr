@@ -40,16 +40,18 @@ const ScrollAreaContent = React.forwardRef<HTMLDivElement, ScrollAreaPrimitive.C
 const ScrollArea = ({
   className,
   viewportClassName,
+  contentClassName,
   children,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   viewportClassName?: string;
+  contentClassName?: string;
 }) => {
   return (
     <ScrollAreaRoot className={className} {...props}>
       <ScrollAreaViewport className={viewportClassName}>
         {/* Content observes size changes so overflow/scrollbar state stays in sync. */}
-        <ScrollAreaContent>{children}</ScrollAreaContent>
+        <ScrollAreaContent className={contentClassName}>{children}</ScrollAreaContent>
       </ScrollAreaViewport>
       <ScrollBar />
       <ScrollBar orientation="horizontal" />

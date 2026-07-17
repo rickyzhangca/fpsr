@@ -484,8 +484,12 @@ export const App = () => {
       </Dialog>
 
       <main className="m-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card md:ml-2 md:mr-3 md:my-3">
-        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
-          <div className="flex min-h-full flex-col">
+        <ScrollArea
+          className="min-h-0 flex-1"
+          viewportClassName="scroll-fade"
+          contentClassName="h-full"
+        >
+          <div className="flex h-full flex-col min-h-[640px]">
             {selectedBook ? (
               <>
                 <BookSummary
@@ -496,7 +500,7 @@ export const App = () => {
                       : undefined
                   }
                 />
-                <div className="flex min-h-[480px] flex-1 flex-col items-center justify-center border-t px-4 py-4 text-sm text-muted-foreground">
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center border-t px-4 py-4 text-sm text-muted-foreground">
                   Select a blueprint in the sidebar to view it
                 </div>
               </>
@@ -519,7 +523,7 @@ export const App = () => {
                 <Tabs
                   value={tab}
                   onValueChange={(value) => setTab(value as Tab)}
-                  className="flex min-h-[480px] flex-1 flex-col border-t"
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
                 >
                   <TabsList variant="line" className="mx-1 mt-1">
                     <TabsTrigger value="preview">Preview</TabsTrigger>
