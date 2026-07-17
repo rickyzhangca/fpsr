@@ -252,6 +252,9 @@ export interface LayerGroup {
  * - `pipeCovers`: `{ covers: SpriteVariant[4], shadows?: SpriteVariant[4] }` —
  *   fluid-box pipe covers (N/E/S/W). Planner draws a cover on each *unconnected*
  *   port's adjacent tile (Factorio: pictures when no FluidBox is connected).
+ * - `cargoBayConnections` / `cargoBayConnectionsPlatform`: Factorio 2.1
+ *   `CargoBayConnections` (tileset + bridges) for hub / cargo-bay / landing-pad.
+ *   Body graphics may also expose a `platform` variant key beside `default`.
  * - `placeholder`: true when the pipeline baked a gray footprint sprite because
  *   no usable graphics were resolved; `placeholderReason` explains why.
  */
@@ -325,6 +328,38 @@ export interface BeltReaderGraphics {
   }[];
 }
 
+/** One layered sprite in a cargo-bay connection cell (tileset or bridge). */
+export interface CargoBayConnectionLayer {
+  layer: RenderLayerName;
+  variant: SpriteVariant;
+}
+
+/**
+ * One variation of a cargo-bay connection cell: parallel layered sprites
+ * (typically lower-object-above-shadow → object).
+ */
+export interface CargoBayConnectionCell {
+  layers: CargoBayConnectionLayer[];
+}
+
+/**
+ * Factorio 2.1 `CargoBayConnections` distilled for runtime planning.
+ * `tileset` is 0-based; dump `tileset_mapping` values are 1-based (0 = skip).
+ * Shape: tileset[index][group 0|1][variation] = layered cell.
+ */
+export interface CargoBayConnections {
+  tileset: CargoBayConnectionCell[][][];
+  /** Bitmask (0–255) → tileset index (1-based) or list of indices. */
+  tilesetMapping: Record<string, number | number[]>;
+  bridges: {
+    horizontalNarrow: CargoBayConnectionCell[];
+    verticalNarrow: CargoBayConnectionCell[];
+    horizontalWide: CargoBayConnectionCell[];
+    verticalWide: CargoBayConnectionCell[];
+    crossing: CargoBayConnectionCell[];
+  };
+}
+
 /** Stable, additive payload shared by the offline pipeline and runtime planner. */
 export interface EntityRenderData {
   tileSize?: [number, number];
@@ -338,6 +373,14 @@ export interface EntityRenderData {
   combinatorGraphics?: CombinatorGraphics;
   beltConnectorGraphics?: BeltConnectorGraphics;
   beltReaderGraphics?: BeltReaderGraphics;
+  /**
+   * Grounded (planet / landing-pad) cargo-bay connection graphics.
+   * When `cargoBayConnectionsPlatform` is set, resolve/plan picks platform
+   * art on space platforms (hub or space-platform tiles present).
+   */
+  cargoBayConnections?: CargoBayConnections;
+  /** Platform-surface connection graphics (`platform_graphics_set.connections`). */
+  cargoBayConnectionsPlatform?: CargoBayConnections;
   orientationCount?: number;
   backEqualsFront?: boolean;
   wheelsGroupIndex?: number;

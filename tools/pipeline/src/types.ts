@@ -3,6 +3,9 @@ export type {
   AtlasMeta,
   BeltConnectorGraphics,
   BeltReaderGraphics,
+  CargoBayConnectionCell,
+  CargoBayConnectionLayer,
+  CargoBayConnections,
   CombinatorGraphics,
   DirectionalConnectionMap,
   EntityKind,
@@ -13,12 +16,12 @@ export type {
   FrameId,
   FrameMeta,
   LayerGroup,
+  PipeCoverGraphics,
   RenderDb,
   RenderLayerName,
   SpriteVariant,
   TileMaterialAtlas,
   TileRenderDef,
-  PipeCoverGraphics,
   WireAnchorMap,
   WireAnchorSet,
   WireConnectorGraphics,
@@ -59,6 +62,8 @@ export interface RawSprite {
   draw_as_glow?: boolean;
   blend_mode?: string;
   apply_runtime_tint?: boolean;
+  /** LayeredSprite / picture-array entry render layer from dump. */
+  render_layer?: string;
   /** RotatedAnimation stripes: direction rows split across one or more files. */
   stripes?: {
     filename: string;

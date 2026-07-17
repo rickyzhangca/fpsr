@@ -69,10 +69,39 @@ function collectFrameIds(db: RenderDb): Set<number> {
       | {
           wireConnectorGraphics?: { layers?: Record<string, unknown> };
           beltConnectorGraphics?: { layers?: Record<string, unknown> };
+          cargoBayConnections?: {
+            tileset?: { layers?: { variant?: SpriteVariant }[] }[][][];
+            bridges?: Record<string, { layers?: { variant?: SpriteVariant }[] }[]>;
+          };
+          cargoBayConnectionsPlatform?: {
+            tileset?: { layers?: { variant?: SpriteVariant }[] }[][][];
+            bridges?: Record<string, { layers?: { variant?: SpriteVariant }[] }[]>;
+          };
         }
       | undefined;
     addLayerVariants(data?.wireConnectorGraphics?.layers);
     addLayerVariants(data?.beltConnectorGraphics?.layers);
+    type CargoConn = {
+      tileset?: { layers?: { variant?: SpriteVariant }[] }[][][];
+      bridges?: Record<string, { layers?: { variant?: SpriteVariant }[] }[]>;
+    };
+    const addCargoConn = (conn: CargoConn | undefined) => {
+      if (!conn) return;
+      for (const groups of conn.tileset ?? []) {
+        for (const group of groups) {
+          for (const cell of group) {
+            for (const layer of cell.layers ?? []) add(layer.variant ?? null);
+          }
+        }
+      }
+      for (const cells of Object.values(conn.bridges ?? {})) {
+        for (const cell of cells) {
+          for (const layer of cell.layers ?? []) add(layer.variant ?? null);
+        }
+      }
+    };
+    addCargoConn(data?.cargoBayConnections);
+    addCargoConn(data?.cargoBayConnectionsPlatform);
     const brg = data?.beltReaderGraphics as
       | { layers?: { variants?: (SpriteVariant | null)[][] }[] }
       | undefined;
@@ -376,6 +405,28 @@ describe("render-db contract", () => {
     expect(suspicious).toHaveLength(0);
     // Closed giga hatch covers (upper + lower, back + front).
     expect(hub!.graphics.length).toBeGreaterThan(12);
+  });
+
+  it("assigns official lower render layers to cargo-bay and space-platform-hub bodies", async () => {
+    const db = await loadDb();
+    const hub = db.entities["space-platform-hub"];
+    expect(hub).toBeTruthy();
+    const hubLayers = new Set(hub!.graphics.map((g) => g.layer));
+    expect(hubLayers.has("lower-object-above-shadow")).toBe(true);
+    expect(hubLayers.has("lower-object-overlay")).toBe(true);
+    expect(hubLayers.has("object-under")).toBe(true);
+    expect(hubLayers.has("object")).toBe(true);
+
+    const bay = db.entities["cargo-bay"];
+    expect(bay).toBeTruthy();
+    expect(bay!.graphics.some((g) => g.layer === "lower-object-above-shadow")).toBe(true);
+    expect(bay!.graphics.some((g) => g.layer === "object")).toBe(true);
+    // Grounded + platform body variants.
+    expect(bay!.graphics.some((g) => g.variants.platform != null)).toBe(true);
+    expect(bay!.data?.cargoBayConnections).toBeTruthy();
+    expect(bay!.data?.cargoBayConnectionsPlatform).toBeTruthy();
+    expect(bay!.data!.cargoBayConnectionsPlatform!.tileset.length).toBeGreaterThan(0);
+    expect(hub!.data?.cargoBayConnections ?? hub!.data?.cargoBayConnectionsPlatform).toBeTruthy();
   });
 
   it("places agricultural-tower crane hub above the base silo", async () => {

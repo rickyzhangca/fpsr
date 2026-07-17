@@ -3,12 +3,12 @@ import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "
 import path from "node:path";
 import { packAtlases } from "./atlas.js";
 import { asOffset2, splitBeltFrameMain } from "./belt-connector-split.js";
-import { entityKindForProtoType, routeEntityPrototype } from "./distill/domains/index.js";
 import {
   discoverPlaceableEntities,
   discoverPlaceableTiles,
   discoverTilePlacingItems,
 } from "./discover.js";
+import { entityKindForProtoType, routeEntityPrototype } from "./distill/domains/index.js";
 import { UNSUPPORTED_ENTITY_PNG, getPipelinePaths, resolveSpritePath } from "./paths.js";
 import { fpsrLayer, guessedLayer, officialLayer, railPieceLayerFromDump } from "./render-layers.js";
 import {
@@ -30,9 +30,12 @@ import {
 import type {
   BeltConnectorGraphics,
   BeltReaderGraphics,
-  EntityRenderData,
+  CargoBayConnectionCell,
+  CargoBayConnectionLayer,
+  CargoBayConnections,
   DataRaw,
   EntityKind,
+  EntityRenderData,
   EntityRenderDef,
   LayerGroup,
   RawSprite,
@@ -2913,23 +2916,97 @@ async function distillGraphicsSetPictureArray(
         animation?: RawSprite;
         idle_animation?: RawSprite;
         structure?: RawSprite;
+        connections?: RawCargoBayConnections;
       }
     | undefined;
+  const pgs = p.platform_graphics_set as
+    | {
+        picture?: RawSprite | RawSprite[] | Record<string, RawSprite | RawSprite[]>;
+        connections?: RawCargoBayConnections;
+      }
+    | undefined;
+
+  let grounded = await distillPictureSet(bank, gs?.picture, "default");
+  if (grounded.length === 0 && gs?.structure) {
+    grounded = await distillPictureSet(bank, gs.structure, "default");
+  }
+  if (grounded.length === 0 && (gs?.animation || gs?.idle_animation)) {
+    grounded = await layersFromSprite(bank, gs.animation ?? gs.idle_animation, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing: "single",
+      frame: 0,
+      variantKey: "default",
+    });
+  }
+
+  const platform = await distillPictureSet(bank, pgs?.picture, "default");
+
+  let groups: LayerGroup[];
+  if (grounded.length > 0 && platform.length > 0) {
+    groups = mergePlatformBodyVariants(grounded, platform);
+  } else if (grounded.length > 0) {
+    groups = grounded;
+  } else {
+    groups = platform;
+  }
+
+  await appendCargoStationIdleHatches(bank, groups, p);
+
+  const def = baseEntity(kind, protoType, p, groups);
+  const connections = await distillCargoBayConnections(bank, gs?.connections);
+  const connectionsPlatform = await distillCargoBayConnections(bank, pgs?.connections);
+  if (connections || connectionsPlatform) {
+    def.data = {
+      ...def.data,
+      ...(connections ? { cargoBayConnections: connections } : {}),
+      ...(connectionsPlatform
+        ? { cargoBayConnectionsPlatform: connectionsPlatform }
+        : connections
+          ? { cargoBayConnectionsPlatform: connections }
+          : {}),
+    };
+  }
+  return def;
+}
+
+/** Dump shape for Factorio 2.1 CargoBayConnections. */
+type RawCargoBayConnections = {
+  tileset?: unknown;
+  tileset_mapping?: Record<string, number | number[]>;
+  bridge_horizontal_narrow?: unknown;
+  bridge_vertical_narrow?: unknown;
+  bridge_horizontal_wide?: unknown;
+  bridge_vertical_wide?: unknown;
+  bridge_crossing?: unknown;
+};
+
+/**
+ * Distill a graphics_set.picture (array / 4-way / single) into LayerGroups,
+ * honoring each picture-array entry's official `render_layer`.
+ */
+async function distillPictureSet(
+  bank: FrameBank,
+  pics: RawSprite | RawSprite[] | Record<string, RawSprite | RawSprite[]> | undefined,
+  variantKey: string,
+): Promise<LayerGroup[]> {
+  if (!pics) return [];
   const groups: LayerGroup[] = [];
 
   const addPic = async (pic: RawSprite | undefined) => {
     if (!pic) return;
+    const layer =
+      officialLayer(pic.render_layer) ??
+      guessedLayer("object", "entity body; dump has no render_layer");
     groups.push(
       ...(await layersFromSprite(bank, pic, {
-        layer: guessedLayer("object", "entity body; dump has no render_layer"),
+        layer,
         indexing: "single",
+        variantKey,
       })),
     );
   };
 
-  const pics = gs?.picture;
-  if (pics && typeof pics === "object" && !Array.isArray(pics) && isSprite4Way(pics as RawSprite)) {
-    // 4-way picture where each dir may be an array of layered sprites.
+  if (typeof pics === "object" && !Array.isArray(pics) && isSprite4Way(pics as RawSprite)) {
     const dirNames = ["north", "east", "south", "west"] as const;
     const leafGroups = new Map<string, LayerGroup>();
     for (let di = 0; di < 4; di++) {
@@ -2939,12 +3016,14 @@ async function distillGraphicsSetPictureArray(
       const list = Array.isArray(rawDir) ? rawDir : rawDir ? [rawDir] : [];
       let leafIdx = 0;
       for (const entry of list) {
+        const entryLayer =
+          officialLayer(entry.render_layer) ?? guessedLayer("object", "entity body; not in dump");
         for (const leaf of leafLayers(entry)) {
           if (skipIdleDecorativeLeaf(leaf)) continue;
           const info = await bank.addSprite(leaf, 0, 0);
           const layerName: RenderLayerName = info.shadow
             ? fpsrLayer("shadow", "draw_as_shadow leaf")
-            : guessedLayer("object", "entity body; not in dump");
+            : entryLayer;
           const key = `${layerName}:${leafIdx}`;
           leafIdx++;
           let g = leafGroups.get(key);
@@ -2952,11 +3031,11 @@ async function distillGraphicsSetPictureArray(
             g = {
               layer: layerName,
               indexing: "direction4",
-              variants: { default: [null, null, null, null] },
+              variants: { [variantKey]: [null, null, null, null] },
             };
             leafGroups.set(key, g);
           }
-          const arr = g.variants.default;
+          const arr = g.variants[variantKey];
           if (arr) arr[di] = bank.toVariant(info);
         }
       }
@@ -2964,34 +3043,120 @@ async function distillGraphicsSetPictureArray(
     groups.push(...leafGroups.values());
   } else if (Array.isArray(pics)) {
     for (const pic of pics) await addPic(pic);
-  } else if (pics) {
+  } else {
     await addPic(pics as RawSprite);
   }
+  return groups;
+}
 
-  if (groups.length === 0 && gs?.structure) {
-    await addPic(gs.structure);
-  }
-  if (groups.length === 0 && (gs?.animation || gs?.idle_animation)) {
-    groups.push(
-      ...(await layersFromSprite(bank, gs.animation ?? gs.idle_animation, {
-        layer: guessedLayer("object", "entity body; dump has no render_layer"),
-        indexing: "single",
-        frame: 0,
-      })),
-    );
-  }
-  // Platform variant for cargo-bay when grounded set is empty.
-  if (groups.length === 0) {
-    const pgs = p.platform_graphics_set as { picture?: RawSprite | RawSprite[] } | undefined;
-    const pp = pgs?.picture;
-    if (Array.isArray(pp)) {
-      for (const pic of pp) await addPic(pic);
-    } else if (pp) {
-      await addPic(pp);
+/** Zip grounded + platform body groups into default/platform variant keys. */
+function mergePlatformBodyVariants(grounded: LayerGroup[], platform: LayerGroup[]): LayerGroup[] {
+  const n = Math.max(grounded.length, platform.length);
+  const out: LayerGroup[] = [];
+  for (let i = 0; i < n; i++) {
+    const g = grounded[i];
+    const p = platform[i];
+    if (g && p) {
+      out.push({
+        layer: g.layer,
+        indexing: g.indexing,
+        variants: {
+          default: g.variants.default ?? Object.values(g.variants)[0] ?? [null],
+          platform: p.variants.default ?? Object.values(p.variants)[0] ?? [null],
+        },
+      });
+    } else if (g) {
+      out.push(g);
+    } else if (p) {
+      const body = p.variants.default ?? Object.values(p.variants)[0] ?? [null];
+      out.push({
+        layer: p.layer,
+        indexing: p.indexing,
+        variants: { default: body, platform: body },
+      });
     }
   }
-  await appendCargoStationIdleHatches(bank, groups, p);
-  return baseEntity(kind, protoType, p, groups);
+  return out;
+}
+
+async function distillCargoBayConnectionCell(
+  bank: FrameBank,
+  variation: unknown,
+): Promise<CargoBayConnectionCell | null> {
+  const layersIn: RawSprite[] = Array.isArray(variation)
+    ? (variation as RawSprite[])
+    : variation && typeof variation === "object"
+      ? [variation as RawSprite]
+      : [];
+  if (layersIn.length === 0) return null;
+
+  const layers: CargoBayConnectionLayer[] = [];
+  for (const entry of layersIn) {
+    const entryLayer =
+      officialLayer(entry.render_layer) ??
+      guessedLayer("object", "cargo bay connection; dump has no render_layer");
+    for (const leaf of leafLayers(entry)) {
+      if (skipIdleDecorativeLeaf(leaf)) continue;
+      const info = await bank.addSprite(leaf, 0, 0);
+      const layer: RenderLayerName = info.shadow
+        ? fpsrLayer("shadow", "draw_as_shadow leaf")
+        : (officialLayer(leaf.render_layer) ?? entryLayer);
+      layers.push({ layer, variant: bank.toVariant(info) });
+    }
+  }
+  return layers.length > 0 ? { layers } : null;
+}
+
+async function distillCargoBayConnectionVariations(
+  bank: FrameBank,
+  raw: unknown,
+): Promise<CargoBayConnectionCell[]> {
+  if (!raw) return [];
+  const variations = Array.isArray(raw) ? raw : [raw];
+  const out: CargoBayConnectionCell[] = [];
+  for (const variation of variations) {
+    const cell = await distillCargoBayConnectionCell(bank, variation);
+    if (cell) out.push(cell);
+  }
+  return out;
+}
+
+async function distillCargoBayConnections(
+  bank: FrameBank,
+  raw: RawCargoBayConnections | undefined,
+): Promise<CargoBayConnections | undefined> {
+  if (!raw?.tileset && !raw?.bridge_horizontal_narrow) return undefined;
+
+  const tileset: CargoBayConnectionCell[][][] = [];
+  const rawTileset = Array.isArray(raw.tileset) ? raw.tileset : [];
+  for (const groups of rawTileset) {
+    const groupArr: CargoBayConnectionCell[][] = [];
+    const rawGroups = Array.isArray(groups) ? groups : [];
+    for (const group of rawGroups) {
+      groupArr.push(await distillCargoBayConnectionVariations(bank, group));
+    }
+    tileset.push(groupArr);
+  }
+
+  const tilesetMapping: Record<string, number | number[]> = {};
+  for (const [k, v] of Object.entries(raw.tileset_mapping ?? {})) {
+    tilesetMapping[k] = v;
+  }
+
+  return {
+    tileset,
+    tilesetMapping,
+    bridges: {
+      horizontalNarrow: await distillCargoBayConnectionVariations(
+        bank,
+        raw.bridge_horizontal_narrow,
+      ),
+      verticalNarrow: await distillCargoBayConnectionVariations(bank, raw.bridge_vertical_narrow),
+      horizontalWide: await distillCargoBayConnectionVariations(bank, raw.bridge_horizontal_wide),
+      verticalWide: await distillCargoBayConnectionVariations(bank, raw.bridge_vertical_wide),
+      crossing: await distillCargoBayConnectionVariations(bank, raw.bridge_crossing),
+    },
+  };
 }
 
 /**
