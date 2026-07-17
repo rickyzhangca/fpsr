@@ -1,6 +1,6 @@
 /**
  * Clear fixtures/ground-truth/*.game.png and re-shoot every golden case
- * (viewer built-in samples / fixtures/golden/cases.json) in one Factorio launch.
+ * from fixtures/golden/cases.json in one Factorio launch.
  *
  * Camera framing comes from fpsr planDrawList bounds (same as golden renders).
  * Quit any running Factorio instance first (user-data lock).

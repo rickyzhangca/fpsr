@@ -1,11 +1,12 @@
-# Golden PNG regression tests
+# Local golden PNG regression tests
 
-Curated blueprint renders are pixel-compared against committed PNGs in `fixtures/golden/`.
+Curated blueprint renders are pixel-compared against local PNG baselines in
+`fixtures/golden/`.
 
 ## Commands
 
 ```bash
-# Regenerate committed goldens (requires local assets)
+# Regenerate local goldens (requires local assets)
 pnpm -F @fpsr/golden-tests run update
 
 # Run pixel-diff tests
@@ -14,8 +15,14 @@ pnpm goldens:test
 
 ## Workflow
 
-1. Open the viewer **Compare** tab and visually verify each case against ground-truth game screenshots (when available).
-2. After approval, run `pnpm -F @fpsr/golden-tests run update` on a machine with pipeline assets. Golden PNGs are **gitignored** (not redistributed); keep them locally for regression testing.
+1. Validate renderer accuracy against the real game with `pnpm visual-tests:canary`
+   or `pnpm visual-tests:all`.
+2. After the visual suite passes, run `pnpm goldens:update` on a machine with
+   pipeline assets.
+3. Run `pnpm goldens:test` to verify the refreshed local baselines.
+
+Golden PNGs are **gitignored** and not redistributed; keep them locally for
+regression testing.
 
 Goldens are generated on the machine that has `assets-out/2.1.11/` (from `pnpm -F @fpsr/pipeline run pipeline all`). Tests **skip** automatically when assets or golden PNGs are absent so CI stays green on clean checkouts.
 
@@ -25,4 +32,6 @@ same kind of machine you care about matching.
 
 ## Corpus
 
-Case definitions live in `fixtures/golden/cases.json`. Blueprint strings are `*.bp.txt` siblings; committed goldens are `<name>.png`. Failed comparisons write debug images to `fixtures/golden/__diff__/` (gitignored).
+Case definitions live in `fixtures/golden/cases.json`. Blueprint strings are
+`*.bp.txt` siblings; local goldens are `<name>.png`. Failed comparisons write
+debug images to `fixtures/golden/__diff__/` (gitignored).

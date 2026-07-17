@@ -10,8 +10,6 @@ import { defineConfig, lazyPlugins } from "vite-plus";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const assetsRoot = path.join(repoRoot, "assets-out");
-const goldenRoot = path.join(repoRoot, "fixtures/golden");
-const groundTruthRoot = path.join(repoRoot, "fixtures/ground-truth");
 
 const MIME: Record<string, string> = {
   ".json": "application/json",
@@ -60,8 +58,6 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     serveDirectory("/assets/", assetsRoot),
-    serveDirectory("/golden/", goldenRoot),
-    serveDirectory("/ground-truth/", groundTruthRoot),
   ]),
   resolve: {
     alias: {

@@ -41,9 +41,6 @@ import { SidebarSelectionTrigger } from "./sidebar-selection-trigger";
 import { type SidebarSelectableKind, type SidebarSource } from "./sidebar-tree";
 import { activeTabAtom, isViewerTab } from "./viewer-preferences";
 
-const ComparePane = lazy(() =>
-  import("./compare-pane").then(({ ComparePane }) => ({ default: ComparePane })),
-);
 const PerformancePane = lazy(() =>
   import("./performance-pane").then(({ PerformancePane }) => ({ default: PerformancePane })),
 );
@@ -169,7 +166,6 @@ const BUILT_IN_SOURCE_BY_ID = new Map(
 const BUILT_IN_DECODE_STATS = Object.fromEntries(
   [...SAMPLE_SOURCES, ...TEST_SOURCES].map((source) => [source.id, source.stats]),
 ) as Record<string, DecodeStats>;
-const SAMPLE_SOURCE_IDS = new Set<string>(SAMPLES.map((sample) => sample.id));
 const resolveStoredSelection = (
   doc: BlueprintDocument,
   path: number[] | null,
@@ -407,7 +403,6 @@ export const App = () => {
     },
     [selectedSourceId, selectedPath],
   );
-  const isGoldenSelected = SAMPLE_SOURCE_IDS.has(selectedSourceId);
   const sidebarSelection = resolveSidebarSelection(allSources, selectedSourceId, selectedPath);
   const sidebarPanelProps = {
     sampleSources: SAMPLE_SOURCES,
@@ -516,7 +511,6 @@ export const App = () => {
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="process">Process</TabsTrigger>
                     <TabsTrigger value="performance">Performance</TabsTrigger>
-                    <TabsTrigger value="compare">Compare</TabsTrigger>
                   </TabsList>
 
                   <TabsContent
@@ -533,19 +527,6 @@ export const App = () => {
                       onPerfReport={setPerfReport}
                       onRenderProgress={onRenderProgress}
                     />
-                  </TabsContent>
-
-                  <TabsContent
-                    value="compare"
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
-                  >
-                    {tab === "compare" && (
-                      <ScrollArea className="min-h-0 flex-1">
-                        <Suspense fallback={<LazyPaneFallback />}>
-                          <ComparePane caseName={isGoldenSelected ? selectedSourceId : null} />
-                        </Suspense>
-                      </ScrollArea>
-                    )}
                   </TabsContent>
 
                   <TabsContent

@@ -9,14 +9,14 @@ them to canvas in the browser or Node.js.
 | Path                 | Package                     | Purpose                                                                           |
 | -------------------- | --------------------------- | --------------------------------------------------------------------------------- |
 | `packages/renderer`  | [`fpsr`](packages/renderer) | Core library (npm) — decode/encode, resolver, draw-list planner, Canvas2D backend |
-| `apps/viewer`        | `@fpsr/viewer`              | Debug GUI for pasting blueprint strings, inspecting JSON, and approving goldens   |
+| `apps/viewer`        | `@fpsr/viewer`              | GUI for pasting, inspecting, previewing, and exporting blueprint strings          |
 | `tools/pipeline`     | `@fpsr/pipeline`            | Offline asset extraction from a local Factorio install → `assets-out/<version>/`  |
 | `tools/cdn-upload`   | `@fpsr/cdn-upload`          | Upload pipeline assets to private BunnyCDN Storage                                |
 | `tools/render-cli`   | `@fpsr/render-cli`          | CLI to render a blueprint string to PNG (Node + skia-canvas)                      |
 | `tools/corpus`       | `@fpsr/corpus`              | Blueprint corpus generation for fixtures and regression inputs                    |
 | `tools/golden-tests` | `@fpsr/golden-tests`        | Curated golden PNG regression suite (pixel-diff)                                  |
 | `tools/ground-truth` | `@fpsr/ground-truth`        | Capture reference screenshots from the real game (dev only)                       |
-| `fixtures/`          | —                           | Committed decode fixtures, draw-list snapshots, and golden PNGs                   |
+| `fixtures/`          | —                           | Committed decode/draw-list fixtures and local visual-test artifacts               |
 
 See [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for cross-package interfaces.
 
@@ -35,7 +35,7 @@ Supported Factorio install (version detected from game metadata)
   fpsr (library)  ◄── cdnAssets() or localAssets()
   decode → resolve → planDrawList → Canvas2D
         │
-        ├──► @fpsr/viewer        paste / inspect / approve goldens
+        ├──► @fpsr/viewer        paste / inspect / preview / export
         ├──► @fpsr/render-cli    headless PNG export
         ├──► @fpsr/golden-tests  pixel-diff against approved PNGs
         └──► @fpsr/ground-truth  compare against real-game screenshots (dev)
@@ -46,8 +46,8 @@ Supported Factorio install (version detected from game metadata)
    private CDN.
 3. **Renderer** (`fpsr`) decodes blueprint strings and paints them using those assets.
 4. **Viewer / golden-tests / ground-truth** close the loop: inspect output in the
-   browser, lock in approved PNGs for CI, and compare against the real game during
-   development.
+   browser, catch local PNG regressions, and compare against the real game through
+   the CLI visual suites during development.
 
 ## Development
 
@@ -81,9 +81,8 @@ vp install
    blueprint strings.
 2. **Draw-list snapshots** (`fixtures/drawlist/`) — `planDrawList` output via
    `serializeDrawList()`; reviewable text diffs.
-3. **Golden PNGs** (`fixtures/golden/`) — small curated set, human-approved in
-   the viewer; pixel-diffed in tests (0.1% tolerance). Skipped when local atlases
-   are absent.
+3. **Golden PNGs** (`fixtures/golden/`) — small curated local baselines,
+   pixel-diffed in tests (0.1% tolerance). Skipped when local atlases are absent.
 4. **Ground truth** (`fixtures/ground-truth/`, gitignored) — PNGs from the real
    game via `@fpsr/ground-truth`; dev-time reference only, never asserted in CI.
 

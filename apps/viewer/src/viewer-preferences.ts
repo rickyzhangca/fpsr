@@ -1,6 +1,6 @@
 import { atomWithStorage } from "jotai/utils";
 
-export type ViewerTab = "preview" | "process" | "performance" | "compare";
+export type ViewerTab = "preview" | "process" | "performance";
 
 export interface PreviewPreferences {
   limitTo4k: boolean;
@@ -8,11 +8,6 @@ export interface PreviewPreferences {
   altMode: boolean;
   showCoords: boolean;
   showCheckerboard: boolean;
-}
-
-export interface ComparePreferences {
-  overlayOpacity: number;
-  showDifference: boolean;
 }
 
 export interface ProcessPreferences {
@@ -36,9 +31,7 @@ const isStringArray = (value: unknown): value is string[] => {
 };
 
 export const isViewerTab = (value: unknown): value is ViewerTab => {
-  return (
-    value === "preview" || value === "process" || value === "performance" || value === "compare"
-  );
+  return value === "preview" || value === "process" || value === "performance";
 };
 
 const isPreviewPreferences = (value: unknown): value is PreviewPreferences => {
@@ -49,16 +42,6 @@ const isPreviewPreferences = (value: unknown): value is PreviewPreferences => {
     isBoolean(value.altMode) &&
     isBoolean(value.showCoords) &&
     isBoolean(value.showCheckerboard)
-  );
-};
-
-const isComparePreferences = (value: unknown): value is ComparePreferences => {
-  return (
-    isRecord(value) &&
-    isFiniteNumber(value.overlayOpacity) &&
-    value.overlayOpacity >= 0 &&
-    value.overlayOpacity <= 100 &&
-    isBoolean(value.showDifference)
   );
 };
 
@@ -137,7 +120,6 @@ export const VIEWER_PREFERENCE_KEYS = {
   summaryExpanded: "fpsr-viewer:summary-expanded:v1",
   activeTab: "fpsr-viewer:active-tab:v1",
   preview: "fpsr-viewer:preview-preferences:v1",
-  compare: "fpsr-viewer:compare-preferences:v1",
   process: "fpsr-viewer:process-preferences:v1",
   sidebarExpansion: "fpsr-viewer:sidebar-expansion:v1",
 } as const;
@@ -148,11 +130,6 @@ export const DEFAULT_PREVIEW_PREFERENCES: PreviewPreferences = {
   altMode: true,
   showCoords: false,
   showCheckerboard: true,
-};
-
-export const DEFAULT_COMPARE_PREFERENCES: ComparePreferences = {
-  overlayOpacity: 50,
-  showDifference: false,
 };
 
 export const DEFAULT_PROCESS_PREFERENCES: ProcessPreferences = {
@@ -180,13 +157,6 @@ export const previewPreferencesAtom = atomWithStorage(
   VIEWER_PREFERENCE_KEYS.preview,
   DEFAULT_PREVIEW_PREFERENCES,
   createValidatedStorage(isPreviewPreferences),
-  storageOptions,
-);
-
-export const comparePreferencesAtom = atomWithStorage(
-  VIEWER_PREFERENCE_KEYS.compare,
-  DEFAULT_COMPARE_PREFERENCES,
-  createValidatedStorage(isComparePreferences),
   storageOptions,
 );
 

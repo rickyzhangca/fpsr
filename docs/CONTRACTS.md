@@ -170,11 +170,10 @@ interchangeable.
 2. **Draw-list snapshots** (`fixtures/drawlist/`): `planDrawList` output serialized with
    stable key order and numbers rounded to 4 decimals via the provided
    `serializeDrawList()` helper. Reviewable text diffs are the point.
-3. **Golden PNGs** (`fixtures/golden/`): small curated set, self-generated and
-   human-approved in the viewer, pixel-diffed with a 0.1% tolerance. PNG files
-   are gitignored (not redistributed); blueprint strings and `cases.json` are
-   committed. Tests skip automatically when local atlases or golden PNGs are
-   absent.
+3. **Golden PNGs** (`fixtures/golden/`): small curated local baselines,
+   pixel-diffed with a 0.1% tolerance. PNG files are gitignored (not
+   redistributed); blueprint strings and `cases.json` are committed. Tests skip
+   automatically when local atlases or golden PNGs are absent.
 4. **Ground truth** (`fixtures/ground-truth/`, gitignored): PNGs from the real game via
    `tools/ground-truth`; dev-time reference for approval only, never asserted in CI.
 

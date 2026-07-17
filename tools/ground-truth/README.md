@@ -17,7 +17,7 @@ stable cell crops, and expected-vs-rendered diff reports.
 pnpm -F @fpsr/ground-truth run shoot -- <bp-file-or--> [--name out] [--alt] [--ppt 64]
 
 # Clear fixtures/ground-truth/*.game.png and re-shoot every golden case
-# (viewer built-ins: smoke, belt-ring, pipe-plant from fixtures/golden/cases.json)
+# (the legacy local regression cases from fixtures/golden/cases.json)
 # in a **single** Factorio launch.
 pnpm ground-truth:refresh
 

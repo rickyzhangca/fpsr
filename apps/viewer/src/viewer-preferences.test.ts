@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_PREVIEW_PREFERENCES,
   VIEWER_PREFERENCE_KEYS,
+  activeTabAtom,
   previewPreferencesAtom,
   summaryExpandedAtom,
 } from "./viewer-preferences";
@@ -36,6 +37,15 @@ describe("viewer preferences", () => {
     const store = createStore();
     const unsubscribe = store.sub(previewPreferencesAtom, () => {});
     expect(store.get(previewPreferencesAtom)).toEqual(DEFAULT_PREVIEW_PREFERENCES);
+    unsubscribe();
+  });
+
+  it("falls back to Preview when the removed Compare tab was persisted", () => {
+    localStorage.setItem(VIEWER_PREFERENCE_KEYS.activeTab, JSON.stringify("compare"));
+
+    const store = createStore();
+    const unsubscribe = store.sub(activeTabAtom, () => {});
+    expect(store.get(activeTabAtom)).toBe("preview");
     unsubscribe();
   });
 });
