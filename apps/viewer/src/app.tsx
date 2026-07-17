@@ -30,7 +30,7 @@ import {
   selectBlueprint,
   selectBook,
 } from "fpsr";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
 import pipePlantBp from "../../../fixtures/golden/pipe-plant.bp.txt?raw";
@@ -42,14 +42,11 @@ import recyclerTestsBp from "../../../fixtures/visual-tests/official-mods/recycl
 import spaceAgeTestsBp from "../../../fixtures/visual-tests/official-mods/space-age.bp.txt?raw";
 import { BlueprintSummary } from "./blueprint-summary";
 import { BookSummary } from "./book-summary";
-import { ComparePane } from "./compare-pane";
 import { Logo } from "./components/logo";
 import { addCustom, clearCustoms, listCustoms } from "./custom-blueprints-db";
 import type { PerfReport } from "./perf-report";
-import { PerformancePane } from "./performance-pane";
 import { PreviewPane } from "./preview-pane";
 import type { PreviewRenderProgress } from "./preview-renderer";
-import { ProcessPane } from "./process-pane";
 import {
   type ActiveRenderProgress,
   sameRenderPath,
@@ -59,6 +56,16 @@ import { SidebarPanels } from "./sidebar-panels";
 import { resolveSidebarSelection } from "./sidebar-selection";
 import { SidebarSelectionTrigger } from "./sidebar-selection-trigger";
 import { type SidebarSelectableKind, type SidebarSource } from "./sidebar-tree";
+
+const ComparePane = lazy(() =>
+  import("./compare-pane").then(({ ComparePane }) => ({ default: ComparePane })),
+);
+const PerformancePane = lazy(() =>
+  import("./performance-pane").then(({ PerformancePane }) => ({ default: PerformancePane })),
+);
+const ProcessPane = lazy(() =>
+  import("./process-pane").then(({ ProcessPane }) => ({ default: ProcessPane })),
+);
 type Tab = "preview" | "process" | "performance" | "compare";
 const LAST_VIEW_KEY = "fpsr-viewer:last-view";
 const SAMPLES = [
@@ -89,7 +96,6 @@ const TEST_BOOKS = [
     value: recyclerTestsBp.trim(),
   },
 ] as const;
-const BUILT_IN_SOURCES = [...SAMPLES, ...TEST_BOOKS];
 const DEFAULT_SAMPLE = SAMPLES[0];
 interface LastView {
   sourceId: string;
@@ -137,6 +143,28 @@ const decodeErrorMessage = (e: unknown): string => {
   if (e instanceof Error) return e.message;
   return "unknown error";
 };
+interface BuiltInSidebarSource extends SidebarSource {
+  stats: DecodeStats;
+}
+const decodeBuiltInSources = (
+  sources: readonly { id: string; label: string; value: string }[],
+): BuiltInSidebarSource[] => {
+  return sources.flatMap((source) => {
+    const decoded = tryDecode(source.value);
+    return decoded
+      ? [{ id: source.id, label: source.label, doc: decoded.doc, stats: decoded.stats }]
+      : [];
+  });
+};
+const SAMPLE_SOURCES = decodeBuiltInSources(SAMPLES);
+const TEST_SOURCES = decodeBuiltInSources(TEST_BOOKS);
+const BUILT_IN_SOURCE_BY_ID = new Map(
+  [...SAMPLE_SOURCES, ...TEST_SOURCES].map((source) => [source.id, source]),
+);
+const BUILT_IN_DECODE_STATS = Object.fromEntries(
+  [...SAMPLE_SOURCES, ...TEST_SOURCES].map((source) => [source.id, source.stats]),
+) as Record<string, DecodeStats>;
+const SAMPLE_SOURCE_IDS = new Set<string>(SAMPLES.map((sample) => sample.id));
 const resolveStoredSelection = (
   doc: BlueprintDocument,
   path: number[] | null,
@@ -167,26 +195,31 @@ const resolveStoredSelection = (
 const initialSelection = (): LastView => {
   const last = readLastView();
   if (last) {
-    const builtIn = BUILT_IN_SOURCES.find((source) => source.id === last.sourceId);
+    const builtIn = BUILT_IN_SOURCE_BY_ID.get(last.sourceId);
     if (builtIn) {
-      const decoded = tryDecode(builtIn.value);
-      if (decoded) {
-        const resolved = resolveStoredSelection(decoded.doc, last.path, last.kind);
-        return { sourceId: builtIn.id, ...resolved };
-      }
+      const resolved = resolveStoredSelection(builtIn.doc, last.path, last.kind);
+      return { sourceId: builtIn.id, ...resolved };
     }
   }
   return { sourceId: DEFAULT_SAMPLE.id, path: null, kind: "blueprint" };
 };
-export const App = () => {
-  const [selectedSourceId, setSelectedSourceId] = useState(() => initialSelection().sourceId);
-  const [selectedPath, setSelectedPath] = useState<number[] | null>(() => initialSelection().path);
-  const [selectedKind, setSelectedKind] = useState<SidebarSelectableKind>(
-    () => initialSelection().kind,
+const LazyPaneFallback = () => {
+  return (
+    <div className="flex min-h-48 items-center justify-center text-muted-foreground">Loading…</div>
   );
+};
+export const App = () => {
+  const [initial] = useState(initialSelection);
+  const [selectedSourceId, setSelectedSourceId] = useState(initial.sourceId);
+  const [selectedPath, setSelectedPath] = useState<number[] | null>(initial.path);
+  const [selectedKind, setSelectedKind] = useState<SidebarSelectableKind>(initial.kind);
   const [selectionReady, setSelectionReady] = useState(false);
   const [customSources, setCustomSources] = useState<SidebarSource[]>([]);
-  const [decodeStatsBySource, setDecodeStatsBySource] = useState<Record<string, DecodeStats>>({});
+  const [decodeStatsBySource, setDecodeStatsBySource] = useState<Record<string, DecodeStats>>(
+    () => ({
+      ...BUILT_IN_DECODE_STATS,
+    }),
+  );
   const [manualOpen, setManualOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [manualDraft, setManualDraft] = useState("");
@@ -194,33 +227,6 @@ export const App = () => {
   const [tileSize, setTileSize] = useState("—");
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
   const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
-  const sampleSources: SidebarSource[] = useMemo(
-    () =>
-      SAMPLES.flatMap((sample) => {
-        const decoded = tryDecode(sample.value);
-        if (!decoded) return [];
-        return [{ id: sample.id, label: sample.label, doc: decoded.doc }];
-      }),
-    [],
-  );
-  const testSources: SidebarSource[] = useMemo(
-    () =>
-      TEST_BOOKS.flatMap((testBook) => {
-        const decoded = tryDecode(testBook.value);
-        if (!decoded) return [];
-        return [{ id: testBook.id, label: testBook.label, doc: decoded.doc }];
-      }),
-    [],
-  );
-  // Publish built-in decode stats on mount.
-  useEffect(() => {
-    const stats: Record<string, DecodeStats> = {};
-    for (const source of BUILT_IN_SOURCES) {
-      const decoded = tryDecode(source.value);
-      if (decoded) stats[source.id] = decoded.stats;
-    }
-    setDecodeStatsBySource((prev) => ({ ...stats, ...prev }));
-  }, []);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -244,9 +250,7 @@ export const App = () => {
         const last = readLastView();
         if (last) {
           const source =
-            sampleSources.find((s) => s.id === last.sourceId) ??
-            testSources.find((s) => s.id === last.sourceId) ??
-            sources.find((s) => s.id === last.sourceId);
+            BUILT_IN_SOURCE_BY_ID.get(last.sourceId) ?? sources.find((s) => s.id === last.sourceId);
           if (source) {
             const resolved = resolveStoredSelection(source.doc, last.path, last.kind);
             setSelectedSourceId(source.id);
@@ -265,19 +269,20 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
-  }, [sampleSources, testSources]);
+  }, []);
   useEffect(() => {
     if (!selectionReady) return;
     writeLastView({ sourceId: selectedSourceId, path: selectedPath, kind: selectedKind });
   }, [selectionReady, selectedSourceId, selectedPath, selectedKind]);
-  const activeDoc = useMemo(() => {
-    return (
-      sampleSources.find((s) => s.id === selectedSourceId)?.doc ??
-      testSources.find((s) => s.id === selectedSourceId)?.doc ??
-      customSources.find((s) => s.id === selectedSourceId)?.doc ??
-      null
-    );
-  }, [selectedSourceId, sampleSources, testSources, customSources]);
+  const allSources = useMemo(
+    () => [...SAMPLE_SOURCES, ...TEST_SOURCES, ...customSources],
+    [customSources],
+  );
+  const sourceById = useMemo(
+    () => new Map(allSources.map((source) => [source.id, source])),
+    [allSources],
+  );
+  const activeDoc = sourceById.get(selectedSourceId)?.doc ?? null;
   const selectedBook: BlueprintBook | null = useMemo(() => {
     if (!activeDoc || selectedKind !== "book") return null;
     try {
@@ -395,18 +400,14 @@ export const App = () => {
     },
     [selectedSourceId, selectedPath],
   );
-  const isGoldenSelected = SAMPLES.some((sample) => sample.id === selectedSourceId);
-  const allSources = useMemo(
-    () => [...sampleSources, ...testSources, ...customSources],
-    [sampleSources, testSources, customSources],
-  );
+  const isGoldenSelected = SAMPLE_SOURCE_IDS.has(selectedSourceId);
   const sidebarSelection = useMemo(
     () => resolveSidebarSelection(allSources, selectedSourceId, selectedPath),
     [allSources, selectedSourceId, selectedPath],
   );
   const sidebarPanelProps = {
-    sampleSources,
-    testSources,
+    sampleSources: SAMPLE_SOURCES,
+    testSources: TEST_SOURCES,
     customSources,
     selectedSourceId,
     selectedPath,
@@ -549,7 +550,9 @@ export const App = () => {
                   >
                     {tab === "compare" && (
                       <ScrollArea className="min-h-0 flex-1">
-                        <ComparePane caseName={isGoldenSelected ? selectedSourceId : null} />
+                        <Suspense fallback={<LazyPaneFallback />}>
+                          <ComparePane caseName={isGoldenSelected ? selectedSourceId : null} />
+                        </Suspense>
                       </ScrollArea>
                     )}
                   </TabsContent>
@@ -559,7 +562,9 @@ export const App = () => {
                     className="flex min-h-0 flex-1 flex-col overflow-hidden"
                   >
                     {tab === "process" && (
-                      <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />
+                      <Suspense fallback={<LazyPaneFallback />}>
+                        <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />
+                      </Suspense>
                     )}
                   </TabsContent>
 
@@ -567,7 +572,11 @@ export const App = () => {
                     value="performance"
                     className="flex min-h-0 flex-1 flex-col overflow-hidden"
                   >
-                    {tab === "performance" && <PerformancePane report={perfReport} />}
+                    {tab === "performance" && (
+                      <Suspense fallback={<LazyPaneFallback />}>
+                        <PerformancePane report={perfReport} />
+                      </Suspense>
+                    )}
                   </TabsContent>
                 </Tabs>
               </>
