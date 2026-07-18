@@ -12,6 +12,7 @@ import {
   selectBook,
 } from "fpsr";
 import { useAtom } from "jotai";
+import { InfoIcon } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
@@ -22,9 +23,12 @@ import elevatedRailsTestsBp from "../../../fixtures/visual-tests/official-mods/e
 import qualityTestsBp from "../../../fixtures/visual-tests/official-mods/quality.bp.txt?raw";
 import recyclerTestsBp from "../../../fixtures/visual-tests/official-mods/recycler.bp.txt?raw";
 import spaceAgeTestsBp from "../../../fixtures/visual-tests/official-mods/space-age.bp.txt?raw";
+import { trackEvent } from "./analytics";
 import { BlueprintSummary } from "./blueprint-summary";
 import { BookSummary } from "./book-summary";
+import { GitHubLogo } from "./components/github-logo";
 import { Logo } from "./components/logo";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
 import { addCustom, clearCustoms, listCustoms } from "./custom-blueprints-db";
 import { PaneMessage } from "./pane-message";
 import type { PerfReport } from "./perf-report";
@@ -338,6 +342,9 @@ export const App = () => {
       setSelectedSourceId(record.id);
       setSelectedPath(resolveActivePath(decoded));
       setSelectedKind("blueprint");
+      trackEvent("blueprint_load", {
+        kind: decoded.blueprint_book ? "book" : "blueprint",
+      });
       toast.success("Blueprint added", { description: label });
       return true;
     } catch (e) {
@@ -425,12 +432,23 @@ export const App = () => {
     onClearAllCustoms: () => void clearAllCustoms(),
   };
   return (
-    <div className="grid h-svh overflow-hidden grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="grid h-svh overflow-hidden grid-rows-[auto_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col overflow-hidden">
-        <h1 className="text-lg font-semibold tracking-tight px-4 pt-4">
-          <Logo />
-          <span className="sr-only">FPSR Demo</span>
-        </h1>
+        <div className="flex items-center justify-between gap-3 pl-4 pr-6 pt-4">
+          <h1 className="text-lg font-semibold tracking-tight">
+            <Logo />
+            <span className="sr-only">FPSR Demo</span>
+          </h1>
+          <a
+            href="https://github.com/rickyzhangca/fpsr"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View fpsr on GitHub"
+            className="rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <GitHubLogo className="size-4" />
+          </a>
+        </div>
 
         <div className="mx-2 pt-3 md:hidden">
           <SidebarSelectionTrigger
@@ -466,112 +484,137 @@ export const App = () => {
         </Suspense>
       )}
 
-      <main className="m-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card md:ml-2 md:mr-3 md:my-3">
-        <ScrollArea
-          className="min-h-0 min-w-0 flex-1"
-          viewportClassName="scroll-fade overflow-x-hidden"
-          contentClassName="h-full w-full min-w-0!"
-        >
-          <div className="flex h-full min-h-[640px] w-full min-w-0 flex-col">
-            {selectedBook ? (
-              <>
-                <BookSummary
-                  book={selectedBook}
-                  sourceBytes={
-                    activeDoc?.blueprint_book && selectedPath == null
-                      ? activeDecodeStats?.inputChars
-                      : undefined
-                  }
-                  sourceString={
-                    activeDoc?.blueprint_book && selectedPath == null
-                      ? activeSource?.raw
-                      : undefined
-                  }
-                />
-                <PaneMessage className="border-t">
-                  Select a blueprint in the sidebar to view it
-                </PaneMessage>
-              </>
-            ) : (
-              <>
-                {selectedBlueprint ? (
-                  <BlueprintSummary
-                    blueprint={selectedBlueprint}
-                    tileSize={tileSize}
-                    sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
-                    sourceString={activeDoc?.blueprint ? activeSource?.raw : undefined}
+      <div className="flex min-h-0 flex-col items-center md:p-2 px-2 pt-1 pb-1.5 gap-1 md:gap-2">
+        <main className="flex-1 w-full flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card">
+          <ScrollArea
+            className="min-h-0 min-w-0 flex-1"
+            viewportClassName="scroll-fade overflow-x-hidden"
+            contentClassName="h-full w-full min-w-0"
+          >
+            <div className="flex h-full min-h-[640px] w-full min-w-0 flex-col">
+              {selectedBook ? (
+                <>
+                  <BookSummary
+                    book={selectedBook}
+                    sourceBytes={
+                      activeDoc?.blueprint_book && selectedPath == null
+                        ? activeDecodeStats?.inputChars
+                        : undefined
+                    }
+                    sourceString={
+                      activeDoc?.blueprint_book && selectedPath == null
+                        ? activeSource?.raw
+                        : undefined
+                    }
                   />
-                ) : (
-                  <PaneMessage className="min-h-32 flex-none">
-                    Decode a blueprint to preview rendering.
+                  <PaneMessage className="border-t">
+                    Select a blueprint in the sidebar to view it
                   </PaneMessage>
-                )}
-
-                <Tabs
-                  value={tab}
-                  onValueChange={(value) => {
-                    if (isViewerTab(value)) setTab(value);
-                  }}
-                  className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
-                >
-                  <TabsList variant="line" className="mx-1 mt-1">
-                    <TabsTrigger value="preview">Preview</TabsTrigger>
-                    <TabsTrigger value="process">Process</TabsTrigger>
-                    <TabsTrigger value="performance">Performance</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent
-                    value="preview"
-                    keepMounted
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
-                  >
-                    <PreviewPane
-                      doc={activeDoc}
+                </>
+              ) : (
+                <>
+                  {selectedBlueprint ? (
+                    <BlueprintSummary
                       blueprint={selectedBlueprint}
-                      blueprintPath={selectedPath}
-                      decodeStats={activeDecodeStats}
-                      onTileSizeChange={setTileSize}
-                      onPerfReport={setPerfReport}
-                      onRenderProgress={onRenderProgress}
-                      onRenderError={setRenderError}
+                      tileSize={tileSize}
+                      sourceBytes={activeDoc?.blueprint ? activeDecodeStats?.inputChars : undefined}
+                      sourceString={activeDoc?.blueprint ? activeSource?.raw : undefined}
                     />
-                  </TabsContent>
+                  ) : (
+                    <PaneMessage className="min-h-32 flex-none">
+                      Decode a blueprint to preview rendering.
+                    </PaneMessage>
+                  )}
 
-                  <TabsContent
-                    value="process"
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                  <Tabs
+                    value={tab}
+                    onValueChange={(value) => {
+                      if (!isViewerTab(value)) return;
+                      setTab(value);
+                      trackEvent("tab_switch", { tab: value });
+                    }}
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
                   >
-                    {tab === "process" && (
-                      <Suspense fallback={<LazyPaneFallback />}>
-                        <ProcessPane
-                          doc={activeDoc}
-                          blueprint={selectedBlueprint}
-                          blueprintPath={selectedPath}
-                          decodeStats={activeDecodeStats}
-                          perfReport={perfReport}
-                          renderProgress={selectedRenderProgress}
-                          renderError={renderError}
-                        />
-                      </Suspense>
-                    )}
-                  </TabsContent>
+                    <TabsList variant="line" className="mx-1 mt-1">
+                      <TabsTrigger value="preview">Preview</TabsTrigger>
+                      <TabsTrigger value="process">Process</TabsTrigger>
+                      <TabsTrigger value="performance">Performance</TabsTrigger>
+                    </TabsList>
 
-                  <TabsContent
-                    value="performance"
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
-                  >
-                    {tab === "performance" && (
-                      <Suspense fallback={<LazyPaneFallback />}>
-                        <PerformancePane report={perfReport} />
-                      </Suspense>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </>
-            )}
-          </div>
-        </ScrollArea>
-      </main>
+                    <TabsContent
+                      value="preview"
+                      keepMounted
+                      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                    >
+                      <PreviewPane
+                        doc={activeDoc}
+                        blueprint={selectedBlueprint}
+                        blueprintPath={selectedPath}
+                        decodeStats={activeDecodeStats}
+                        onTileSizeChange={setTileSize}
+                        onPerfReport={setPerfReport}
+                        onRenderProgress={onRenderProgress}
+                        onRenderError={setRenderError}
+                      />
+                    </TabsContent>
+
+                    <TabsContent
+                      value="process"
+                      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                    >
+                      {tab === "process" && (
+                        <Suspense fallback={<LazyPaneFallback />}>
+                          <ProcessPane
+                            doc={activeDoc}
+                            blueprint={selectedBlueprint}
+                            blueprintPath={selectedPath}
+                            decodeStats={activeDecodeStats}
+                            perfReport={perfReport}
+                            renderProgress={selectedRenderProgress}
+                            renderError={renderError}
+                          />
+                        </Suspense>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent
+                      value="performance"
+                      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                    >
+                      {tab === "performance" && (
+                        <Suspense fallback={<LazyPaneFallback />}>
+                          <PerformancePane report={perfReport} />
+                        </Suspense>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </>
+              )}
+            </div>
+          </ScrollArea>
+        </main>
+        <p className="flex items-center gap-1 px-2 text-xs text-muted-foreground">
+          All assets are owned by Wube Software
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  aria-label="Factorio asset attribution details"
+                />
+              }
+            >
+              <InfoIcon className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-sm text-pretty">
+              All Factorio sprites, icons, and other game assets are © Wube Software Ltd. Factorio
+              is a trademark of Wube Software. This is an unofficial fan project and is not
+              affiliated with or endorsed by Wube Software.
+            </TooltipContent>
+          </Tooltip>
+        </p>
+      </div>
     </div>
   );
 };
