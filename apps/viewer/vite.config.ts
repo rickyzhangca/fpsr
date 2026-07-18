@@ -59,6 +59,9 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     serveDirectory("/assets/", assetsRoot),
   ]),
+  test: {
+    setupFiles: ["./src/test-setup.ts"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

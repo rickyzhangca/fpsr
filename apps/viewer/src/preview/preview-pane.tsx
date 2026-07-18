@@ -1,3 +1,4 @@
+import { countEntitiesByName, formatGameVersion } from "@/blueprint/blueprint-meta";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import type { PerfReport } from "@/performance/perf-report";
+import { viewerAssets } from "@/shell/viewer-assets";
+import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
 import {
   type Blueprint,
   type BlueprintDocument,
@@ -18,9 +22,6 @@ import {
 } from "fpsr";
 import { useAtom } from "jotai";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { countEntitiesByName, formatGameVersion } from "@/blueprint/blueprint-meta";
-import type { PerfReport } from "@/performance/perf-report";
-import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
 import {
   DEFAULT_ORBIT_PLANETS,
   STATIC_BACKGROUND_LABELS,
@@ -48,9 +49,8 @@ import {
   renderPreview,
   type PreviewRenderResult,
 } from "./preview-renderer";
-import type { PreviewRenderProgress } from "./render-worker-protocol";
 import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
-import { viewerAssets } from "@/shell/viewer-assets";
+import type { PreviewRenderProgress } from "./render-worker-protocol";
 
 const FULL_PIXELS_PER_TILE = 64;
 const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
@@ -564,7 +564,7 @@ export const PreviewPane = ({
               id="background-mode"
               size="sm"
               aria-label="Background style"
-              className="border-transparent p-0 dark:bg-transparent dark:hover:bg-transparent"
+              className="h-auto min-h-0 gap-1 border-transparent p-0 text-sm leading-none data-[size=sm]:h-auto [&_svg]:size-3.5 dark:bg-transparent dark:hover:bg-transparent"
             >
               <SelectValue />
             </SelectTrigger>
