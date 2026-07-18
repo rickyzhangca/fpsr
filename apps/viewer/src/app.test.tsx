@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { PreviewRenderProgress } from "./preview-renderer";
+import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
 
 const mocks = vi.hoisted(() => ({
   progressCallbacks: [] as Array<(progress: PreviewRenderProgress | null) => void>,
@@ -13,12 +13,12 @@ const mocks = vi.hoisted(() => ({
   listCustoms: vi.fn(async () => []),
 }));
 
-vi.mock("./custom-blueprints-db", () => ({
+vi.mock("@/blueprint/custom-blueprints-db", () => ({
   addCustom: vi.fn(),
   clearCustoms: vi.fn(),
   listCustoms: mocks.listCustoms,
 }));
-vi.mock("./sidebar-panels", () => ({
+vi.mock("@/sidebar/sidebar-panels", () => ({
   SidebarPanels: (props: {
     selectedSourceId: string;
     onSelect: (sourceId: string, path: number[], kind: "book" | "blueprint") => void;
@@ -27,9 +27,9 @@ vi.mock("./sidebar-panels", () => ({
     return null;
   },
 }));
-vi.mock("./blueprint-summary", () => ({ BlueprintSummary: () => null }));
-vi.mock("./book-summary", () => ({ BookSummary: () => null }));
-vi.mock("./preview-pane", () => ({
+vi.mock("@/sidebar/blueprint-summary", () => ({ BlueprintSummary: () => null }));
+vi.mock("@/sidebar/book-summary", () => ({ BookSummary: () => null }));
+vi.mock("@/preview/preview-pane", () => ({
   PreviewPane: ({
     onRenderProgress,
   }: {
@@ -40,7 +40,7 @@ vi.mock("./preview-pane", () => ({
   },
 }));
 
-import { App } from "./app";
+import { App } from "@/app";
 
 describe("App render progress", () => {
   let host: HTMLDivElement;

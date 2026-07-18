@@ -1,243 +1,75 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  type Blueprint,
-  type BlueprintBook,
-  BlueprintDecodeError,
-  type BlueprintDocument,
-  type DecodeStats,
-  decodeWithStats,
-  resolveActivePath,
-  selectBlueprint,
-  selectBook,
-} from "fpsr";
+import { BlueprintDecodeError, type DecodeStats, decodeWithStats, resolveActivePath } from "fpsr";
 import { useAtom } from "jotai";
 import { InfoIcon } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import beltRingBp from "../../../fixtures/golden/belt-ring.bp.txt?raw";
-import pipePlantBp from "../../../fixtures/golden/pipe-plant.bp.txt?raw";
-import smokeBp from "../../../fixtures/golden/smoke.bp.txt?raw";
-import baseGameTestsBp from "../../../fixtures/visual-tests/base-game/book.bp.txt?raw";
-import elevatedRailsTestsBp from "../../../fixtures/visual-tests/official-mods/elevated-rails.bp.txt?raw";
-import qualityTestsBp from "../../../fixtures/visual-tests/official-mods/quality.bp.txt?raw";
-import recyclerTestsBp from "../../../fixtures/visual-tests/official-mods/recycler.bp.txt?raw";
-import spaceAgeTestsBp from "../../../fixtures/visual-tests/official-mods/space-age.bp.txt?raw";
-import { trackEvent } from "./analytics";
-import { BlueprintSummary } from "./blueprint-summary";
-import { BookSummary } from "./book-summary";
-import { GitHubLogo } from "./components/github-logo";
-import { Logo } from "./components/logo";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
-import { addCustom, clearCustoms, listCustoms } from "./custom-blueprints-db";
-import { PaneMessage } from "./pane-message";
-import type { PerfReport } from "./perf-report";
-import { PreviewPane } from "./preview-pane";
-import type { PreviewRenderProgress } from "./preview-renderer";
+import { trackEvent } from "@/shell/analytics";
+import {
+  BUILT_IN_DECODE_STATS,
+  BUILT_IN_SOURCE_BY_ID,
+  DEFAULT_SAMPLE,
+  initialSelection,
+  resolveSelectedBlueprint,
+  resolveSelectedBook,
+  resolveStoredSelection,
+  SAMPLE_SOURCES,
+  sourceLabel,
+  TEST_SOURCES,
+  tryDecode,
+} from "@/shell/built-in-sources";
+import { readLastView, writeLastView } from "@/shell/last-view";
+import { PaneMessage } from "@/shell/pane-message";
+import { activeTabAtom, isViewerTab } from "@/shell/viewer-preferences";
+import { BlueprintSummary } from "@/sidebar/blueprint-summary";
+import { BookSummary } from "@/sidebar/book-summary";
+import { GitHubLogo } from "@/components/github-logo";
+import { Logo } from "@/components/logo";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { addCustom, clearCustoms, listCustoms } from "@/blueprint/custom-blueprints-db";
+import type { PerfReport } from "@/performance/perf-report";
+import { PreviewPane } from "@/preview/preview-pane";
+import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
 import {
   type ActiveRenderProgress,
   sameRenderPath,
   updateActiveRenderProgress,
-} from "./render-progress-state";
-import { SidebarPanels } from "./sidebar-panels";
-import { resolveSidebarSelection } from "./sidebar-selection";
-import { SidebarSelectionTrigger } from "./sidebar-selection-trigger";
-import { type SidebarSelectableKind, type SidebarSource } from "./sidebar-tree";
-import { activeTabAtom, isViewerTab } from "./viewer-preferences";
+} from "@/preview/render-progress-state";
+import { SidebarPanels } from "@/sidebar/sidebar-panels";
+import { resolveSidebarSelection } from "@/sidebar/sidebar-selection";
+import { SidebarSelectionTrigger } from "@/sidebar/sidebar-selection-trigger";
+import { type SidebarSelectableKind, type SidebarSource } from "@/sidebar/sidebar-tree";
 
 const PerformancePane = lazy(() =>
-  import("./performance-pane").then(({ PerformancePane }) => ({ default: PerformancePane })),
+  import("@/performance/performance-pane").then(({ PerformancePane }) => ({
+    default: PerformancePane,
+  })),
 );
 const ProcessPane = lazy(() =>
-  import("./process-pane").then(({ ProcessPane }) => ({ default: ProcessPane })),
+  import("@/process/process-pane").then(({ ProcessPane }) => ({ default: ProcessPane })),
 );
 const ManualBlueprintDialog = lazy(() =>
-  import("./manual-blueprint-dialog").then(({ ManualBlueprintDialog }) => ({
+  import("@/blueprint/manual-blueprint-dialog").then(({ ManualBlueprintDialog }) => ({
     default: ManualBlueprintDialog,
   })),
 );
 const MobileSidebar = lazy(() =>
-  import("./mobile-sidebar").then(({ MobileSidebar }) => ({ default: MobileSidebar })),
+  import("@/sidebar/mobile-sidebar").then(({ MobileSidebar }) => ({ default: MobileSidebar })),
 );
-const LAST_VIEW_KEY = "fpsr-viewer:last-view:v1";
-const LEGACY_LAST_VIEW_KEY = "fpsr-viewer:last-view";
-const SAMPLES = [
-  { id: "smoke", label: "Smoke", value: smokeBp.trim() },
-  { id: "belt-ring", label: "Belt ring", value: beltRingBp.trim() },
-  { id: "pipe-plant", label: "Pipe plant", value: pipePlantBp.trim() },
-] as const;
-const TEST_BOOKS = [
-  { id: "tests-base-game-2.1.11", label: "base items 2.1.11", value: baseGameTestsBp.trim() },
-  {
-    id: "tests-space-age-2.1.11",
-    label: "space age items 2.1.11",
-    value: spaceAgeTestsBp.trim(),
-  },
-  {
-    id: "tests-quality-2.1.11",
-    label: "quality items 2.1.11",
-    value: qualityTestsBp.trim(),
-  },
-  {
-    id: "tests-elevated-rails-2.1.11",
-    label: "elevated rails items 2.1.11",
-    value: elevatedRailsTestsBp.trim(),
-  },
-  {
-    id: "tests-recycler-2.1.11",
-    label: "recycler items 2.1.11",
-    value: recyclerTestsBp.trim(),
-  },
-] as const;
-const DEFAULT_SAMPLE = SAMPLES[0];
-interface LastView {
-  sourceId: string;
-  path: number[] | null;
-  kind: SidebarSelectableKind;
-}
-const readLastView = (): LastView | null => {
-  try {
-    const raw = localStorage.getItem(LAST_VIEW_KEY) ?? localStorage.getItem(LEGACY_LAST_VIEW_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<LastView>;
-    if (typeof parsed.sourceId !== "string") return null;
-    const path =
-      Array.isArray(parsed.path) &&
-      parsed.path.every((index) => Number.isInteger(index) && index >= 0)
-        ? parsed.path
-        : null;
-    const kind: SidebarSelectableKind = parsed.kind === "book" ? "book" : "blueprint";
-    return { sourceId: parsed.sourceId, path, kind };
-  } catch {
-    return null;
-  }
-};
-const writeLastView = (view: LastView): void => {
-  try {
-    localStorage.setItem(LAST_VIEW_KEY, JSON.stringify(view));
-  } catch {
-    // Last-view restoration is best-effort when storage is unavailable.
-  }
-};
-const tryDecode = (
-  source: string,
-): {
-  doc: BlueprintDocument;
-  stats: DecodeStats;
-} | null => {
-  try {
-    return decodeWithStats(source);
-  } catch {
-    return null;
-  }
-};
-const sourceLabel = (doc: BlueprintDocument, fallback: string): string => {
-  if (doc.blueprint?.label) return doc.blueprint.label;
-  if (doc.blueprint_book?.label) return doc.blueprint_book.label;
-  return fallback;
-};
+
 const decodeErrorMessage = (e: unknown): string => {
   if (e instanceof BlueprintDecodeError) return e.reason;
   if (e instanceof Error) return e.message;
   return "unknown error";
 };
-interface BuiltInSidebarSource extends SidebarSource {
-  stats: DecodeStats;
-}
-const decodeBuiltInSources = (
-  sources: readonly { id: string; label: string; value: string }[],
-): BuiltInSidebarSource[] => {
-  return sources.flatMap((source) => {
-    const decoded = tryDecode(source.value);
-    return decoded
-      ? [
-          {
-            id: source.id,
-            label: source.label,
-            doc: decoded.doc,
-            raw: source.value,
-            stats: decoded.stats,
-          },
-        ]
-      : [];
-  });
-};
-const SAMPLE_SOURCES = decodeBuiltInSources(SAMPLES);
-const TEST_SOURCES = decodeBuiltInSources(TEST_BOOKS);
-const BUILT_IN_SOURCE_BY_ID = new Map(
-  [...SAMPLE_SOURCES, ...TEST_SOURCES].map((source) => [source.id, source]),
-);
-const BUILT_IN_DECODE_STATS = Object.fromEntries(
-  [...SAMPLE_SOURCES, ...TEST_SOURCES].map((source) => [source.id, source.stats]),
-) as Record<string, DecodeStats>;
-const resolveStoredSelection = (
-  doc: BlueprintDocument,
-  path: number[] | null,
-  kind: SidebarSelectableKind,
-): {
-  path: number[] | null;
-  kind: SidebarSelectableKind;
-} => {
-  if (kind === "book") {
-    if (!doc.blueprint_book) {
-      return { path: resolveActivePath(doc), kind: "blueprint" };
-    }
-    try {
-      selectBook(doc, path ?? undefined);
-      return { path, kind: "book" };
-    } catch {
-      return { path: null, kind: "book" };
-    }
-  }
-  if (!doc.blueprint_book) return { path: null, kind: "blueprint" };
-  try {
-    selectBlueprint(doc, path ?? undefined);
-    return { path, kind: "blueprint" };
-  } catch {
-    return { path: resolveActivePath(doc), kind: "blueprint" };
-  }
-};
-const resolveSelectedBook = (
-  doc: BlueprintDocument | null,
-  path: number[] | null,
-  kind: SidebarSelectableKind,
-): BlueprintBook | null => {
-  if (!doc || kind !== "book") return null;
-  try {
-    return selectBook(doc, path ?? undefined);
-  } catch {
-    return null;
-  }
-};
-const resolveSelectedBlueprint = (
-  doc: BlueprintDocument | null,
-  path: number[] | null,
-  kind: SidebarSelectableKind,
-): Blueprint | null => {
-  if (!doc || kind !== "blueprint") return null;
-  try {
-    if (doc.blueprint) return doc.blueprint;
-    return doc.blueprint_book ? selectBlueprint(doc, path ?? undefined) : null;
-  } catch {
-    return null;
-  }
-};
-const initialSelection = (): LastView => {
-  const last = readLastView();
-  if (last) {
-    const builtIn = BUILT_IN_SOURCE_BY_ID.get(last.sourceId);
-    if (builtIn) {
-      const resolved = resolveStoredSelection(builtIn.doc, last.path, last.kind);
-      return { sourceId: builtIn.id, ...resolved };
-    }
-  }
-  return { sourceId: DEFAULT_SAMPLE.id, path: null, kind: "blueprint" };
-};
+
 const LazyPaneFallback = () => {
   return (
     <div className="flex min-h-48 items-center justify-center text-muted-foreground">Loading…</div>
   );
 };
+
 export const App = () => {
   const selectionRevisionRef = useRef(0);
   const [initial] = useState(initialSelection);
