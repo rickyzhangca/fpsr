@@ -9,7 +9,7 @@
     "lint": "vp lint --deny-warnings",
     "typecheck": "pnpm -F fpsr build && vp run -F './packages/*' -F './apps/*' -F './tools/*' typecheck",
     "format": "vp fmt",
-    "check": "node scripts/check-filenames.mjs && vp fmt --check && pnpm lint && pnpm typecheck",
+    "check": "node scripts/check-filenames.mjs && node scripts/check-module-size.mjs && vp fmt --check && pnpm lint && pnpm typecheck",
     "dev": "vp dev apps/viewer",
     "goldens:update": "vp run -F @fpsr/golden-tests update",
     "goldens:test": "vp run -F @fpsr/golden-tests test:golden",

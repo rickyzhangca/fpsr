@@ -18,7 +18,8 @@ them to canvas in the browser or Node.js.
 | `tools/ground-truth` | `@fpsr/ground-truth`        | Capture reference screenshots from the real game (dev only)                       |
 | `fixtures/`          | —                           | Committed decode/draw-list fixtures and local visual-test artifacts               |
 
-See [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for cross-package interfaces.
+See [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for cross-package interfaces and
+[`docs/STRUCTURE.md`](docs/STRUCTURE.md) for internal folder layout.
 
 ## End-to-end workflow
 
