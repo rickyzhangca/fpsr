@@ -106,6 +106,95 @@ const OBJECT_SORT_LAYERS: ReadonlySet<RenderLayerName> = new Set([
   "elevated-object",
 ]);
 
+type LegacyRailBedAxis = "x" | "y" | "both";
+
+interface LegacyRailBedCandidate {
+  cmd: SpriteCmd;
+  axis: LegacyRailBedAxis;
+}
+
+function legacyRailBedAxis(protoType: string, cmd: SpriteCmd): LegacyRailBedAxis {
+  if (cmd.w === cmd.h) return "both";
+  if (protoType === "legacy-curved-rail") return cmd.w > cmd.h ? "x" : "y";
+  return cmd.w > cmd.h ? "y" : "x";
+}
+
+function markLegacyRailBedSeams(candidates: LegacyRailBedCandidate[]): void {
+  const epsilon = 1e-6;
+  const spansJoin = (a0: number, a1: number, b0: number, b1: number) => {
+    const overlap = Math.min(a1, b1) - Math.max(a0, b0);
+    return overlap >= Math.min(a1 - a0, b1 - b0) - epsilon;
+  };
+  const allows = (candidate: LegacyRailBedCandidate, axis: "x" | "y") =>
+    candidate.axis === axis || candidate.axis === "both";
+  const mark = (cmd: SpriteCmd, edge: keyof NonNullable<SpriteCmd["seamBleed"]>) => {
+    cmd.seamBleed ??= {};
+    cmd.seamBleed[edge] = true;
+  };
+
+  const top = new Map<string, LegacyRailBedCandidate[]>();
+  const right = new Map<string, LegacyRailBedCandidate[]>();
+  const bottom = new Map<string, LegacyRailBedCandidate[]>();
+  const left = new Map<string, LegacyRailBedCandidate[]>();
+  const index = (
+    map: Map<string, LegacyRailBedCandidate[]>,
+    edge: number,
+    spanStart: number,
+    spanEnd: number,
+    candidate: LegacyRailBedCandidate,
+  ) => {
+    const edgeKey = Math.round(edge / epsilon);
+    const firstCell = Math.floor(spanStart + epsilon);
+    const lastCell = Math.ceil(spanEnd - epsilon);
+    for (let cell = firstCell; cell < lastCell; cell++) {
+      const key = `${edgeKey}:${cell}`;
+      const bucket = map.get(key);
+      if (bucket) bucket.push(candidate);
+      else map.set(key, [candidate]);
+    }
+  };
+
+  for (const candidate of candidates) {
+    const { cmd } = candidate;
+    if (allows(candidate, "y")) {
+      index(top, cmd.y, cmd.x, cmd.x + cmd.w, candidate);
+      index(bottom, cmd.y + cmd.h, cmd.x, cmd.x + cmd.w, candidate);
+    }
+    if (allows(candidate, "x")) {
+      index(left, cmd.x, cmd.y, cmd.y + cmd.h, candidate);
+      index(right, cmd.x + cmd.w, cmd.y, cmd.y + cmd.h, candidate);
+    }
+  }
+
+  const connect = (
+    trailing: Map<string, LegacyRailBedCandidate[]>,
+    leading: Map<string, LegacyRailBedCandidate[]>,
+    spanAxis: "x" | "y",
+    trailingEdge: keyof NonNullable<SpriteCmd["seamBleed"]>,
+    leadingEdge: keyof NonNullable<SpriteCmd["seamBleed"]>,
+  ) => {
+    for (const [key, trailingCandidates] of trailing) {
+      const leadingCandidates = leading.get(key);
+      if (!leadingCandidates) continue;
+      for (const a of trailingCandidates) {
+        for (const b of leadingCandidates) {
+          if (a === b) continue;
+          const overlapsSpan =
+            spanAxis === "x"
+              ? spansJoin(a.cmd.x, a.cmd.x + a.cmd.w, b.cmd.x, b.cmd.x + b.cmd.w)
+              : spansJoin(a.cmd.y, a.cmd.y + a.cmd.h, b.cmd.y, b.cmd.y + b.cmd.h);
+          if (!overlapsSpan) continue;
+          mark(a.cmd, trailingEdge);
+          mark(b.cmd, leadingEdge);
+        }
+      }
+    }
+  };
+
+  connect(bottom, top, "x", "bottom", "top");
+  connect(right, left, "y", "right", "left");
+}
+
 export { undergroundBeltUnderlayClip } from "./bounds.js";
 export { tileMod, tileVariantHash } from "./tiles.js";
 export { UNSUPPORTED_ENTITY_ICON_KEY } from "./unsupported.js";
@@ -195,6 +284,7 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
   if (profile) profile.resolveMs = nowMs() - tResolve;
 
   const byNumber = new Map<number, { entity: BlueprintEntity; def: EntityRenderDef }>();
+  const legacyRailBeds: LegacyRailBedCandidate[] = [];
   for (const { entity, def, selections } of resolved) {
     byNumber.set(entity.entity_number, { entity, def });
     // Rolling stock collision boxes are elongated along the track; using the
@@ -249,6 +339,12 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
       if (variant.flipX) cmd.flipX = true;
       if (variant.flipY) cmd.flipY = true;
       if (variant.rotation != null && variant.rotation !== 0) cmd.rotation = variant.rotation;
+      if (
+        (def.protoType === "legacy-straight-rail" || def.protoType === "legacy-curved-rail") &&
+        layerName === "rail-stone-path-lower"
+      ) {
+        legacyRailBeds.push({ cmd, axis: legacyRailBedAxis(def.protoType, cmd) });
+      }
 
       // UG/loader belt underlay: clip straight to open-side half (caps stay full).
       if (
@@ -282,6 +378,7 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
       }
     }
   }
+  markLegacyRailBedSeams(legacyRailBeds);
   if (profile) {
     // Exclude resolve from entitiesMs so phases are additive.
     profile.entitiesMs = nowMs() - t - profile.resolveMs;

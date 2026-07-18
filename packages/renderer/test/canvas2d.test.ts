@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { type Canvas2DContextLike, executeDrawList } from "../src/canvas2d.js";
-import type { DrawList } from "../src/types/draw-list.js";
+import { RENDER_LAYERS, type DrawList } from "../src/types/draw-list.js";
 import { TRIMMED_FRAME, makeMiniDb } from "./fixtures/mini-db.js";
 
 type Call = { method: string; args: unknown[] };
@@ -206,6 +206,57 @@ describe("executeDrawList", () => {
     expect(args[6]).toBe(6);
     expect(args[7]).toBe(24);
     expect(args[8]).toBe(20);
+  });
+
+  it("extends marked legacy rail-bed edges without rescaling them", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 4, maxY: 1 },
+      commands: [
+        {
+          kind: "sprite",
+          layer: RENDER_LAYERS["rail-stone-path-lower"],
+          sortY: 0,
+          sortX: 0,
+          entity: 1,
+          sub: 0,
+          frame: 0,
+          x: 0,
+          y: 0,
+          w: 2,
+          h: 1,
+          seamBleed: { right: true },
+        },
+        {
+          kind: "sprite",
+          layer: RENDER_LAYERS["rail-stone-path-lower"],
+          sortY: 0,
+          sortX: 0,
+          entity: 2,
+          sub: 0,
+          frame: 0,
+          x: 2,
+          y: 0,
+          w: 2,
+          h: 1,
+          seamBleed: { left: true },
+        },
+      ],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 68.75,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 4, maxY: 1 },
+      frames: db.frames,
+    });
+
+    const draws = ctx.calls.filter((call) => call.method === "drawImage");
+    expect(draws).toHaveLength(4);
+    expect(draws[0]?.args.slice(5, 9)).toEqual([0, 0, 138, 69]);
+    expect(draws[1]?.args.slice(5, 9)).toEqual([2, 0, 138, 69]);
+    expect(draws[2]?.args.slice(5, 9)).toEqual([138, 0, 137, 69]);
+    expect(draws[3]?.args.slice(5, 9)).toEqual([136, 0, 137, 69]);
   });
 
   it("draws a source sub-rect for material tile cells", () => {

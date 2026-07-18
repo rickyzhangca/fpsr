@@ -554,6 +554,66 @@ describe("drawlist snapshots (committed render-db)", () => {
     assertSnapshot("rail-loop-small", list);
   });
 
+  it("marks only the legacy lower rail bed for seam continuation", () => {
+    const list = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "legacy-curved-rail",
+          position: { x: 0, y: 0 },
+          direction: 10,
+        },
+        {
+          entity_number: 2,
+          name: "legacy-straight-rail",
+          position: { x: 1, y: -5 },
+          direction: 0,
+        },
+        {
+          entity_number: 3,
+          name: "legacy-straight-rail",
+          position: { x: 20, y: -5 },
+          direction: 0,
+        },
+        {
+          entity_number: 4,
+          name: "legacy-straight-rail",
+          position: { x: 24, y: -5 },
+          direction: 0,
+        },
+        {
+          entity_number: 5,
+          name: "legacy-straight-rail",
+          position: { x: 21, y: -3 },
+          direction: 0,
+        },
+        { entity_number: 6, name: "straight-rail", position: { x: 32, y: -5 }, direction: 0 },
+      ]),
+      db,
+    );
+    const sprites = list.commands.filter((command) => command.kind === "sprite");
+    const marked = sprites.filter((command) => command.seamBleed != null);
+
+    expect(marked).toHaveLength(2);
+    expect(
+      marked.every((command) => command.layer === RENDER_LAYERS["rail-stone-path-lower"]),
+    ).toBe(true);
+    expect(marked.find((command) => command.entity === 1)?.seamBleed).toEqual({ top: true });
+    expect(marked.find((command) => command.entity === 2)?.seamBleed).toEqual({ bottom: true });
+    expect(sprites.some((command) => command.entity === 3 && command.seamBleed != null)).toBe(
+      false,
+    );
+    expect(sprites.some((command) => command.entity === 4 && command.seamBleed != null)).toBe(
+      false,
+    );
+    expect(sprites.some((command) => command.entity === 5 && command.seamBleed != null)).toBe(
+      false,
+    );
+    expect(sprites.some((command) => command.entity === 6 && command.seamBleed != null)).toBe(
+      false,
+    );
+  });
+
   it("elevated rail support stays below the track and red guard fences stay above it", () => {
     const list = planDrawList(
       bp([

@@ -152,6 +152,17 @@ export interface SpriteCmd extends DrawCmdBase {
   /** Clockwise degrees around the sprite center. */
   rotation?: number;
   /**
+   * Continue a small interior band beyond the authored destination. Legacy
+   * lower rail-bed sprites have sparse alpha-feathered ends that can otherwise
+   * expose terrain where straight and curved pieces meet.
+   */
+  seamBleed?: {
+    top?: true;
+    right?: true;
+    bottom?: true;
+    left?: true;
+  };
+  /**
    * Optional sub-rect within the untrimmed source sprite (`FrameMeta.sw`×`sh`,
    * pixels). When set, `x`/`y`/`w`/`h` are the destination rect for this slice.
    */

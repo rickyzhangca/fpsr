@@ -1,7 +1,20 @@
-import type { RectCmd, SpriteCmd } from "../types/draw-list.js";
+import { RENDER_LAYERS, type RectCmd, type SpriteCmd } from "../types/draw-list.js";
 import type { FrameMeta } from "../types/render-db.js";
 import type { Canvas2DContextLike, ExecuteDrawListOptions } from "./types.js";
 import { packedHeight, packedWidth, rgba } from "./util.js";
+
+const PIXEL_SNAPPED_RAIL_LAYERS = new Set<number>([
+  RENDER_LAYERS["rail-stone-path-lower"],
+  RENDER_LAYERS["rail-stone-path"],
+  RENDER_LAYERS["rail-tie"],
+  RENDER_LAYERS["rail-screw"],
+  RENDER_LAYERS["rail-metal"],
+  RENDER_LAYERS["elevated-rail-stone-path-lower"],
+  RENDER_LAYERS["elevated-rail-stone-path"],
+  RENDER_LAYERS["elevated-rail-tie"],
+  RENDER_LAYERS["elevated-rail-screw"],
+  RENDER_LAYERS["elevated-rail-metal"],
+]);
 
 export function drawRect(
   ctx: Canvas2DContextLike,
@@ -42,10 +55,24 @@ export function drawSprite(
   ppt: number,
   createCanvas?: ExecuteDrawListOptions["createCanvas"],
 ): void {
-  const dx = (cmd.x + ox) * ppt;
-  const dy = (cmd.y + oy) * ppt;
-  const dw = cmd.w * ppt;
-  const dh = cmd.h * ppt;
+  let dx = (cmd.x + ox) * ppt;
+  let dy = (cmd.y + oy) * ppt;
+  let dw = cmd.w * ppt;
+  let dh = cmd.h * ppt;
+
+  // Rail pieces are authored to meet exactly at their untrimmed sprite
+  // boundaries. When a large render is capped, ppt becomes fractional and
+  // independent drawImage calls can round the shared edge in opposite
+  // directions, exposing a one-pixel strip of terrain. Snap both sides from
+  // absolute world coordinates so adjacent pieces share the same pixel edge.
+  if (PIXEL_SNAPPED_RAIL_LAYERS.has(cmd.layer) && (cmd.rotation ?? 0) === 0) {
+    const right = Math.round((cmd.x + cmd.w + ox) * ppt);
+    const bottom = Math.round((cmd.y + cmd.h + oy) * ppt);
+    dx = Math.round(dx);
+    dy = Math.round(dy);
+    dw = right - dx;
+    dh = bottom - dy;
+  }
 
   const src = cmd.src ?? { x: 0, y: 0, w: frame.sw, h: frame.sh };
   const scaleX = src.w === 0 ? 0 : dw / src.w;
@@ -167,6 +194,34 @@ export function drawSprite(
     );
   } else {
     blit(ctx, trimmedDx, trimmedDy, trimmedDw, trimmedDh);
+  }
+
+  // Legacy straight/curved lower rail beds have a sparse alpha-feathered
+  // perimeter. Extend a narrow interior sample beyond each edge so an
+  // adjoining piece can fill the feather's holes. Unlike enlarging the
+  // destination, this leaves every pixel inside the authored sprite unchanged.
+  const seamBleed = cmd.seamBleed;
+  if (seamBleed && !hasClip && !tinted && !flipX && !flipY && rotation === 0) {
+    const bleed = (
+      clipX: number,
+      clipY: number,
+      clipW: number,
+      clipH: number,
+      sx: number,
+      sy: number,
+    ) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(clipX, clipY, clipW, clipH);
+      ctx.clip();
+      blit(ctx, trimmedDx + sx, trimmedDy + sy, trimmedDw, trimmedDh);
+      ctx.restore();
+    };
+    const seamBand = 2;
+    if (seamBleed.top) bleed(dx, dy - seamBand, dw, seamBand, 0, -seamBand);
+    if (seamBleed.right) bleed(dx + dw, dy, seamBand, dh, seamBand, 0);
+    if (seamBleed.bottom) bleed(dx, dy + dh, dw, seamBand, 0, seamBand);
+    if (seamBleed.left) bleed(dx - seamBand, dy, seamBand, dh, -seamBand, 0);
   }
 
   if (hasClip) {
