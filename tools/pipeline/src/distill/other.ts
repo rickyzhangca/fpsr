@@ -22,6 +22,7 @@ import type {
   SpaceBackground,
   TerrainBackgrounds,
   TerrainPatchBackground,
+  TerrainPatchSet,
   TileRenderDef,
 } from "../types.js";
 import {
@@ -223,11 +224,22 @@ export interface RawTileMainPicture {
   picture: string;
   count?: number;
   size?: number;
+  probability?: number;
   scale?: number;
   x?: number;
   y?: number;
   line_length?: number;
   weights?: number[];
+}
+
+/** Stable FNV-1a salt persisted with procedural background definitions. */
+function backgroundSeed(name: string): number {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < name.length; index++) {
+    hash ^= name.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
 }
 
 export function mapColorRgba(
@@ -243,19 +255,11 @@ export function mapColorRgba(
   return [channel(0, 0), channel(1, 0), channel(2, 0), channel(3, 1)];
 }
 
-export async function distillTerrainBackground(
+async function distillTerrainPatchSet(
   bank: FrameBank,
-  raw: DataRaw,
+  main: RawTileMainPicture,
   name: string,
-  fallbackColor: [number, number, number, number],
-): Promise<TerrainPatchBackground> {
-  const tile = proto(raw, "tile", name);
-  const variants = tile.variants as { main?: RawTileMainPicture[] };
-  const main = [...(variants.main ?? [])]
-    .filter((candidate) => candidate.picture && (candidate.size ?? 1) > 0)
-    .sort((a, b) => (b.size ?? 1) - (a.size ?? 1))[0];
-  if (!main) throw new Error(`terrain background ${name} has no main picture`);
-
+): Promise<TerrainPatchSet> {
   const patchSize = main.size ?? 1;
   const scale = main.scale ?? 0.5;
   const sourceTilePixels = Math.round(32 / scale);
@@ -289,6 +293,34 @@ export async function distillTerrainBackground(
     patchSize,
     frames,
     ...(weights ? { weights } : {}),
+    ...(Number.isFinite(main.probability) ? { probability: main.probability } : {}),
+  };
+}
+
+export async function distillTerrainBackground(
+  bank: FrameBank,
+  raw: DataRaw,
+  name: string,
+  fallbackColor: [number, number, number, number],
+): Promise<TerrainPatchBackground> {
+  const tile = proto(raw, "tile", name);
+  const variants = tile.variants as { main?: RawTileMainPicture[] };
+  const mainPictures = [...(variants.main ?? [])]
+    .filter((candidate) => candidate.picture && (candidate.size ?? 1) > 0)
+    .sort((a, b) => (b.size ?? 1) - (a.size ?? 1));
+  if (mainPictures.length === 0) {
+    throw new Error(`terrain background ${name} has no main picture`);
+  }
+
+  const patchSets: TerrainPatchSet[] = [];
+  for (const main of mainPictures) {
+    patchSets.push(await distillTerrainPatchSet(bank, main, name));
+  }
+  const largest = patchSets[0]!;
+  return {
+    seed: backgroundSeed(name),
+    ...largest,
+    ...(patchSets.length > 1 ? { patches: patchSets.slice(1) } : {}),
     color: mapColorRgba(tile, fallbackColor),
   };
 }
@@ -353,6 +385,7 @@ export async function distillMaterialBackground(
   }
 
   return {
+    seed: backgroundSeed(name),
     patchSize: patchW,
     frames,
     color: mapColorRgba(tile, fallbackColor),
@@ -511,6 +544,7 @@ export async function distillWaterBackground(
     hash: createHash("sha256").update(baked.rgba).digest("hex"),
   });
   return {
+    seed: backgroundSeed("water"),
     patchSize: WATER_SUPERTILE_TILES,
     frames: [frame],
     color: [...underwaterColor, 1],

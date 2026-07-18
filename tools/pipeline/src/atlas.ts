@@ -163,15 +163,18 @@ function collectUsageRefs(input: PackUsageInput): MutableFrameRef[] {
   for (const name of Object.keys(input.terrainBackgrounds ?? {}).sort()) {
     const background = input.terrainBackgrounds?.[name];
     if (!background) continue;
-    for (let index = 0; index < background.frames.length; index++) {
-      const oldId = background.frames[index]!;
-      refs.push({
-        oldId,
-        group: `terrain:${name}`,
-        assign(id) {
-          background.frames[index] = id;
-        },
-      });
+    const patchGroups = [background, ...(background.patches ?? [])];
+    for (const patchGroup of patchGroups) {
+      for (let index = 0; index < patchGroup.frames.length; index++) {
+        const oldId = patchGroup.frames[index]!;
+        refs.push({
+          oldId,
+          group: `terrain:${name}`,
+          assign(id) {
+            patchGroup.frames[index] = id;
+          },
+        });
+      }
     }
   }
 

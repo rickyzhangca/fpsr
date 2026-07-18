@@ -133,12 +133,23 @@ describe("usage-aware atlas packing", () => {
   it("keeps each terrain mode on a separate lazy-loadable atlas page", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-terrain-"));
     try {
-      const frames = [frame(0, 256, 256), frame(1, 256, 256), frame(2, 256, 256)];
+      const frames = [
+        frame(0, 256, 256),
+        frame(1, 256, 256),
+        frame(2, 256, 256),
+        frame(3, 128, 128),
+      ];
       const usage: PackUsageInput = {
         entities: {},
         tiles: {},
         terrainBackgrounds: {
-          dirt: { patchSize: 4, frames: [0], weights: [1], color: [0.5, 0.4, 0.3, 1] },
+          dirt: {
+            patchSize: 4,
+            frames: [0],
+            weights: [1],
+            patches: [{ patchSize: 2, frames: [3] }],
+            color: [0.5, 0.4, 0.3, 1],
+          },
           water: { patchSize: 4, frames: [1], color: [0.2, 0.3, 0.4, 1] },
           vulcanus: { patchSize: 4, frames: [2], color: [0.1, 0.15, 0.1, 1] },
         },
@@ -149,10 +160,13 @@ describe("usage-aware atlas packing", () => {
       const dirtFrameId = usage.terrainBackgrounds?.dirt?.frames[0];
       const waterFrameId = usage.terrainBackgrounds?.water?.frames[0];
       const vulcanusFrameId = usage.terrainBackgrounds?.vulcanus?.frames[0];
+      const dirtSmallFrameId = usage.terrainBackgrounds?.dirt?.patches?.[0]?.frames[0];
       expect(dirtFrameId).toBeDefined();
       expect(waterFrameId).toBeDefined();
       expect(vulcanusFrameId).toBeDefined();
+      expect(dirtSmallFrameId).toBeDefined();
       expect(packed.frames[dirtFrameId!]?.a).not.toBe(packed.frames[waterFrameId!]?.a);
+      expect(packed.frames[dirtSmallFrameId!]?.a).toBe(packed.frames[dirtFrameId!]?.a);
       expect(packed.frames[dirtFrameId!]?.a).not.toBe(packed.frames[vulcanusFrameId!]?.a);
       expect(packed.frames[waterFrameId!]?.a).not.toBe(packed.frames[vulcanusFrameId!]?.a);
     } finally {

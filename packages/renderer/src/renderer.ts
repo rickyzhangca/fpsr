@@ -291,6 +291,12 @@ function collectAtlasIndices(
     const frame = db.frames[frameId];
     if (frame) set.add(frame.a);
   }
+  for (const patch of terrainBackground?.patches ?? []) {
+    for (const frameId of patch.frames) {
+      const frame = db.frames[frameId];
+      if (frame) set.add(frame.a);
+    }
+  }
   if (spacePlanetFrameId != null) {
     const frame = db.frames[spacePlanetFrameId];
     if (frame) set.add(frame.a);

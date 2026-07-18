@@ -420,7 +420,13 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
   process.stdout.write("  terrain backgrounds…");
   const terrainBackgrounds = await distillTerrainBackgrounds(bank, raw);
   const terrainSummary = Object.entries(terrainBackgrounds)
-    .map(([name, background]) => `${name} ${background?.frames.length ?? 0}`)
+    .map(([name, background]) => {
+      const count = [background, ...(background?.patches ?? [])].reduce(
+        (total, patch) => total + (patch?.frames.length ?? 0),
+        0,
+      );
+      return `${name} ${count}`;
+    })
     .join(", ");
   console.log(` ok (${terrainSummary})`);
 

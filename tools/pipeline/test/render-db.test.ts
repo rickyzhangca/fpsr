@@ -117,6 +117,9 @@ function collectFrameIds(db: RenderDb): Set<number> {
   }
   for (const background of Object.values(db.terrainBackgrounds ?? {})) {
     for (const f of background?.frames ?? []) ids.add(f);
+    for (const patch of background?.patches ?? []) {
+      for (const f of patch.frames) ids.add(f);
+    }
   }
   if (db.spaceBackground) {
     ids.add(db.spaceBackground.planetFrame);
@@ -183,11 +186,19 @@ describe("render-db contract", () => {
         expect(frame).toBeGreaterThanOrEqual(0);
         expect(frame).toBeLessThan(db.frames.length);
       }
-      expect(
-        background?.weights == null ||
-          (background.weights.length === background.frames.length &&
-            background.weights.every((weight) => Number.isFinite(weight) && weight > 0)),
-      ).toBe(true);
+      for (const patch of [background, ...(background?.patches ?? [])]) {
+        expect(patch?.patchSize).toBeGreaterThan(0);
+        expect(patch?.frames.length).toBeGreaterThan(0);
+        for (const frame of patch?.frames ?? []) {
+          expect(frame).toBeGreaterThanOrEqual(0);
+          expect(frame).toBeLessThan(db.frames.length);
+        }
+        expect(
+          patch?.weights == null ||
+            (patch.weights.length === patch.frames.length &&
+              patch.weights.every((weight) => Number.isFinite(weight) && weight > 0)),
+        ).toBe(true);
+      }
     }
     expect(db.terrainBackgrounds?.dirt?.patchSize).toBe(4);
     expect(db.terrainBackgrounds?.dirt?.frames).toHaveLength(16);
@@ -197,6 +208,18 @@ describe("render-db contract", () => {
     expect(db.terrainBackgrounds?.gleba?.patchSize).toBe(4);
     expect(db.terrainBackgrounds?.fulgora?.patchSize).toBe(8);
     expect(db.terrainBackgrounds?.aquilo?.patchSize).toBe(4);
+    for (const name of ["dirt", "vulcanus", "gleba", "aquilo"] as const) {
+      expect(db.terrainBackgrounds?.[name]?.patches?.map((patch) => patch.patchSize)).toEqual([
+        2, 1,
+      ]);
+    }
+    expect(db.terrainBackgrounds?.fulgora?.patches).toBeUndefined();
+    const terrainSeeds = Object.values(db.terrainBackgrounds ?? {}).map(
+      (background) => background?.seed,
+    );
+    expect(terrainSeeds.every((seed) => seed == null || Number.isInteger(seed))).toBe(true);
+    const definedTerrainSeeds = terrainSeeds.filter((seed) => seed != null);
+    expect(new Set(definedTerrainSeeds).size).toBe(definedTerrainSeeds.length);
     const spaceBackground = db.spaceBackground;
     expect(spaceBackground).toBeDefined();
     expect(spaceBackground!.planetFrame).toBeGreaterThanOrEqual(0);

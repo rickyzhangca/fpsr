@@ -545,6 +545,7 @@ describe("createRenderer", () => {
     terrainDb.atlases.push(
       { file: "atlas-dirt.png", width: 256, height: 256 },
       { file: "atlas-water.png", width: 256, height: 256 },
+      { file: "atlas-dirt-small.png", width: 128, height: 128 },
     );
     const dirtFrame =
       terrainDb.frames.push({
@@ -570,8 +571,25 @@ describe("createRenderer", () => {
         sw: 256,
         sh: 256,
       }) - 1;
+    const dirtSmallFrame =
+      terrainDb.frames.push({
+        a: 3,
+        x: 0,
+        y: 0,
+        w: 128,
+        h: 128,
+        ox: 0,
+        oy: 0,
+        sw: 128,
+        sh: 128,
+      }) - 1;
     terrainDb.terrainBackgrounds = {
-      dirt: { patchSize: 4, frames: [dirtFrame], color: [0.5, 0.4, 0.3, 1] },
+      dirt: {
+        patchSize: 4,
+        frames: [dirtFrame],
+        patches: [{ patchSize: 2, frames: [dirtSmallFrame] }],
+        color: [0.5, 0.4, 0.3, 1],
+      },
       water: { patchSize: 4, frames: [waterFrame], color: [0.2, 0.3, 0.4, 1] },
     };
     const loadAtlasImage = vi.fn<AssetSource["loadAtlasImage"]>(async (index) => {
@@ -589,10 +607,10 @@ describe("createRenderer", () => {
     };
 
     await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "dirt" });
-    expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1]);
+    expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1, 3]);
 
     await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "water" });
-    expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1, 2]);
+    expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1, 3, 2]);
   });
 
   it("renders directly into a supplied destination canvas", async () => {

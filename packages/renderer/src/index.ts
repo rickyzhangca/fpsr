@@ -239,6 +239,7 @@ export type {
   TerrainBackgroundName,
   TerrainBackgrounds,
   TerrainPatchBackground,
+  TerrainPatchSet,
   TileMaterialAtlas,
   TileRenderDef,
   WireAnchorMap,

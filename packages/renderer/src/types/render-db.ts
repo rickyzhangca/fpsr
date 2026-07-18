@@ -471,18 +471,38 @@ export interface TileRenderDef {
 
 export type TerrainBackgroundName = string;
 
-/**
- * A full-plane terrain background assembled from world-aligned square patches.
- * `frames` contains authored variants of the same `patchSize`; `weights`, when
- * present, mirrors Factorio's weighted tile-main-picture selection.
- */
-export interface TerrainPatchBackground {
+/** One authored group of same-size, edge-compatible terrain patches. */
+export interface TerrainPatchSet {
   /** Width and height of every patch in map tiles. */
   patchSize: number;
   /** Authored patch variants, selected deterministically from world coordinates. */
   frames: FrameId[];
   /** Optional positive selection weights parallel to `frames`. */
   weights?: number[];
+  /** Factorio's authored chance for using this patch size. */
+  probability?: number;
+}
+
+/**
+ * A full-plane terrain background assembled from world-aligned square patches.
+ * `frames` contains authored variants of the same `patchSize`; `weights`, when
+ * present, mirrors Factorio's weighted tile-main-picture selection. `patches`
+ * carries smaller complete patch groups used to break up large-scale repetition
+ * without cropping or transforming any authored art.
+ */
+export interface TerrainPatchBackground {
+  /** Stable per-terrain salt so different surfaces do not repeat the same patch layout. */
+  seed?: number;
+  /** Width and height of every patch in map tiles. */
+  patchSize: number;
+  /** Authored patch variants, selected deterministically from world coordinates. */
+  frames: FrameId[];
+  /** Optional positive selection weights parallel to `frames`. */
+  weights?: number[];
+  /** Factorio's authored chance for using the largest patch size. */
+  probability?: number;
+  /** Smaller authored patch groups, normally 1×1 and 2×2. */
+  patches?: TerrainPatchSet[];
   /** Solid RGBA fallback painted before patches and used by older asset bundles. */
   color: [number, number, number, number];
 }
