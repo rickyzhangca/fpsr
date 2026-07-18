@@ -569,6 +569,36 @@ describe("render-db contract", () => {
     expect(hub!.data?.cargoBayConnections ?? hub!.data?.cargoBayConnectionsPlatform).toBeTruthy();
   });
 
+  it("distills solar-panel shadow overlay on top of the body", async () => {
+    const db = await loadDb();
+    const panel = db.entities["solar-panel"];
+    expect(panel).toBeTruthy();
+    const body = panel!.graphics.find(
+      (g) => g.layer === "object" && g.variants.default?.[0] && !g.variants.default[0].drawAsShadow,
+    );
+    const shadow = panel!.graphics.find((g) => g.layer === "shadow");
+    const overlay = panel!.graphics.find((g, i) => {
+      const v = g.variants.default?.[0];
+      return (
+        g.layer === "object" &&
+        v != null &&
+        !v.drawAsShadow &&
+        // Overlay is appended after picture layers.
+        i > panel!.graphics.indexOf(body!)
+      );
+    });
+    expect(body).toBeTruthy();
+    expect(shadow?.variants.default?.[0]?.drawAsShadow).toBe(true);
+    expect(overlay).toBeTruthy();
+    // Official util.by_pixel shifts: body (-3, 3.5), shadow (9.5, 6), overlay (10.5, 6).
+    expect(body!.variants.default![0]!.shift[0]).toBeCloseTo(-0.0937, 3);
+    expect(shadow!.variants.default![0]!.shift[0]).toBeCloseTo(0.2969, 3);
+    expect(overlay!.variants.default![0]!.shift[0]).toBeCloseTo(0.3281, 3);
+    expect(overlay!.variants.default![0]!.shift[1]).toBeCloseTo(0.1875, 3);
+    // Overlay must paint after the body (same object layer, higher group index).
+    expect(panel!.graphics.indexOf(overlay!)).toBeGreaterThan(panel!.graphics.indexOf(body!));
+  });
+
   it("places agricultural-tower crane hub above the base silo", async () => {
     const db = await loadDb();
     const tower = db.entities["agricultural-tower"];

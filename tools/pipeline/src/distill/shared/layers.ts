@@ -1,3 +1,4 @@
+import { fpsrLayer, guessedLayer, officialLayer } from "../../render-layers.js";
 import {
   dirs4,
   isSprite4Way,
@@ -6,7 +7,6 @@ import {
   round4,
   type FrameBank,
 } from "../../sprite.js";
-import { fpsrLayer, guessedLayer, officialLayer } from "../../render-layers.js";
 import type {
   EntityKind,
   EntityRenderDef,
@@ -199,11 +199,23 @@ export async function distillSimplePicture(
   kind: EntityKind = "simple",
   pictureField = "picture",
 ): Promise<EntityRenderDef> {
+  const bodyLayer = guessedLayer("object", "entity body; dump has no render_layer");
   const pic = p[pictureField] as RawSprite | undefined;
   const graphics = await layersFromSprite(bank, pic, {
-    layer: guessedLayer("object", "entity body; dump has no render_layer"),
+    layer: bodyLayer,
     indexing: "single",
   });
+  // Solar-panel (and similar) cast a ground shadow via draw_as_shadow, then paint an
+  // `overlay` on top of the body so the shadow continues across the panel glass.
+  // Without it, only the SE ground shadow remains and looks right-shifted.
+  if (p.overlay) {
+    graphics.push(
+      ...(await layersFromSprite(bank, p.overlay as RawSprite, {
+        layer: bodyLayer,
+        indexing: "single",
+      })),
+    );
+  }
   return baseEntity(kind, protoType, p, await mergeLayerGroups(graphics));
 }
 
