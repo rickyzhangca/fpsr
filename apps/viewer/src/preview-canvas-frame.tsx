@@ -376,8 +376,7 @@ export const PreviewCanvasFrame = ({
     const viewport = viewportRef.current;
     if (!viewport || !ready) return;
     const onWheel = (event: WheelEvent) => {
-      // Trackpad pinch sets ctrlKey; two-finger scroll should bubble to the page.
-      if (!event.ctrlKey) return;
+      // Any wheel over the canvas zooms (mouse wheel and trackpad pinch/scroll).
       event.preventDefault();
       const shell = shellRef.current;
       if (!shell) return;
