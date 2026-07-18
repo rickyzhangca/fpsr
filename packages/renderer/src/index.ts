@@ -76,6 +76,8 @@ export {
   planRequestPinCommands,
   signalIconKeys,
 } from "./alt-mode.js";
+export { countBlueprintComponents } from "./blueprint-components.js";
+export type { BlueprintComponentCount } from "./blueprint-components.js";
 export {
   BLUEPRINT_ICON_TILE_SIZE,
   blueprintIconSignalCenter,
@@ -92,6 +94,8 @@ export type {
   PlanBlueprintIconsOptions,
 } from "./blueprint-icons.js";
 export { resolveIconFrameId } from "./icon-resolve.js";
+export { analyzePlan } from "./plan-diagnostics.js";
+export type { PlanDiagnostics, UnsupportedBlueprintContent } from "./plan-diagnostics.js";
 export {
   normalizeEntityColor,
   planDrawList,

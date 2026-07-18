@@ -148,13 +148,17 @@ order for reviewable text diffs.
 
 ### Draw-list planner
 
-| Export                | Kind     | Description                                                  |
-| --------------------- | -------- | ------------------------------------------------------------ |
-| `planDrawList`        | function | `(bp, renderDb, opts?)` → `DrawList`                         |
-| `planAltModeCommands` | function | Plan blueprint-derived entity-info icons for one entity      |
-| `altSignalFrame`      | function | Resolve a Blueprint `SignalId` through the render-db catalog |
-| `tileVariantHash`     | function | Hash tile coordinates for variant selection                  |
-| `PlanOptions`         | type     | `altMode`, `background`, belt-ending behavior, etc.          |
+| Export                     | Kind     | Description                                                                  |
+| -------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `planDrawList`             | function | `(bp, renderDb, opts?)` → `DrawList`                                         |
+| `analyzePlan`              | function | `(bp, drawList, renderDb)` → resolve coverage + draw-list integrity checks   |
+| `PlanDiagnostics`          | type     | Result of `analyzePlan`                                                      |
+| `countBlueprintComponents` | function | `(bp, renderDb)` → inventory counts (rails → `rail`, tiles via placing item) |
+| `BlueprintComponentCount`  | type     | `{ name, count }` entry from `countBlueprintComponents`                      |
+| `planAltModeCommands`      | function | Plan blueprint-derived entity-info icons for one entity                      |
+| `altSignalFrame`           | function | Resolve a Blueprint `SignalId` through the render-db catalog                 |
+| `tileVariantHash`          | function | Hash tile coordinates for variant selection                                  |
+| `PlanOptions`              | type     | `altMode`, `background`, belt-ending behavior, etc.                          |
 
 ### Wire connectors
 

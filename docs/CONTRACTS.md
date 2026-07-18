@@ -35,9 +35,9 @@ blueprint string
 `planDrawList` call `migrateTo2x` at entry so every library path is safe. After migration,
 `version` major is bumped to 2 so re-entry is a no-op.
 
-`decode`, `migrateTo2x`, `resolve`, and `planDrawList` are pure and synchronous. Only asset
-loading and canvas execution are async. Nothing above the backend may touch the DOM,
-`fetch`, or node APIs.
+`decode`, `migrateTo2x`, `resolve`, `planDrawList`, `analyzePlan`, and
+`countBlueprintComponents` are pure and synchronous. Only asset loading and canvas
+execution are async. Nothing above the backend may touch the DOM, `fetch`, or node APIs.
 
 ## Coordinate system
 
@@ -104,6 +104,8 @@ selectBlueprint(doc: BlueprintDocument, path?: number[]): Blueprint; // default:
 
 // planning — pure, needs render-db but no images
 planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList;
+analyzePlan(bp: Blueprint, drawList: DrawList, db: RenderDb): PlanDiagnostics;
+countBlueprintComponents(bp: Blueprint, db: RenderDb): BlueprintComponentCount[];
 
 // rendering — async, needs assets
 const r = await createRenderer({ assets: AssetSource, renderDb?: RenderDb });
