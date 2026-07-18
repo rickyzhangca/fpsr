@@ -19,8 +19,10 @@ import {
   cropFileRect,
   cropSpriteFrame,
   dirs4,
+  imageDimensions,
   isSprite4Way,
   leafLayers,
+  loadImageRgba,
   normalizeShift,
   normalizeTint,
   round4,
@@ -41,12 +43,20 @@ import type {
   RawSprite,
   RenderDb,
   RenderLayerName,
+  SpaceBackground,
   SpriteVariant,
+  TerrainBackgrounds,
+  TerrainPatchBackground,
   TileRenderDef,
   WireAnchorSet,
   WireConnectorGraphics,
 } from "./types.js";
 import { verifyAssetBundle } from "./verify.js";
+import {
+  WATER_SUPERTILE_TILES,
+  bakeFrozenWaterSurface,
+  type FrozenWaterParameters,
+} from "./water-effect.js";
 
 /**
  * Layer assignment policy (see docs/RENDER_LAYERS.md):
@@ -2355,9 +2365,7 @@ function appendRailPieceGroups(
       if (variants.every((variant) => variant == null)) continue;
       groups.push({
         layer:
-          kind === "shadows"
-            ? fpsrLayer("shadow", "draw_as_shadow rail-piece leaf")
-            : visibleLayer,
+          kind === "shadows" ? fpsrLayer("shadow", "draw_as_shadow rail-piece leaf") : visibleLayer,
         indexing,
         variants: { default: variants },
       });
@@ -2387,10 +2395,7 @@ interface RailFenceSample {
   centerY: number | null;
 }
 
-function alphaCenterY(
-  bank: FrameBank,
-  info: Awaited<ReturnType<FrameBank["addSprite"]>>,
-): number {
+function alphaCenterY(bank: FrameBank, info: Awaited<ReturnType<FrameBank["addSprite"]>>): number {
   const frame = bank.list()[info.frameId];
   const meta = frame?.meta;
   const rgba = frame?.rgba;
@@ -2626,9 +2631,7 @@ async function distillRailRamp(
     }
     appendRailPieceGroups(groups, samples, "direction4", layer);
   }
-  groups.push(
-    ...(await addRailFenceGraphics(bank, p.fence_pictures, cardKeys, "direction4")),
-  );
+  groups.push(...(await addRailFenceGraphics(bank, p.fence_pictures, cardKeys, "direction4")));
   return baseEntity("rail", "rail-ramp", p, groups);
 }
 
@@ -4030,9 +4033,92 @@ async function distillIcon(
   });
 }
 
-async function distillTile(bank: FrameBank, raw: DataRaw, name: string): Promise<TileRenderDef> {
-  const t = proto(raw, "tile", name);
-  const variants = t.variants as {
+interface RawTileMainPicture {
+  picture: string;
+  count?: number;
+  size?: number;
+  scale?: number;
+  x?: number;
+  y?: number;
+  line_length?: number;
+  weights?: number[];
+}
+
+function mapColorRgba(
+  tile: Record<string, unknown>,
+  fallback: [number, number, number, number],
+): [number, number, number, number] {
+  const color = tile.map_color as number[] | undefined;
+  if (!color) return fallback;
+  const channel = (index: number, defaultValue: number): number => {
+    const value = color[index] ?? defaultValue;
+    return round4(value > 1 ? value / 255 : value);
+  };
+  return [channel(0, 0), channel(1, 0), channel(2, 0), channel(3, 1)];
+}
+
+async function distillTerrainBackground(
+  bank: FrameBank,
+  raw: DataRaw,
+  name: string,
+  fallbackColor: [number, number, number, number],
+): Promise<TerrainPatchBackground> {
+  const tile = proto(raw, "tile", name);
+  const variants = tile.variants as { main?: RawTileMainPicture[] };
+  const main = [...(variants.main ?? [])]
+    .filter((candidate) => candidate.picture && (candidate.size ?? 1) > 0)
+    .sort((a, b) => (b.size ?? 1) - (a.size ?? 1))[0];
+  if (!main) throw new Error(`terrain background ${name} has no main picture`);
+
+  const patchSize = main.size ?? 1;
+  const scale = main.scale ?? 0.5;
+  const sourceTilePixels = Math.round(32 / scale);
+  const patchPixels = patchSize * sourceTilePixels;
+  const sheetX = main.x ?? 0;
+  const sheetY = main.y ?? 0;
+  const abs = resolveSpritePath(main.picture);
+  const dimensions = await imageDimensions(abs);
+  const availableColumns = Math.floor((dimensions.width - sheetX) / patchPixels);
+  const availableRows = Math.floor((dimensions.height - sheetY) / patchPixels);
+  if (availableColumns <= 0 || availableRows <= 0) {
+    throw new Error(
+      `terrain background ${name} patch ${patchPixels}px lies outside ` +
+        `${dimensions.width}x${dimensions.height} sheet`,
+    );
+  }
+
+  const columns = Math.min(main.line_length ?? availableColumns, availableColumns);
+  const authoredCount = main.weights?.length ?? main.count ?? 1;
+  const count = Math.min(authoredCount, columns * availableRows);
+  const frames: number[] = [];
+  for (let index = 0; index < count; index++) {
+    const x = sheetX + (index % columns) * patchPixels;
+    const y = sheetY + Math.floor(index / columns) * patchPixels;
+    frames.push(await bank.add(await cropFileRect(abs, x, y, patchPixels, patchPixels)));
+  }
+
+  const weights =
+    main.weights && main.weights.length >= count ? main.weights.slice(0, count) : undefined;
+  return {
+    patchSize,
+    frames,
+    ...(weights ? { weights } : {}),
+    color: mapColorRgba(tile, fallbackColor),
+  };
+}
+
+/**
+ * Distill tiles that use Factorio `material_background` (e.g. fulgoran-dust):
+ * square patches of material_texture_*_in_tiles at the sheet scale.
+ */
+async function distillMaterialBackground(
+  bank: FrameBank,
+  raw: DataRaw,
+  name: string,
+  fallbackColor: [number, number, number, number],
+): Promise<TerrainPatchBackground> {
+  const tile = proto(raw, "tile", name);
+  const variants = tile.variants as {
     material_background?: {
       picture: string;
       count?: number;
@@ -4041,23 +4127,290 @@ async function distillTile(bank: FrameBank, raw: DataRaw, name: string): Promise
       x?: number;
       y?: number;
     };
-    main?: { picture: string; count?: number; size?: number; scale?: number }[];
     material_texture_width_in_tiles?: number;
     material_texture_height_in_tiles?: number;
   };
+  const mb = variants.material_background;
+  if (!mb?.picture) {
+    throw new Error(`terrain background ${name} has no material_background`);
+  }
 
-  const mapColor = t.map_color as number[] | undefined;
-  const mapColorRgba = (
-    fallback: [number, number, number, number],
-  ): [number, number, number, number] =>
-    mapColor
+  const patchW = variants.material_texture_width_in_tiles ?? 8;
+  const patchH = variants.material_texture_height_in_tiles ?? 8;
+  if (patchW !== patchH) {
+    throw new Error(`terrain background ${name} material patch ${patchW}x${patchH} is not square`);
+  }
+  const scale = mb.scale ?? 0.5;
+  const sourceTilePixels = Math.round(32 / scale);
+  const patchPixels = patchW * sourceTilePixels;
+  const sheetX = mb.x ?? 0;
+  const sheetY = mb.y ?? 0;
+  const abs = resolveSpritePath(mb.picture);
+  const dimensions = await imageDimensions(abs);
+  const availableColumns = Math.floor((dimensions.width - sheetX) / patchPixels);
+  const availableRows = Math.floor((dimensions.height - sheetY) / patchPixels);
+  if (availableColumns <= 0 || availableRows <= 0) {
+    throw new Error(
+      `terrain background ${name} material patch ${patchPixels}px lies outside ` +
+        `${dimensions.width}x${dimensions.height} sheet`,
+    );
+  }
+
+  const columns = Math.min(mb.line_length ?? availableColumns, availableColumns);
+  const authoredCount = mb.count ?? 1;
+  const count = Math.min(authoredCount, columns * availableRows);
+  const frames: number[] = [];
+  for (let index = 0; index < count; index++) {
+    const x = sheetX + (index % columns) * patchPixels;
+    const y = sheetY + Math.floor(index / columns) * patchPixels;
+    frames.push(await bank.add(await cropFileRect(abs, x, y, patchPixels, patchPixels)));
+  }
+
+  return {
+    patchSize: patchW,
+    frames,
+    color: mapColorRgba(tile, fallbackColor),
+  };
+}
+
+interface RawWaterEffect {
+  textures?: { filename?: string }[];
+  specular_lightness?: unknown;
+  foam_color?: unknown;
+  foam_color_multiplier?: number;
+  animation_speed?: number;
+  animation_scale?: unknown;
+  dark_threshold?: unknown;
+  reflection_threshold?: unknown;
+  specular_threshold?: unknown;
+  near_zoom?: number;
+  far_zoom?: number;
+}
+
+function normalizedRgb(
+  value: unknown,
+  fallback: [number, number, number],
+): [number, number, number] {
+  const color = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
       ? [
-          round4((mapColor[0] ?? 0) > 1 ? (mapColor[0] ?? 0) / 255 : (mapColor[0] ?? 0)),
-          round4((mapColor[1] ?? 0) > 1 ? (mapColor[1] ?? 0) / 255 : (mapColor[1] ?? 0)),
-          round4((mapColor[2] ?? 0) > 1 ? (mapColor[2] ?? 0) / 255 : (mapColor[2] ?? 0)),
-          round4((mapColor[3] ?? 1) > 1 ? (mapColor[3] ?? 1) / 255 : (mapColor[3] ?? 1)),
+          (value as Record<string, unknown>).r,
+          (value as Record<string, unknown>).g,
+          (value as Record<string, unknown>).b,
         ]
       : fallback;
+  const channels = [color[0], color[1], color[2]].map((channel, index) => {
+    const fallbackChannel = fallback[index] ?? 0;
+    const numeric =
+      typeof channel === "number" && Number.isFinite(channel) ? channel : fallbackChannel;
+    return numeric > 1 ? numeric / 255 : numeric;
+  });
+  return [channels[0] ?? 0, channels[1] ?? 0, channels[2] ?? 0];
+}
+
+function zoomAdjustedValue(
+  value: unknown,
+  fallback: number,
+  zoom: number,
+  nearZoom: number,
+  farZoom: number,
+): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (!Array.isArray(value)) return fallback;
+  const near = typeof value[0] === "number" && Number.isFinite(value[0]) ? value[0] : fallback;
+  const far = typeof value[1] === "number" && Number.isFinite(value[1]) ? value[1] : near;
+  const range = nearZoom - farZoom;
+  const amount = range === 0 ? 1 : Math.min(1, Math.max(0, (zoom - farZoom) / range));
+  return far + (near - far) * amount;
+}
+
+async function distillWaterBackground(
+  bank: FrameBank,
+  raw: DataRaw,
+): Promise<TerrainPatchBackground> {
+  const tile = proto(raw, "tile", "water");
+  const variants = tile.variants as { main?: RawTileMainPicture[] };
+  const main = [...(variants.main ?? [])]
+    .filter((candidate) => candidate.picture && (candidate.size ?? 1) > 0)
+    .sort((a, b) => (b.size ?? 1) - (a.size ?? 1))[0];
+  if (!main) throw new Error("terrain background water has no main picture");
+
+  const patchSize = main.size ?? 1;
+  const scale = main.scale ?? 0.5;
+  const sourcePixelsPerTile = Math.round(32 / scale);
+  const maskFrameSize = patchSize * sourcePixelsPerTile;
+  const maskSheet = await loadImageRgba(resolveSpritePath(main.picture));
+  const sheetX = main.x ?? 0;
+  const sheetY = main.y ?? 0;
+  if (sheetX !== 0 || sheetY !== 0) {
+    throw new Error("water mask sheets with source offsets are not supported");
+  }
+  const availableColumns = Math.floor(maskSheet.width / maskFrameSize);
+  const availableRows = Math.floor(maskSheet.height / maskFrameSize);
+  const maskFrameCount = availableColumns * availableRows;
+  if (availableColumns <= 0 || availableRows !== 1) {
+    throw new Error(
+      `water mask frame ${maskFrameSize}px does not fit one row of ` +
+        `${maskSheet.width}x${maskSheet.height}`,
+    );
+  }
+
+  const effectName = typeof tile.effect === "string" ? tile.effect : "water";
+  const effect = proto(raw, "tile-effect", effectName).water as RawWaterEffect | undefined;
+  const noiseFilename = effect?.textures?.[0]?.filename;
+  if (!effect || !noiseFilename) throw new Error(`tile effect ${effectName} has no water texture`);
+  const noiseTexture = await loadImageRgba(resolveSpritePath(noiseFilename));
+
+  // Factorio interpolates paired water settings between far and near zoom. The editor preview
+  // is authored at 1x, so bake the same values at zoom 1 and freeze only the time component.
+  const previewZoom = 1;
+  const nearZoom = effect.near_zoom ?? 2;
+  const farZoom = effect.far_zoom ?? 0.5;
+  const effectColor = normalizedRgb(tile.effect_color, [21 / 255, 147 / 255, 167 / 255]);
+  const mapColor = normalizedRgb(tile.map_color, [51 / 255, 83 / 255, 95 / 255]);
+  // The water shader emits premultiplied translucent pixels. Factorio composites them over its
+  // terrain buffer; use the midpoint of the prototype's map and effect colors as that stable base.
+  const underwaterColor = mapColor.map(
+    (channel, index) => (channel + (effectColor[index] ?? channel)) / 2,
+  ) as [number, number, number];
+  const foamColor = normalizedRgb(effect.foam_color, [230 / 255, 1, 252 / 255]);
+  const foamMultiplier = effect.foam_color_multiplier ?? 2.47;
+  const parameters: FrozenWaterParameters = {
+    effectColor,
+    specularLightness: normalizedRgb(effect.specular_lightness, [1, 1, 1]),
+    foamColor: foamColor.map((channel) => channel * foamMultiplier) as [number, number, number],
+    darkThreshold: zoomAdjustedValue(effect.dark_threshold, 0.295, previewZoom, nearZoom, farZoom),
+    reflectionThreshold: zoomAdjustedValue(
+      effect.reflection_threshold,
+      0.29,
+      previewZoom,
+      nearZoom,
+      farZoom,
+    ),
+    specularThreshold: zoomAdjustedValue(
+      effect.specular_threshold,
+      0.33,
+      previewZoom,
+      nearZoom,
+      farZoom,
+    ),
+    animationSpeed: effect.animation_speed ?? 0.07,
+    animationScale: zoomAdjustedValue(
+      effect.animation_scale,
+      0.006,
+      previewZoom,
+      nearZoom,
+      farZoom,
+    ),
+    frozenTime: 0,
+  };
+  const baked = bakeFrozenWaterSurface({
+    maskSheet,
+    maskFrameSize,
+    maskFrameCount,
+    noiseTexture,
+    parameters,
+    underwaterColor,
+    sourcePixelsPerTile,
+  });
+  const frame = await bank.add({
+    sw: baked.width,
+    sh: baked.height,
+    ox: 0,
+    oy: 0,
+    rgba: baked.rgba,
+    tw: baked.width,
+    th: baked.height,
+    hash: createHash("sha256").update(baked.rgba).digest("hex"),
+  });
+  return {
+    patchSize: WATER_SUPERTILE_TILES,
+    frames: [frame],
+    color: [...underwaterColor, 1],
+  };
+}
+
+async function distillTerrainBackgrounds(
+  bank: FrameBank,
+  raw: DataRaw,
+): Promise<TerrainBackgrounds> {
+  return {
+    dirt: await distillTerrainBackground(bank, raw, "dirt-1", [141 / 255, 104 / 255, 60 / 255, 1]),
+    water: await distillWaterBackground(bank, raw),
+    vulcanus: await distillTerrainBackground(bank, raw, "volcanic-soil-dark", [
+      35 / 255,
+      38 / 255,
+      30 / 255,
+      1,
+    ]),
+    gleba: await distillTerrainBackground(bank, raw, "highland-dark-rock", [
+      52 / 255,
+      55 / 255,
+      48 / 255,
+      1,
+    ]),
+    fulgora: await distillMaterialBackground(bank, raw, "fulgoran-dust", [
+      112 / 255,
+      65 / 255,
+      50 / 255,
+      1,
+    ]),
+    aquilo: await distillTerrainBackground(bank, raw, "snow-flat", [
+      220 / 255,
+      230 / 255,
+      240 / 255,
+      1,
+    ]),
+  };
+}
+
+/**
+ * Distill Factorio starmap planet spheres for the space-platform backdrop.
+ * Uses `planet.starmap_icon` (512×512 pre-lit spheres with alpha).
+ */
+async function distillSpaceBackground(
+  bank: FrameBank,
+  raw: DataRaw,
+): Promise<SpaceBackground | undefined> {
+  const planets: Record<string, number> = {};
+  const planetProtos = raw.planet ?? {};
+  for (const name of Object.keys(planetProtos).sort()) {
+    const planetProto = planetProtos[name] as Record<string, unknown> | undefined;
+    if (!planetProto || typeof planetProto.starmap_icon !== "string") continue;
+    try {
+      const abs = resolveSpritePath(planetProto.starmap_icon);
+      planets[name] = await bank.add(await cropEntireFile(abs));
+    } catch (err) {
+      console.log(
+        `  space planet ${name} SKIP (${err instanceof Error ? err.message : String(err)})`,
+      );
+    }
+  }
+
+  const defaultName = planets.nauvis != null ? "nauvis" : Object.keys(planets).sort()[0];
+  if (defaultName == null) return undefined;
+  return {
+    planetFrame: planets[defaultName]!,
+    planets,
+  };
+}
+
+async function distillTile(bank: FrameBank, raw: DataRaw, name: string): Promise<TileRenderDef> {
+  const tile = proto(raw, "tile", name);
+  const variants = tile.variants as {
+    material_background?: {
+      picture: string;
+      count?: number;
+      scale?: number;
+      line_length?: number;
+      x?: number;
+      y?: number;
+    };
+    main?: RawTileMainPicture[];
+    material_texture_width_in_tiles?: number;
+    material_texture_height_in_tiles?: number;
+  };
 
   const layer = fpsrLayer("ground-tile", "tile ground; fpsr name ≈ under-tiles");
 
@@ -4085,7 +4438,7 @@ async function distillTile(bank: FrameBank, raw: DataRaw, name: string): Promise
 
     return {
       layer,
-      color: mapColorRgba(color),
+      color: mapColorRgba(tile, color),
       material: {
         sheet,
         count,
@@ -4121,7 +4474,7 @@ async function distillTile(bank: FrameBank, raw: DataRaw, name: string): Promise
 
   return {
     layer,
-    color: mapColorRgba(color),
+    color: mapColorRgba(tile, color),
     frames,
   };
 }
@@ -4241,6 +4594,21 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
     }
   }
 
+  process.stdout.write("  terrain backgrounds…");
+  const terrainBackgrounds = await distillTerrainBackgrounds(bank, raw);
+  const terrainSummary = Object.entries(terrainBackgrounds)
+    .map(([name, background]) => `${name} ${background?.frames.length ?? 0}`)
+    .join(", ");
+  console.log(` ok (${terrainSummary})`);
+
+  process.stdout.write("  space background…");
+  const spaceBackground = await distillSpaceBackground(bank, raw);
+  console.log(
+    spaceBackground
+      ? ` ok (starmap planets, ${Object.keys(spaceBackground.planets ?? {}).length} planets)`
+      : " SKIP (no starmap planets)",
+  );
+
   const icons: Record<string, number> = {};
   const iconScales: Record<string, number> = {};
   const iconJobs: {
@@ -4348,6 +4716,8 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
   const tierDefinitions = () => ({
     entities: structuredClone(entities),
     tiles: structuredClone(tiles),
+    terrainBackgrounds: structuredClone(terrainBackgrounds),
+    ...(spaceBackground ? { spaceBackground: structuredClone(spaceBackground) } : {}),
     icons: structuredClone(icons),
   });
 

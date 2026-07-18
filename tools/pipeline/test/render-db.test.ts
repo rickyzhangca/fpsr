@@ -115,6 +115,13 @@ function collectFrameIds(db: RenderDb): Set<number> {
     for (const f of t.frames ?? []) ids.add(f);
     if (t.material?.sheet != null) ids.add(t.material.sheet);
   }
+  for (const background of Object.values(db.terrainBackgrounds ?? {})) {
+    for (const f of background?.frames ?? []) ids.add(f);
+  }
+  if (db.spaceBackground) {
+    ids.add(db.spaceBackground.planetFrame);
+    for (const f of Object.values(db.spaceBackground.planets ?? {})) ids.add(f);
+  }
   for (const f of Object.values(db.icons)) ids.add(f);
   return ids;
 }
@@ -130,6 +137,10 @@ describe("render-db contract", () => {
     expect(Array.isArray(db.frames)).toBe(true);
     expect(db.entities && typeof db.entities).toBe("object");
     expect(db.tiles && typeof db.tiles).toBe("object");
+    expect(db.terrainBackgrounds && typeof db.terrainBackgrounds).toBe("object");
+    expect(db.spaceBackground == null || typeof db.spaceBackground.planetFrame === "number").toBe(
+      true,
+    );
     expect(db.icons && typeof db.icons).toBe("object");
 
     for (const a of db.atlases) {
@@ -161,6 +172,39 @@ describe("render-db contract", () => {
             t.material.tilePx > 0),
       ).toBe(true);
       expect(name.length).toBeGreaterThan(0);
+    }
+    for (const name of ["dirt", "water", "vulcanus", "gleba", "fulgora", "aquilo"] as const) {
+      const background = db.terrainBackgrounds?.[name];
+      expect(background).toBeDefined();
+      expect(background?.patchSize).toBeGreaterThan(0);
+      expect(background?.frames.length).toBeGreaterThan(0);
+      expect(background?.color).toHaveLength(4);
+      for (const frame of background?.frames ?? []) {
+        expect(frame).toBeGreaterThanOrEqual(0);
+        expect(frame).toBeLessThan(db.frames.length);
+      }
+      expect(
+        background?.weights == null ||
+          (background.weights.length === background.frames.length &&
+            background.weights.every((weight) => Number.isFinite(weight) && weight > 0)),
+      ).toBe(true);
+    }
+    expect(db.terrainBackgrounds?.dirt?.patchSize).toBe(4);
+    expect(db.terrainBackgrounds?.dirt?.frames).toHaveLength(16);
+    expect(db.terrainBackgrounds?.water?.patchSize).toBe(32);
+    expect(db.terrainBackgrounds?.water?.frames).toHaveLength(1);
+    expect(db.terrainBackgrounds?.vulcanus?.patchSize).toBe(4);
+    expect(db.terrainBackgrounds?.gleba?.patchSize).toBe(4);
+    expect(db.terrainBackgrounds?.fulgora?.patchSize).toBe(8);
+    expect(db.terrainBackgrounds?.aquilo?.patchSize).toBe(4);
+    if (db.spaceBackground) {
+      expect(db.spaceBackground.planetFrame).toBeGreaterThanOrEqual(0);
+      expect(db.spaceBackground.planetFrame).toBeLessThan(db.frames.length);
+      for (const frame of Object.values(db.spaceBackground.planets ?? {})) {
+        expect(frame).toBeGreaterThanOrEqual(0);
+        expect(frame).toBeLessThan(db.frames.length);
+      }
+      expect(db.spaceBackground.planets?.nauvis).toBe(db.spaceBackground.planetFrame);
     }
   });
 

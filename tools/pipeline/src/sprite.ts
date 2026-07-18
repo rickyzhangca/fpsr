@@ -56,7 +56,7 @@ export async function scaleRegisteredFrames(
 
 const imageCache = new Map<string, Promise<{ data: Buffer; width: number; height: number }>>();
 
-async function loadImage(
+export async function loadImageRgba(
   absPath: string,
 ): Promise<{ data: Buffer; width: number; height: number }> {
   let p = imageCache.get(absPath);
@@ -75,6 +75,15 @@ async function loadImage(
 
 export function clearImageCache(): void {
   imageCache.clear();
+}
+
+/** Read image dimensions without decoding its full pixel payload. */
+export async function imageDimensions(absPath: string): Promise<{ width: number; height: number }> {
+  const metadata = await sharp(absPath).metadata();
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+  if (width <= 0 || height <= 0) throw new Error(`Invalid image dimensions: ${absPath}`);
+  return { width, height };
 }
 
 export function spriteSize(s: RawSprite): [number, number] {
@@ -339,7 +348,7 @@ export function resolveSpriteFile(
 export async function cropSpriteFrame(s: RawSprite, frame = 0, dir = 0): Promise<CroppedFrame> {
   const resolved = resolveSpriteFile(s, frame, dir);
   const abs = resolveSpritePath(resolved.sprite.filename as string);
-  const img = await loadImage(abs);
+  const img = await loadImageRgba(abs);
   const rect = frameRect(resolved.sprite, resolved.frame, resolved.dir, {
     width: img.width,
     height: img.height,
@@ -376,7 +385,7 @@ export async function cropFileRect(
   w: number,
   h: number,
 ): Promise<CroppedFrame> {
-  const img = await loadImage(absPath);
+  const img = await loadImageRgba(absPath);
   const raw = extractRaw(img, x, y, w, h);
   const trimmed = await trimRgba(raw, w, h);
   const hash = createHash("sha256").update(trimmed.rgba).digest("hex");
@@ -530,7 +539,7 @@ export class FrameBank {
 
 /** Average opaque pixel color as RGBA 0-1. */
 export async function averageColor(absPath: string): Promise<[number, number, number, number]> {
-  const img = await loadImage(absPath);
+  const img = await loadImageRgba(absPath);
   let r = 0;
   let g = 0;
   let b = 0;

@@ -72,6 +72,13 @@ export function collectReferencedFrames(db: RenderDb): Set<number> {
   for (const tile of Object.values(db.tiles)) {
     for (const frame of tile.frames ?? []) ids.add(frame);
   }
+  for (const background of Object.values(db.terrainBackgrounds ?? {})) {
+    for (const frame of background?.frames ?? []) ids.add(frame);
+  }
+  if (db.spaceBackground) {
+    ids.add(db.spaceBackground.planetFrame);
+    for (const frame of Object.values(db.spaceBackground.planets ?? {})) ids.add(frame);
+  }
   for (const entity of Object.values(db.entities)) {
     if (entity.icon != null) ids.add(entity.icon);
     collectObjectFrames(entity.graphics, ids);

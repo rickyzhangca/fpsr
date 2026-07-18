@@ -130,6 +130,65 @@ describe("usage-aware atlas packing", () => {
     }
   });
 
+  it("keeps each terrain mode on a separate lazy-loadable atlas page", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-terrain-"));
+    try {
+      const frames = [frame(0, 256, 256), frame(1, 256, 256), frame(2, 256, 256)];
+      const usage: PackUsageInput = {
+        entities: {},
+        tiles: {},
+        terrainBackgrounds: {
+          dirt: { patchSize: 4, frames: [0], weights: [1], color: [0.5, 0.4, 0.3, 1] },
+          water: { patchSize: 4, frames: [1], color: [0.2, 0.3, 0.4, 1] },
+          vulcanus: { patchSize: 4, frames: [2], color: [0.1, 0.15, 0.1, 1] },
+        },
+        icons: {},
+      };
+
+      const packed = await packAtlases(frames, usage, dir);
+      const dirtFrameId = usage.terrainBackgrounds?.dirt?.frames[0];
+      const waterFrameId = usage.terrainBackgrounds?.water?.frames[0];
+      const vulcanusFrameId = usage.terrainBackgrounds?.vulcanus?.frames[0];
+      expect(dirtFrameId).toBeDefined();
+      expect(waterFrameId).toBeDefined();
+      expect(vulcanusFrameId).toBeDefined();
+      expect(packed.frames[dirtFrameId!]?.a).not.toBe(packed.frames[waterFrameId!]?.a);
+      expect(packed.frames[dirtFrameId!]?.a).not.toBe(packed.frames[vulcanusFrameId!]?.a);
+      expect(packed.frames[waterFrameId!]?.a).not.toBe(packed.frames[vulcanusFrameId!]?.a);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("packs space planet frames onto a dedicated atlas page", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-space-"));
+    try {
+      const frames = [frame(0, 64, 64), frame(1, 256, 256)];
+      const usage: PackUsageInput = {
+        entities: {},
+        tiles: {},
+        terrainBackgrounds: {
+          dirt: { patchSize: 4, frames: [0], weights: [1], color: [0.5, 0.4, 0.3, 1] },
+        },
+        spaceBackground: {
+          planetFrame: 1,
+          planets: { nauvis: 1 },
+        },
+        icons: {},
+      };
+
+      const packed = await packAtlases(frames, usage, dir);
+      const dirtFrameId = usage.terrainBackgrounds?.dirt?.frames[0];
+      const planetFrameId = usage.spaceBackground?.planetFrame;
+      expect(dirtFrameId).toBeDefined();
+      expect(planetFrameId).toBeDefined();
+      expect(packed.frames[dirtFrameId!]?.a).not.toBe(packed.frames[planetFrameId!]?.a);
+      expect(usage.spaceBackground?.planets?.nauvis).toBe(planetFrameId);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("fails with a group report when cloning exceeds the storage ceiling", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "fpsr-atlas-limit-"));
     try {

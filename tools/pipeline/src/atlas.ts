@@ -3,7 +3,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import type { RegisteredFrame } from "./sprite.js";
-import type { AtlasMeta, EntityRenderDef, FrameMeta, TileRenderDef } from "./types.js";
+import type {
+  AtlasMeta,
+  EntityRenderDef,
+  FrameMeta,
+  SpaceBackground,
+  TerrainBackgrounds,
+  TileRenderDef,
+} from "./types.js";
 
 export const ATLAS_MAX = 1024;
 /** Small icon pages avoid decoding megabytes of unrelated catalog icons. */
@@ -21,6 +28,8 @@ export interface PackedAtlas {
 export interface PackUsageInput {
   entities: Record<string, EntityRenderDef>;
   tiles: Record<string, TileRenderDef>;
+  terrainBackgrounds?: TerrainBackgrounds;
+  spaceBackground?: SpaceBackground;
   icons: Record<string, number>;
 }
 
@@ -151,6 +160,42 @@ function collectUsageRefs(input: PackUsageInput): MutableFrameRef[] {
     }
   }
 
+  for (const name of Object.keys(input.terrainBackgrounds ?? {}).sort()) {
+    const background = input.terrainBackgrounds?.[name];
+    if (!background) continue;
+    for (let index = 0; index < background.frames.length; index++) {
+      const oldId = background.frames[index]!;
+      refs.push({
+        oldId,
+        group: `terrain:${name}`,
+        assign(id) {
+          background.frames[index] = id;
+        },
+      });
+    }
+  }
+
+  const spaceBackground = input.spaceBackground;
+  if (spaceBackground) {
+    refs.push({
+      oldId: spaceBackground.planetFrame,
+      group: "space:planet",
+      assign(id) {
+        spaceBackground.planetFrame = id;
+      },
+    });
+    for (const name of Object.keys(spaceBackground.planets ?? {}).sort()) {
+      const oldId = spaceBackground.planets![name]!;
+      refs.push({
+        oldId,
+        group: "space:planet",
+        assign(id) {
+          spaceBackground.planets![name] = id;
+        },
+      });
+    }
+  }
+
   const entityRefs = new Map<string, MutableFrameRef[]>();
   const owners = new Map<number, Set<string>>();
   for (const name of Object.keys(input.entities).sort()) {
@@ -196,7 +241,11 @@ function groupDomain(group: string): string {
   if (group === "tiles") return "1-tiles";
   if (group.startsWith("entities:")) return "2-entities";
   if (group === "shared-world") return "3-shared-world";
-  return "4-unreferenced";
+  // Keep each terrain mode on its own lazy-loadable atlas page.
+  if (group.startsWith("terrain:")) return `4-${group}`;
+  // Space backdrop planets share one lazy page (rarely loaded with dirt/water).
+  if (group.startsWith("space:")) return `4-${group}`;
+  return "5-unreferenced";
 }
 
 function virtualFrames(
