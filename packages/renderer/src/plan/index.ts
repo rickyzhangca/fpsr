@@ -18,8 +18,8 @@ import {
   compareDrawCmd,
 } from "../types/draw-list.js";
 import type { EntityRenderDef, RenderDb, RenderLayerName } from "../types/render-db.js";
-import { includeCmdBounds, spriteDest, undergroundBeltUnderlayClip } from "./bounds.js";
 import { emitBeltReaders } from "./belt-readers.js";
+import { includeCmdBounds, spriteDest, undergroundBeltUnderlayClip } from "./bounds.js";
 import {
   buildBeltConnectorVariations,
   emitBeltCircuitConnectors,
@@ -106,9 +106,9 @@ const OBJECT_SORT_LAYERS: ReadonlySet<RenderLayerName> = new Set([
   "elevated-object",
 ]);
 
-export { UNSUPPORTED_ENTITY_ICON_KEY } from "./unsupported.js";
-export { tileMod, tileVariantHash } from "./tiles.js";
 export { undergroundBeltUnderlayClip } from "./bounds.js";
+export { tileMod, tileVariantHash } from "./tiles.js";
+export { UNSUPPORTED_ENTITY_ICON_KEY } from "./unsupported.js";
 
 /**
  * Pure draw planner: blueprint + render-db -> sorted DrawList.
