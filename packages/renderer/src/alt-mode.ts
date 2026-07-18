@@ -190,13 +190,11 @@ function entitySignals(entity: BlueprintEntity, def: EntityRenderDef): AltSignal
     signals.push(...filterSignals(inventory?.filters));
   }
   signals.push(...collectSignals(entity.request_filters));
+  // Combinator / display-panel control_behavior drives built-in graphics (or
+  // conditional messages); Factorio does not dump those as entity-info icons.
+  // Display panels only expose a static single entity.icon in alt mode.
   if (entity.icon) signals.push({ ...entity.icon, type: entity.icon.type ?? "item" });
 
-  // Combinator control behavior drives the entity's built-in display graphic;
-  // Factorio does not repeat those signals as entity-info icons in alt mode.
-  if (def.protoType === "display-panel") {
-    signals.push(...collectSignals(entity.control_behavior));
-  }
   return uniqueSignals(signals);
 }
 

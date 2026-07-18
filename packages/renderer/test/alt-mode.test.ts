@@ -108,6 +108,44 @@ describe("alt-mode planner", () => {
     expect(planAltModeCommands(entity, def, db, { insertCommands: pins })).toEqual(commands);
   });
 
+  it("shows display-panel static icon but not multi-parameter circuit signals", () => {
+    const { db, def } = fixture();
+    const panelDef: EntityRenderDef = { ...def, protoType: "display-panel" };
+
+    const multi = planAltModeCommands(
+      {
+        entity_number: 3,
+        name: "display-panel",
+        position: { x: 1, y: 2 },
+        control_behavior: {
+          parameters: [
+            { icon: { type: "virtual", name: "signal-0" } },
+            { icon: { type: "virtual", name: "signal-1" } },
+            { icon: { type: "virtual", name: "signal-A" } },
+          ],
+        },
+      },
+      panelDef,
+      db,
+    );
+    expect(multi.filter((c) => c.sub < 20)).toHaveLength(0);
+
+    const single = planAltModeCommands(
+      {
+        entity_number: 18,
+        name: "display-panel",
+        position: { x: 3, y: 4 },
+        icon: { type: "virtual", name: "signal-A" },
+        text: ":",
+      },
+      panelDef,
+      db,
+    );
+    const primary = single.filter((c) => c.sub < 20);
+    expect(primary).toHaveLength(1);
+    expect(primary[0]!.size).toBe(0.8);
+  });
+
   it("renders combinator flow arrows and an empty enabled inserter filter marker", () => {
     const { db, def } = fixture();
     const combinatorDef: EntityRenderDef = {

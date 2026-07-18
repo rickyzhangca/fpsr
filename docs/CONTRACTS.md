@@ -134,9 +134,9 @@ Amendments ratified during M1 (binding):
 - `PlanOptions.background` is not emitted into the draw list; the backend/renderer
   applies it as a canvas clear.
 - `PlanOptions.altMode` emits only blueprint-derived entity info: recipes,
-  configured filters/requests/items, combinator and display signals, splitter
-  priorities, and quality badges. It does not infer live inventories, fluids,
-  furnace state, or mining targets.
+  configured filters/requests/items, static display-panel icons (not circuit
+  message parameters), splitter priorities, and quality badges. It does not
+  infer live inventories, fluids, furnace state, or mining targets.
 - `RenderDb.icons` uses Blueprint `SignalId` namespaces (`item/`, `recipe/`,
   `fluid/`, `virtual-signal/`, `entity/`, `quality/`, `space-location/`, and
   `asteroid-chunk/`) plus internal `utility/` entity-info frames.
