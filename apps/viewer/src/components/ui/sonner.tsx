@@ -1,6 +1,7 @@
 import { CheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
-const Toaster = ({ ...props }: ToasterProps) => {
+
+const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
   return (
     <Sonner
       className="toaster group"
@@ -20,8 +21,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        ...toastOptions,
         classNames: {
           toast: "cn-toast",
+          description: "!text-muted-foreground",
+          ...toastOptions?.classNames,
         },
       }}
       {...props}

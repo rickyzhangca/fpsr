@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PerfReport } from "@/performance/perf-report";
 import { viewerAssets } from "@/shell/viewer-assets";
 import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
@@ -22,6 +23,7 @@ import {
   type RenderMeasurement,
 } from "fpsr";
 import { useAtom } from "jotai";
+import { InfoIcon } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   DEFAULT_ORBIT_PLANETS,
@@ -495,7 +497,25 @@ export const PreviewPane = ({
             disabled={controlsDisabled}
             onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
           />
-          <Label htmlFor="export-format">WebP</Label>
+          <Label htmlFor="export-format" className="gap-1.5">
+            WebP
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    aria-label="About WebP format"
+                  />
+                }
+              >
+                <InfoIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm text-pretty">
+                Smaller file size, but takes longer to encode.
+              </TooltipContent>
+            </Tooltip>
+          </Label>
         </div>
         <div className="flex items-center gap-2">
           <Switch
