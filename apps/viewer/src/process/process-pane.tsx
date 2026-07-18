@@ -2,20 +2,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { JsonViewer } from "@/json/json-viewer";
+import { cn } from "@/lib/utils";
+import type { PerfReport } from "@/performance/perf-report";
+import { formatDrawList } from "@/preview/format-draw-list";
+import { planPreviewWithDiagnostics } from "@/preview/preview-renderer";
+import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
+import { previewPreferencesAtom, processPreferencesAtom } from "@/shell/viewer-preferences";
 import type { Blueprint, BlueprintDocument, DecodeStats, DrawList } from "fpsr";
 import { useAtom } from "jotai";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapter-checks";
-import { formatDrawList } from "@/preview/format-draw-list";
-import { JsonViewer } from "@/json/json-viewer";
-import { cn } from "@/lib/utils";
-import type { PerfReport } from "@/performance/perf-report";
 import { createPipelineReceipt } from "./pipeline-receipt";
 import { PipelineReceiptPanel } from "./pipeline-receipt-panel";
 import type { PlanDiagnostics } from "./plan-diagnostics";
-import { planPreviewWithDiagnostics } from "@/preview/preview-renderer";
-import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
-import { previewPreferencesAtom, processPreferencesAtom } from "@/shell/viewer-preferences";
 const ProcessPanel = ({
   title,
   index,
@@ -45,7 +45,7 @@ const ProcessPanel = ({
         {headerRight}
       </div>
       {scrollContent ? (
-        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+        <ScrollArea className="h-full min-h-0 flex-1" viewportClassName="scroll-fade">
           {children}
         </ScrollArea>
       ) : (
@@ -132,7 +132,7 @@ export const ProcessPane = ({
     renderError,
   });
   return (
-    <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <ResizablePanelGroup
         id="process-panels"
         orientation="horizontal"
@@ -142,9 +142,9 @@ export const ProcessPane = ({
             setProcessPreferences((previous) => ({ ...previous, panelLayout: layout }));
           }
         }}
-        className="h-full min-h-[480px] min-w-[540px] flex-1 gap-0.5"
+        className="h-full min-h-0 min-w-[540px] flex-1 gap-0.5"
       >
-        <ResizablePanel id="checks" defaultSize="26" minSize={200} className="min-h-0">
+        <ResizablePanel id="checks" defaultSize="33" minSize={200} className="min-h-0">
           <ProcessPanel title="Pipeline" index={0} maxIndex={2}>
             <PipelineReceiptPanel receipt={receipt} />
           </ProcessPanel>
@@ -152,7 +152,7 @@ export const ProcessPane = ({
 
         <ResizableHandle className="items-start" withHandle handleOnly disableDoubleClick />
 
-        <ResizablePanel id="decoded" defaultSize="36" minSize={160} className="min-h-0">
+        <ResizablePanel id="decoded" defaultSize="33" minSize={160} className="min-h-0">
           <ProcessPanel title="Decoded JSON" index={1} maxIndex={2} scrollContent={false}>
             <JsonViewer value={decodedValue} />
           </ProcessPanel>
@@ -160,7 +160,7 @@ export const ProcessPane = ({
 
         <ResizableHandle className="items-start" withHandle handleOnly disableDoubleClick />
 
-        <ResizablePanel id="draw" defaultSize="38" minSize={160} className="min-h-0">
+        <ResizablePanel id="draw" defaultSize="34" minSize={160} className="min-h-0">
           <ProcessPanel
             title="Draw commands"
             index={2}
@@ -192,6 +192,6 @@ export const ProcessPane = ({
           </ProcessPanel>
         </ResizablePanel>
       </ResizablePanelGroup>
-    </ScrollArea>
+    </div>
   );
 };

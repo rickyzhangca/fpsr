@@ -33,7 +33,7 @@ describe("BlueprintSummary", () => {
   afterEach(() => {
     host.remove();
   });
-  it("shows blueprint metadata fields", () => {
+  it("shows blueprint metadata fields", async () => {
     const version = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
     const blueprint: Blueprint = {
       item: "blueprint",
@@ -65,17 +65,19 @@ describe("BlueprintSummary", () => {
     expect(text).toContain("Size");
     expect(text).toContain("1×1 tiles");
     expect(text).toContain("Components");
-    expect(text).toContain("2");
-    expect(text).toContain("1");
-    const icons = [...host.querySelectorAll("[data-testid=entity-icon]")];
-    expect(icons.map((el) => el.getAttribute("data-icon-key"))).toEqual([
-      "item/blueprint",
-      "item/wooden-chest",
-      "item/inserter",
-    ]);
+    await vi.waitFor(() => {
+      expect(host.textContent).toContain("2");
+      expect(host.textContent).toContain("1");
+      const icons = [...host.querySelectorAll("[data-testid=entity-icon]")];
+      expect(icons.map((el) => el.getAttribute("data-icon-key"))).toEqual([
+        "item/blueprint",
+        "item/wooden-chest",
+        "item/inserter",
+      ]);
+      expect(host.querySelector('[aria-label="wooden-chest"]')).toBeTruthy();
+      expect(host.querySelector('[aria-label="inserter"]')).toBeTruthy();
+    });
     expect(host.querySelector('[aria-label="Blueprint icons"]')).toBeTruthy();
-    expect(host.querySelector('[aria-label="wooden-chest"]')).toBeTruthy();
-    expect(host.querySelector('[aria-label="inserter"]')).toBeTruthy();
     act(() => root.unmount());
   });
   it("renders blueprint tile icons beside the title and description", () => {

@@ -1,4 +1,6 @@
+import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "@/shell/asset-config";
 import {
+  analyzePlan,
   cdnAssets,
   createRenderer,
   nowMs,
@@ -9,13 +11,11 @@ import {
   type Renderer,
   type RenderResult,
 } from "fpsr";
-import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "@/shell/asset-config";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,
   type RenderWorkerResponse,
 } from "./render-worker-protocol";
-import { analyzePlan } from "@/process/plan-diagnostics";
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
 const assets = cdnAssets(ASSETS_BASE, {

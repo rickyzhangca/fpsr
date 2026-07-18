@@ -1,4 +1,4 @@
-import { countEntitiesByName, formatGameVersion } from "@/blueprint/blueprint-meta";
+import { formatGameVersion } from "@/blueprint/blueprint-meta";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import type { PerfReport } from "@/performance/perf-report";
 import { viewerAssets } from "@/shell/viewer-assets";
 import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
 import {
+  countBlueprintComponents,
   type Blueprint,
   type BlueprintDocument,
   type DecodeStats,
@@ -320,10 +321,12 @@ export const PreviewPane = ({
           signal: controller.signal,
           onProgress: onRenderProgress,
         })
-          .then((result) => {
+          .then(async (result) => {
             if (gen !== renderGenRef.current) return;
             const profile = result.profile;
             if (profile) {
+              const db = await viewerAssets.loadRenderDb();
+              if (gen !== renderGenRef.current) return;
               const report: PerfReport = {
                 at: Date.now(),
                 cold: profile.cold,
@@ -335,7 +338,7 @@ export const PreviewPane = ({
                   tileCount: blueprint.tiles?.length ?? 0,
                   wireCount: blueprint.wires?.length ?? 0,
                   version: formatGameVersion(blueprint.version ?? 0),
-                  topEntities: countEntitiesByName(blueprint.entities).slice(0, 5),
+                  topComponents: countBlueprintComponents(blueprint, db).slice(0, 5),
                 },
                 assetDetails: result.assetDetails,
                 sessionBytes: result.sessionBytes,

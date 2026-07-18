@@ -4,12 +4,13 @@ import {
   type Blueprint,
   type BlueprintBook,
   type BlueprintEntity,
-  type Tile,
 } from "fpsr";
+
 export const formatGameVersion = (version: number): string => {
   const { major, minor, patch } = decodeVersion(version);
   return `${major}.${minor}.${patch}`;
 };
+
 export const formatSnapping = (bp: Blueprint): string => {
   const parts: string[] = [];
   if (bp["absolute-snapping"] === true) parts.push("absolute");
@@ -20,6 +21,7 @@ export const formatSnapping = (bp: Blueprint): string => {
   if (offset) parts.push(`offset ${offset.x},${offset.y}`);
   return parts.length > 0 ? parts.join(" · ") : "None";
 };
+
 export const countEntitiesByName = (
   entities: BlueprintEntity[] | undefined,
 ): {
@@ -30,45 +32,23 @@ export const countEntitiesByName = (
   for (const entity of entities ?? []) {
     counts.set(entity.name, (counts.get(entity.name) ?? 0) + 1);
   }
-  return sortCounts(counts);
-};
-export const countBlueprintComponentsByName = (
-  entities: BlueprintEntity[] | undefined,
-  tiles: Tile[] | undefined,
-  tileItemByName?: Readonly<Record<string, string>>,
-): {
-  name: string;
-  count: number;
-}[] => {
-  const counts = new Map<string, number>();
-  for (const entity of entities ?? []) {
-    counts.set(entity.name, (counts.get(entity.name) ?? 0) + 1);
-  }
-  for (const tile of tiles ?? []) {
-    const key = tileItemByName?.[tile.name] ?? tile.name;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return sortCounts(counts);
-};
-const sortCounts = (
-  counts: Map<string, number>,
-): {
-  name: string;
-  count: number;
-}[] => {
   return [...counts.entries()]
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 };
+
 export const encodedByteSize = (blueprint: Blueprint): number => {
   return encode({ blueprint }).length;
 };
+
 export const encodedBookByteSize = (book: BlueprintBook): number => {
   return encode({ blueprint_book: book }).length;
 };
+
 export const formatByteSize = (bytes: number): string => {
   return `${(bytes / 1024).toFixed(2)} KB`;
 };
+
 export const formatContents = (entities: BlueprintEntity[] | undefined): string => {
   const counts = countEntitiesByName(entities);
   if (counts.length === 0) return "none";

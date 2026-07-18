@@ -1,6 +1,3 @@
-import { encode, type Blueprint } from "fpsr";
-import { useAtom } from "jotai";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { BlueprintComponents } from "@/blueprint/blueprint-components";
 import {
   encodedByteSize,
@@ -8,10 +5,13 @@ import {
   formatGameVersion,
   formatSnapping,
 } from "@/blueprint/blueprint-meta";
-import { Button } from "@/components/ui/button";
 import { CopyableBlueprintIcons } from "@/blueprint/copyable-blueprint-icons";
 import { FactorioRichText } from "@/blueprint/factorio-rich-text";
+import { Button } from "@/components/ui/button";
 import { summaryExpandedAtom } from "@/shell/viewer-preferences";
+import { encode, type Blueprint } from "fpsr";
+import { useAtom } from "jotai";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 export const BlueprintSummary = ({
   blueprint,
@@ -84,7 +84,7 @@ export const BlueprintSummary = ({
             </dl>
 
             <div className="shrink-0 pt-1">
-              <BlueprintComponents entities={blueprint.entities} tiles={blueprint.tiles} />
+              <BlueprintComponents blueprint={blueprint} />
             </div>
           </div>
         </div>

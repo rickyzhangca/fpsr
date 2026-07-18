@@ -124,9 +124,9 @@ export const formatPerfReport = (report: PerfReport): string => {
   lines.push(`  entities          ${blueprint.entityCount.toLocaleString()}`);
   lines.push(`  tiles             ${blueprint.tileCount.toLocaleString()}`);
   lines.push(`  wires             ${blueprint.wireCount.toLocaleString()}`);
-  if (blueprint.topEntities.length > 0) {
-    lines.push("  top entities:");
-    for (const { name, count } of blueprint.topEntities.slice(0, 5)) {
+  if (blueprint.topComponents.length > 0) {
+    lines.push("  top components:");
+    for (const { name, count } of blueprint.topComponents.slice(0, 5)) {
       lines.push(`    ${String(count).padStart(5)} × ${name}`);
     }
   }

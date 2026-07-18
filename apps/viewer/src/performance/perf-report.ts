@@ -4,7 +4,8 @@ export interface PerfReportBlueprint {
   tileCount: number;
   wireCount: number;
   version: string;
-  topEntities: {
+  /** Top inventory names via `countBlueprintComponents` (rails merged, tiles via placing item). */
+  topComponents: {
     name: string;
     count: number;
   }[];

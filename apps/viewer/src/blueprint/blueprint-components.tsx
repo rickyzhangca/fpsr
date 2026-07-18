@@ -1,37 +1,26 @@
-import type { Blueprint } from "fpsr";
-import { useEffect, useState } from "react";
-import { countBlueprintComponentsByName } from "./blueprint-meta";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FactorioItemIcon } from "./factorio-item-icon";
 import { viewerAssets } from "@/shell/viewer-assets";
-export const BlueprintComponents = ({
-  entities,
-  tiles,
-}: {
-  entities: Blueprint["entities"];
-  tiles?: Blueprint["tiles"];
-}) => {
-  const [tileItemByName, setTileItemByName] = useState<Record<string, string> | undefined>();
+import { countBlueprintComponents, type Blueprint, type RenderDb } from "fpsr";
+import { useEffect, useState } from "react";
+import { FactorioItemIcon } from "./factorio-item-icon";
+
+export const BlueprintComponents = ({ blueprint }: { blueprint: Blueprint }) => {
+  const [db, setDb] = useState<RenderDb | undefined>();
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const db = await viewerAssets.loadRenderDb();
-      if (cancelled) return;
-      const map: Record<string, string> = {};
-      for (const [tileName, def] of Object.entries(db.tiles)) {
-        if (def.item) map[tileName] = def.item;
-      }
-      setTileItemByName(map);
+      const renderDb = await viewerAssets.loadRenderDb();
+      if (!cancelled) setDb(renderDb);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
-  const counts = countBlueprintComponentsByName(entities, tiles, tileItemByName);
+  const counts = db ? countBlueprintComponents(blueprint, db) : undefined;
   return (
     <div className="w-fit rounded-lg flex flex-col overflow-hidden border bg-card">
       <p className="px-2 py-1 border-b text-sm">Components</p>
-      {counts.length === 0 ? (
+      {counts === undefined ? null : counts.length === 0 ? (
         <p className="p-2 text-muted-foreground">No components found</p>
       ) : (
         <ul className="flex flex-wrap gap-1 p-1.5">
