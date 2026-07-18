@@ -1,7 +1,7 @@
 import { formatGameVersion } from "@/blueprint/blueprint-meta";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -24,7 +24,14 @@ import {
 } from "fpsr";
 import { useAtom } from "jotai";
 import { InfoIcon } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   DEFAULT_ORBIT_PLANETS,
   STATIC_BACKGROUND_LABELS,
@@ -38,25 +45,44 @@ import {
   staticBackgroundOptionLabel,
 } from "./background-controls";
 import { PreviewExportControls } from "./export-controls";
-import {
-  EXPORT_OPTIONS,
-  formatSurfaceMemory,
-  formatTileSize,
-  resultPixelsPerTile,
-  type ExportFormat,
-} from "./format";
+import { EXPORT_OPTIONS, formatTileSize, resultPixelsPerTile, type ExportFormat } from "./format";
 import { PreviewCanvasFrame } from "./preview-canvas-frame";
 import {
   clearPreview,
+  exportFullResolutionPng,
   measurePreview,
   renderPreview,
   type PreviewRenderResult,
 } from "./preview-renderer";
 import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
-import type { PreviewRenderProgress } from "./render-worker-protocol";
+import { TiledPreviewLayer, type TiledPreviewStatus } from "./tiled-preview-layer";
+import type { TiledPreviewViewport } from "./preview-tiles";
+import type { PreviewRenderProgress, WorkerTiledPreviewOptions } from "./render-worker-protocol";
 
 const FULL_PIXELS_PER_TILE = 64;
 const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
+const MAX_PREVIEW_EDGE = 8192;
+const MAX_PREVIEW_PIXELS = 32_000_000;
+const PREVIEW_OVERSCAN = 2;
+
+const adaptivePreviewSize = (viewport: { width: number; height: number }) => {
+  const density = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  let width = Math.min(
+    MAX_PREVIEW_EDGE,
+    Math.max(1024, viewport.width * density * PREVIEW_OVERSCAN),
+  );
+  let height = Math.min(
+    MAX_PREVIEW_EDGE,
+    Math.max(1024, viewport.height * density * PREVIEW_OVERSCAN),
+  );
+  const pixels = width * height;
+  if (pixels > MAX_PREVIEW_PIXELS) {
+    const scale = Math.sqrt(MAX_PREVIEW_PIXELS / pixels);
+    width *= scale;
+    height *= scale;
+  }
+  return { width: Math.floor(width), height: Math.floor(height) };
+};
 
 export const PreviewPane = ({
   doc,
@@ -80,9 +106,10 @@ export const PreviewPane = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
   const exportPromisesRef = useRef<{
-    result: PreviewRenderResult;
+    key: object;
     promises: Partial<Record<ExportFormat, Promise<Blob>>>;
   } | null>(null);
+  const exportAbortRef = useRef<AbortController | null>(null);
   const [previewPreferences, setPreviewPreferences] = useAtom(previewPreferencesAtom);
   const {
     limitTo4k,
@@ -94,6 +121,10 @@ export const PreviewPane = ({
     orbitPlanet,
   } = previewPreferences;
   const setLimitTo4k = (value: boolean) => {
+    if (value) {
+      setTiledViewport(null);
+      setTiledStatus(null);
+    }
     setPreviewPreferences((previous) => ({ ...previous, limitTo4k: value }));
   };
   const setExportFormat = (value: ExportFormat) => {
@@ -117,8 +148,10 @@ export const PreviewPane = ({
   };
   const [orbitPlanets, setOrbitPlanets] = useState<string[]>([...DEFAULT_ORBIT_PLANETS]);
   const [terrainModes, setTerrainModes] = useState<string[]>([...TERRAIN_BACKGROUND_MODES]);
-  const [preflighting, setPreflighting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [measuringFull, setMeasuringFull] = useState(false);
+  const [exportPending, setExportPending] = useState(false);
+  const [exportProgressLabel, setExportProgressLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assetsMissing, setAssetsMissing] = useState(false);
   const [dimensions, setDimensions] = useState<{
@@ -126,17 +159,14 @@ export const PreviewPane = ({
     height: number;
   } | null>(null);
   const [lastResult, setLastResult] = useState<PreviewRenderResult | null>(null);
-  const [fullResWarning, setFullResWarning] = useState<{
-    blueprint: Blueprint;
-    measurement: RenderMeasurement;
-  } | null>(null);
-  const [fullResApproval, setFullResApproval] = useState<{
-    blueprint: Blueprint;
-    width: number;
-    height: number;
-  } | null>(null);
+  const [fullMeasurement, setFullMeasurement] = useState<RenderMeasurement | null>(null);
+  const [tiledViewport, setTiledViewport] = useState<TiledPreviewViewport | null>(null);
+  const [tiledStatus, setTiledStatus] = useState<TiledPreviewStatus | null>(null);
+  const [previewMaxOutput, setPreviewMaxOutput] = useState<{ width: number; height: number }>(
+    MAX_OUTPUT_SIZE,
+  );
   const [preparedExports, setPreparedExports] = useState<{
-    result: PreviewRenderResult;
+    key: object;
     formats: Partial<
       Record<
         ExportFormat,
@@ -198,73 +228,129 @@ export const PreviewPane = ({
   for (const planet of orbitPlanetOptions) {
     backgroundSelectItems[orbitSelectValue(planet)] = `${formatPlanetLabel(planet)} orbit`;
   }
+  const tiledPreviewOptions = useMemo<WorkerTiledPreviewOptions>(
+    () => ({
+      blueprintPath: blueprintPath ?? undefined,
+      padTiles: 1,
+      altMode,
+      background: null,
+      showBackgroundAuto: showBackground && backgroundMode === "auto",
+      showCheckerboard: showBackground && backgroundMode === "checkerboard",
+      showSpace: showBackground && (backgroundMode === "space" || backgroundMode === "orbit"),
+      showSpacePlanet: showBackground && backgroundMode === "orbit",
+      spacePlanet: backgroundMode === "orbit" ? orbitPlanet : undefined,
+      terrainBackground:
+        showBackground && isTerrainBackgroundMode(backgroundMode) ? backgroundMode : undefined,
+      showCoordinates: showCoords,
+    }),
+    [blueprintPath, altMode, showBackground, backgroundMode, orbitPlanet, showCoords],
+  );
   useEffect(() => {
     onTileSizeChange?.(formatTileSize(lastResult));
   }, [lastResult, onTileSizeChange]);
-  useEffect(() => {
-    if (!lastResult) {
-      exportPromisesRef.current = null;
-      setPreparedExports(null);
-      return;
-    }
+  const effectiveExportFormat: ExportFormat = limitTo4k ? exportFormat : "png";
+  const exportKey = limitTo4k ? lastResult : fullMeasurement;
+  const prepareCurrentExport = useCallback(async (): Promise<Blob> => {
+    if (!doc || !lastResult || !exportKey) throw new Error("No rendered blueprint is available");
+    const prepared =
+      preparedExports?.key === exportKey
+        ? preparedExports.formats[effectiveExportFormat]
+        : undefined;
+    if (prepared?.blob) return prepared.blob;
+
     let cache = exportPromisesRef.current;
-    if (cache?.result !== lastResult) {
-      cache = { result: lastResult, promises: {} };
+    if (cache?.key !== exportKey) {
+      exportAbortRef.current?.abort();
+      cache = { key: exportKey, promises: {} };
       exportPromisesRef.current = cache;
+      setPreparedExports({ key: exportKey, formats: {} });
     }
-    let promise = cache.promises[exportFormat];
-    if (!promise) {
-      promise = lastResult.toImageBlob(EXPORT_OPTIONS[exportFormat]);
-      cache.promises[exportFormat] = promise;
-    }
-    let stale = false;
-    setPreparedExports((current) =>
-      current?.result === lastResult ? current : { result: lastResult, formats: {} },
-    );
-    void promise.then(
-      (blob) => {
-        if (stale) return;
+    const cachedPromise = cache.promises[effectiveExportFormat];
+    if (cachedPromise) return cachedPromise;
+
+    setExportPending(true);
+    setExportProgressLabel(limitTo4k ? "Encoding" : "Preparing full-resolution PNG");
+    const controller = new AbortController();
+    if (!limitTo4k) exportAbortRef.current = controller;
+    const promise = limitTo4k
+      ? lastResult.toImageBlob(EXPORT_OPTIONS[effectiveExportFormat])
+      : exportFullResolutionPng(doc, {
+          ...tiledPreviewOptions,
+          pixelsPerTile: FULL_PIXELS_PER_TILE,
+          signal: controller.signal,
+          onProgress(progress) {
+            setExportProgressLabel(progress.label);
+            onRenderProgress?.(progress);
+          },
+        }).then((result) => result.blob);
+    cache.promises[effectiveExportFormat] = promise;
+
+    try {
+      const blob = await promise;
+      if (exportPromisesRef.current?.key === exportKey) {
         setPreparedExports((current) => ({
-          result: lastResult,
+          key: exportKey,
           formats: {
-            ...(current?.result === lastResult ? current.formats : {}),
-            [exportFormat]: { blob },
+            ...(current?.key === exportKey ? current.formats : {}),
+            [effectiveExportFormat]: { blob },
           },
         }));
-      },
-      (error: unknown) => {
-        if (stale) return;
-        const message = error instanceof Error ? error.message : "Image encoding failed";
+      }
+      return blob;
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "Image encoding failed";
+      if (exportPromisesRef.current?.key === exportKey) {
+        delete exportPromisesRef.current.promises[effectiveExportFormat];
         setPreparedExports((current) => ({
-          result: lastResult,
+          key: exportKey,
           formats: {
-            ...(current?.result === lastResult ? current.formats : {}),
-            [exportFormat]: { error: message },
+            ...(current?.key === exportKey ? current.formats : {}),
+            [effectiveExportFormat]: { error: message },
           },
         }));
-        if (exportPromisesRef.current?.result === lastResult) {
-          delete exportPromisesRef.current.promises[exportFormat];
-        }
-      },
-    );
-    return () => {
-      stale = true;
-    };
-  }, [lastResult, exportFormat]);
+      }
+      throw reason;
+    } finally {
+      if (exportPromisesRef.current?.key === exportKey) {
+        setExportPending(false);
+        setExportProgressLabel(null);
+        if (!limitTo4k) onRenderProgress?.(null);
+      }
+      if (exportAbortRef.current === controller) exportAbortRef.current = null;
+    }
+  }, [
+    doc,
+    lastResult,
+    exportKey,
+    preparedExports,
+    effectiveExportFormat,
+    limitTo4k,
+    tiledPreviewOptions,
+    onRenderProgress,
+  ]);
+  useEffect(() => {
+    if (!limitTo4k || !lastResult) return;
+    const prepared =
+      preparedExports?.key === lastResult
+        ? preparedExports.formats[effectiveExportFormat]
+        : undefined;
+    if (prepared?.blob || prepared?.error) return;
+    void prepareCurrentExport().catch(() => undefined);
+  }, [limitTo4k, lastResult, effectiveExportFormat, preparedExports, prepareCurrentExport]);
+  useEffect(() => {
+    return () => exportAbortRef.current?.abort();
+  }, []);
   const currentExport =
-    preparedExports?.result === lastResult ? preparedExports.formats[exportFormat] : undefined;
+    preparedExports?.key === exportKey ? preparedExports.formats[effectiveExportFormat] : undefined;
   const exportBlob = currentExport?.blob;
-  const exportPreparing = Boolean(lastResult && !currentExport);
-  const controlsDisabled = preflighting || loading || exportPreparing;
+  const controlsDisabled = loading || measuringFull || exportPending || !lastResult || !exportKey;
   const downloadPendingLabel =
-    !lastResult || preflighting || loading ? "Rendering" : exportPreparing ? "Encoding" : null;
+    !lastResult || loading ? "Rendering" : measuringFull ? "Measuring" : exportProgressLabel;
   useEffect(() => {
     if (!doc || !blueprint) {
       setDimensions(null);
       setLastResult(null);
-      setPreflighting(false);
-      setFullResWarning(null);
-      setFullResApproval(null);
+      setFullMeasurement(null);
       setError(null);
       setAssetsMissing(false);
       setHoverTile(null);
@@ -286,24 +372,11 @@ export const PreviewPane = ({
     if (!showCoords) setHoverTile(null);
     let timer: number | undefined;
     const renderOptions = {
-      blueprintPath: blueprintPath ?? undefined,
+      ...tiledPreviewOptions,
       pixelsPerTile: FULL_PIXELS_PER_TILE,
-      padTiles: 1,
-      altMode,
-      background: null,
-      showBackgroundAuto: showBackground && backgroundMode === "auto",
-      showCheckerboard: showBackground && backgroundMode === "checkerboard",
-      showSpace: showBackground && (backgroundMode === "space" || backgroundMode === "orbit"),
-      showSpacePlanet: showBackground && backgroundMode === "orbit",
-      spacePlanet: backgroundMode === "orbit" ? orbitPlanet : undefined,
-      terrainBackground:
-        showBackground && isTerrainBackgroundMode(backgroundMode) ? backgroundMode : undefined,
-      showCoordinates: showCoords,
       profile: true,
     } as const;
     const startRender = () => {
-      setPreflighting(false);
-      setFullResWarning(null);
       setLoading(true);
       onRenderProgress?.({ value: 1, label: "Queued" });
       timer = window.setTimeout(() => {
@@ -319,7 +392,7 @@ export const PreviewPane = ({
         }
         void renderPreview(display, doc, {
           ...renderOptions,
-          maxOutputSize: limitTo4k ? MAX_OUTPUT_SIZE : undefined,
+          maxOutputSize: previewMaxOutput,
           signal: controller.signal,
           onProgress: onRenderProgress,
         })
@@ -374,41 +447,7 @@ export const PreviewPane = ({
           });
       }, 150);
     };
-    if (limitTo4k) {
-      startRender();
-    } else {
-      setLoading(false);
-      setPreflighting(true);
-      onRenderProgress?.({ value: 3, label: "Measuring output" });
-      void measurePreview(doc, renderOptions).then(
-        (measurement) => {
-          if (gen !== renderGenRef.current) return;
-          setPreflighting(false);
-          const oversized =
-            measurement.requestedWidth > MAX_OUTPUT_SIZE.width ||
-            measurement.requestedHeight > MAX_OUTPUT_SIZE.height;
-          const approved =
-            fullResApproval?.blueprint === blueprint &&
-            fullResApproval.width === measurement.requestedWidth &&
-            fullResApproval.height === measurement.requestedHeight;
-          if (oversized && !approved) {
-            setFullResWarning({ blueprint, measurement });
-            onRenderProgress?.({ value: 3, label: "Awaiting approval" });
-            return;
-          }
-          startRender();
-        },
-        (reason: unknown) => {
-          if (gen !== renderGenRef.current) return;
-          setPreflighting(false);
-          const message = reason instanceof Error ? reason.message : "Size check failed";
-          setError(message);
-          onRenderError?.(message);
-          setFullResWarning(null);
-          onRenderProgress?.(null);
-        },
-      );
-    }
+    startRender();
     return () => {
       if (timer != null) window.clearTimeout(timer);
       controller.abort();
@@ -416,20 +455,85 @@ export const PreviewPane = ({
   }, [
     doc,
     blueprint,
-    blueprintPath,
-    limitTo4k,
-    altMode,
+    previewMaxOutput,
+    tiledPreviewOptions,
     showCoords,
-    showBackground,
-    backgroundMode,
-    orbitPlanet,
     decodeStats,
     onTileSizeChange,
     onPerfReport,
     onRenderProgress,
     onRenderError,
-    fullResApproval,
   ]);
+  useEffect(() => {
+    exportAbortRef.current?.abort();
+    exportAbortRef.current = null;
+    exportPromisesRef.current = null;
+    setPreparedExports(null);
+    setExportPending(false);
+    setExportProgressLabel(null);
+  }, [limitTo4k]);
+  useEffect(() => {
+    if (!doc || limitTo4k) {
+      setFullMeasurement(null);
+      setMeasuringFull(false);
+      return;
+    }
+    let stale = false;
+    setMeasuringFull(true);
+    setFullMeasurement(null);
+    setTiledStatus(null);
+    setError(null);
+    onRenderProgress?.({ value: 3, label: "Measuring full-resolution output" });
+    void measurePreview(doc, {
+      ...tiledPreviewOptions,
+      pixelsPerTile: FULL_PIXELS_PER_TILE,
+    }).then(
+      (measurement) => {
+        if (stale) return;
+        setFullMeasurement(measurement);
+        setMeasuringFull(false);
+        onRenderProgress?.(null);
+      },
+      (reason: unknown) => {
+        if (stale) return;
+        const message = reason instanceof Error ? reason.message : "Size check failed";
+        setFullMeasurement(null);
+        setMeasuringFull(false);
+        setError(message);
+        onRenderError?.(message);
+        onRenderProgress?.(null);
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, [doc, limitTo4k, tiledPreviewOptions, onRenderProgress, onRenderError]);
+  const handleViewportSizeChange = useCallback((size: { width: number; height: number }) => {
+    const next = adaptivePreviewSize(size);
+    setPreviewMaxOutput((current) =>
+      current.width === next.width && current.height === next.height ? current : next,
+    );
+  }, []);
+  const handleTiledViewportChange = useCallback((viewport: TiledPreviewViewport | null) => {
+    setTiledViewport(viewport);
+  }, []);
+  const handleTiledStatusChange = useCallback((status: TiledPreviewStatus) => {
+    setTiledStatus((current) =>
+      current?.pixelsPerTile === status.pixelsPerTile &&
+      current.ready === status.ready &&
+      current.total === status.total
+        ? current
+        : status,
+    );
+  }, []);
+  const handleTiledPreviewError = useCallback(
+    (reason: Error) => {
+      if (reason.name === "AbortError") return;
+      setError(reason.message);
+      onRenderError?.(reason.message);
+    },
+    [onRenderError],
+  );
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!showCoords || !lastResult) {
       setHoverTile(null);
@@ -466,6 +570,7 @@ export const PreviewPane = ({
   if (!doc || !blueprint) {
     return null;
   }
+  const frameDimensions = !limitTo4k && fullMeasurement ? fullMeasurement : dimensions;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-2 pb-3">
@@ -473,18 +578,16 @@ export const PreviewPane = ({
           <Switch
             size="sm"
             id="limit-to-4k"
-            checked={limitTo4k}
+            checked={!limitTo4k}
             disabled={controlsDisabled}
-            onCheckedChange={(checked) => {
-              setFullResApproval(null);
-              setFullResWarning(null);
-              setLimitTo4k(checked);
-            }}
+            onCheckedChange={(checked) => setLimitTo4k(!checked)}
           />
           <Label htmlFor="limit-to-4k" className="gap-1.5">
-            Limit to 4K
+            Full-res export
             <span className="text-muted-foreground">
-              {dimensions && `${dimensions.width}×${dimensions.height}px`}
+              {!limitTo4k && fullMeasurement
+                ? `${fullMeasurement.width}×${fullMeasurement.height}px`
+                : dimensions && `${dimensions.width}×${dimensions.height}px`}
             </span>
           </Label>
         </div>
@@ -493,8 +596,8 @@ export const PreviewPane = ({
             id="export-format"
             aria-label="Use WebP image format"
             size="sm"
-            checked={exportFormat === "webp"}
-            disabled={controlsDisabled}
+            checked={effectiveExportFormat === "webp"}
+            disabled={controlsDisabled || !limitTo4k}
             onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
           />
           <Label htmlFor="export-format" className="gap-1.5">
@@ -512,7 +615,9 @@ export const PreviewPane = ({
                 <InfoIcon className="size-3.5" />
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-sm text-pretty">
-                Smaller file size, but takes longer to encode.
+                {limitTo4k
+                  ? "Smaller file size, but takes longer to encode."
+                  : "Full-resolution exports use streaming PNG so they never need one giant canvas."}
               </TooltipContent>
             </Tooltip>
           </Label>
@@ -614,6 +719,22 @@ export const PreviewPane = ({
         </div>
       </div>
 
+      {!limitTo4k && (
+        <Alert className="mx-4 mb-3 shrink-0">
+          {measuringFull ? <Spinner /> : <InfoIcon />}
+          <AlertTitle>
+            {measuringFull ? "Preparing full-resolution preview" : "Full-resolution tiled preview"}
+          </AlertTitle>
+          <AlertDescription>
+            {fullMeasurement
+              ? tiledStatus
+                ? `${fullMeasurement.width}×${fullMeasurement.height}px · visible tiles ${tiledStatus.ready}/${tiledStatus.total} at ${tiledStatus.pixelsPerTile}px/tile. Zoom or pan to load more detail; Download and Copy still use streaming PNG.`
+                : `${fullMeasurement.width}×${fullMeasurement.height}px · fitting the full image and preparing visible tiles.`
+              : "Measuring the full image before loading the visible tiles."}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {assetsMissing && (
         <Alert className="shrink-0 mx-4">
           <AlertTitle>Assets missing</AlertTitle>
@@ -628,66 +749,33 @@ export const PreviewPane = ({
       )}
 
       <PreviewCanvasFrame
-        width={dimensions?.width}
-        height={dimensions?.height}
-        overlay={
-          fullResWarning && (
-            <Alert className="max-w-lg has-data-[slot=alert-action]:pr-2.5">
-              <AlertTitle>Large full-resolution render</AlertTitle>
-              <AlertDescription>
-                This blueprint is expected to produce a{" "}
-                {fullResWarning.measurement.requestedWidth.toLocaleString()}×
-                {fullResWarning.measurement.requestedHeight.toLocaleString()} image (
-                {(
-                  (fullResWarning.measurement.requestedWidth *
-                    fullResWarning.measurement.requestedHeight) /
-                  1000000
-                ).toFixed(1)}{" "}
-                MP). One RGBA surface alone is about{" "}
-                {formatSurfaceMemory(
-                  fullResWarning.measurement.requestedWidth,
-                  fullResWarning.measurement.requestedHeight,
-                )}
-                ; painting, shadows, and encoding can require more.
-              </AlertDescription>
-              <AlertAction className="static mt-4 flex flex-wrap gap-2">
-                <Button
-                  onClick={() => {
-                    setFullResWarning(null);
-                    setLoading(true);
-                    setLimitTo4k(true);
-                  }}
-                >
-                  Limit to 4K
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const { measurement } = fullResWarning;
-                    setFullResApproval({
-                      blueprint: fullResWarning.blueprint,
-                      width: measurement.requestedWidth,
-                      height: measurement.requestedHeight,
-                    });
-                  }}
-                >
-                  Proceed with full res
-                </Button>
-              </AlertAction>
-            </Alert>
-          )
+        width={frameDimensions?.width}
+        height={frameDimensions?.height}
+        onViewportSizeChange={handleViewportSizeChange}
+        onViewChange={!limitTo4k ? handleTiledViewportChange : undefined}
+        viewportLayer={
+          !limitTo4k && fullMeasurement && tiledViewport ? (
+            <TiledPreviewLayer
+              doc={doc}
+              options={tiledPreviewOptions}
+              measurement={fullMeasurement}
+              viewport={tiledViewport}
+              onStatusChange={handleTiledStatusChange}
+              onError={handleTiledPreviewError}
+            />
+          ) : null
         }
         actions={
-          !fullResWarning && (
-            <PreviewExportControls
-              blueprint={blueprint}
-              exportFormat={exportFormat}
-              exportBlob={exportBlob}
-              exportError={currentExport?.error}
-              controlsDisabled={controlsDisabled}
-              downloadPendingLabel={downloadPendingLabel}
-            />
-          )
+          <PreviewExportControls
+            blueprint={blueprint}
+            exportFormat={effectiveExportFormat}
+            exportBlob={exportBlob}
+            exportError={currentExport?.error}
+            controlsDisabled={controlsDisabled}
+            downloadPendingLabel={downloadPendingLabel}
+            fullResolution={!limitTo4k}
+            prepareExport={prepareCurrentExport}
+          />
         }
       >
         <canvas

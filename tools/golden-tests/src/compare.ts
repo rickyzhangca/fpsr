@@ -15,6 +15,26 @@ export interface CompareResult {
   height: number;
 }
 
+export function comparePngPixels(actual: Buffer, expected: Buffer): CompareResult {
+  const left = PNG.sync.read(actual);
+  const right = PNG.sync.read(expected);
+  if (left.width !== right.width || left.height !== right.height) {
+    throw new Error(
+      `Dimension mismatch: ${left.width}x${left.height} vs ${right.width}x${right.height}`,
+    );
+  }
+  const diff = new PNG({ width: left.width, height: left.height });
+  const diffPixels = pixelmatch(left.data, right.data, diff.data, left.width, left.height, {
+    threshold: PIXEL_THRESHOLD,
+  });
+  return {
+    diffPixels,
+    diffPercent: (diffPixels / (left.width * left.height)) * 100,
+    width: left.width,
+    height: left.height,
+  };
+}
+
 export async function compareToGolden(
   c: GoldenCase,
   actual: Buffer,

@@ -22,6 +22,7 @@ export function drawCoordinateOverlay(
   pixelsPerTile: number,
   width: number,
   height: number,
+  outputTileFrame: TileFrame = tileFrame,
 ): void {
   const { minX, minY, maxX, maxY } = tileFrame;
   const cols = maxX - minX;
@@ -50,9 +51,11 @@ export function drawCoordinateOverlay(
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
   const pad = Math.max(1, Math.floor(pixelsPerTile * 0.06));
+  const columnStart = (((outputTileFrame.minX - minX) % stride) + stride) % stride;
+  const rowStart = (((outputTileFrame.minY - minY) % stride) + stride) % stride;
 
-  for (let j = 0; j < rows; j += stride) {
-    for (let i = 0; i < cols; i += stride) {
+  for (let j = rowStart; j < rows; j += stride) {
+    for (let i = columnStart; i < cols; i += stride) {
       const tx = minX + i;
       const ty = minY + j;
       const label = `${tx},${ty}`;

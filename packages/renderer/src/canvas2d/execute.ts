@@ -59,6 +59,14 @@ export function executeDrawList(
     const planetImage = planetFrame ? images[planetFrame.a] : undefined;
     drawSpaceBackground(ctx, width, height, {
       seed: planetFrameId,
+      viewport: opts.outputTileFrame
+        ? {
+            x: (frame.minX - opts.outputTileFrame.minX) * ppt,
+            y: (frame.minY - opts.outputTileFrame.minY) * ppt,
+            fullWidth: (opts.outputTileFrame.maxX - opts.outputTileFrame.minX) * ppt,
+            fullHeight: (opts.outputTileFrame.maxY - opts.outputTileFrame.minY) * ppt,
+          }
+        : undefined,
       planet:
         planetFrame && planetImage
           ? {
@@ -77,7 +85,7 @@ export function executeDrawList(
       fallbackColor: opts.terrainBackground.color ?? TERRAIN_FALLBACK_COLOR,
     });
   } else if (opts.showCheckerboard) {
-    drawTileCheckerboard(ctx, width, height, ppt);
+    drawTileCheckerboard(ctx, width, height, ppt, frame.minX, frame.minY);
   } else if (opts.background) {
     ctx.fillStyle = rgba(opts.background);
     ctx.fillRect(0, 0, width, height);
@@ -239,6 +247,6 @@ export function executeDrawList(
   }
 
   if (opts.showCoordinates) {
-    drawCoordinateOverlay(ctx, frame, ppt, width, height);
+    drawCoordinateOverlay(ctx, frame, ppt, width, height, opts.outputTileFrame ?? frame);
   }
 }

@@ -4,9 +4,9 @@ import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { assetsAvailable } from "./assets.js";
 import { goldenPngPath, loadCases } from "./cases.js";
-import { compareToGolden } from "./compare.js";
+import { comparePngPixels, compareToGolden } from "./compare.js";
 import { ASSETS_DIR } from "./paths.js";
-import { renderCase } from "./render-case.js";
+import { renderCase, renderTiledCase } from "./render-case.js";
 
 const cases = loadCases();
 
@@ -47,6 +47,37 @@ describe("golden PNG regression", () => {
 
         expect(result.diffPercent).toBeLessThanOrEqual(0.1);
         expect(await assetsAvailable(ASSETS_DIR)).toBe(true);
+      },
+    );
+  }
+
+  const tiledCase = cases.find((c) => c.name === "smoke");
+  it.skipIf(!hasAssets || !tiledCase || !existsSync(goldenPngPath(tiledCase)))(
+    "matches the monolithic golden when rendered as small tiles",
+    async () => {
+      if (!tiledCase) throw new Error("smoke golden case is missing");
+      const monolithic = await renderCase(tiledCase, ASSETS_DIR);
+      const tiled = await renderTiledCase(tiledCase, ASSETS_DIR);
+      const result = comparePngPixels(tiled, monolithic);
+      expect(result.diffPercent).toBeLessThanOrEqual(0.01);
+    },
+  );
+
+  for (const scenario of [
+    {
+      name: "checkerboard and coordinate overlays",
+      options: { showCheckerboard: true, showCoordinates: true },
+    },
+    { name: "space backgrounds", options: { showSpace: true } },
+  ] as const) {
+    it.skipIf(!hasAssets || !tiledCase)(
+      `has no visible tile seams for ${scenario.name}`,
+      async () => {
+        if (!tiledCase) throw new Error("smoke golden case is missing");
+        const monolithic = await renderCase(tiledCase, ASSETS_DIR, scenario.options);
+        const tiled = await renderTiledCase(tiledCase, ASSETS_DIR, scenario.options);
+        const result = comparePngPixels(tiled, monolithic);
+        expect(result.diffPercent).toBeLessThanOrEqual(0.01);
       },
     );
   }

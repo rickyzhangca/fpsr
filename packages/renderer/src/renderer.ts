@@ -12,6 +12,7 @@ import {
   type SilhouetteCanvasLike,
 } from "./icon-silhouette.js";
 import { planDrawList } from "./plan.js";
+import { createStreamingPngEncoder } from "./png-stream.js";
 import {
   nowMs,
   perfMark,
@@ -22,6 +23,7 @@ import {
   type RenderProfile,
 } from "./profile.js";
 import { blueprintPrefersPlatformGraphics } from "./resolve.js";
+import { drawListForTile } from "./tiled-draw-list.js";
 import type { Blueprint, BlueprintDocument } from "./types/blueprint.js";
 import type { DrawList } from "./types/draw-list.js";
 import type { RenderDb, SpaceBackground, TerrainPatchBackground } from "./types/render-db.js";
@@ -76,6 +78,8 @@ export type RenderProgressEvent =
   | { stage: "loading-assets"; completed: number; total: number }
   | { stage: "baking-icons" }
   | { stage: "painting" }
+  | { stage: "painting-tiles"; completed: number; total: number }
+  | { stage: "encoding" }
   | { stage: "complete" };
 
 export interface RenderOptions {
@@ -114,6 +118,12 @@ export interface RenderOptions {
   showCoordinates?: boolean;
   /** Reuse an existing canvas instead of creating one. */
   canvas?: CanvasLike;
+  /** Advanced: render only this tile-aligned viewport. */
+  tileFrame?: TileFrame;
+  /** Full frame containing `tileFrame`, used to anchor global backgrounds. */
+  outputTileFrame?: TileFrame;
+  /** Internal/prepared draw list used by tiled exporters to avoid replanning each tile. */
+  preparedDrawList?: DrawList;
   /** Cancel before the destination canvas is resized or painted. */
   signal?: AbortSignal;
   /** Coarse, host-neutral render stages suitable for progress UI. */
@@ -148,6 +158,29 @@ export interface Renderer {
     docOrBlueprint: BlueprintDocument | Blueprint,
     opts?: RenderOptions,
   ): Promise<RenderResult>;
+  /** Render a full-resolution PNG with bounded raw-pixel working memory. */
+  renderTiledPng(
+    docOrBlueprint: BlueprintDocument | Blueprint,
+    opts?: TiledPngOptions,
+  ): Promise<TiledPngResult>;
+}
+
+export interface TiledPngOptions extends Omit<
+  RenderOptions,
+  "canvas" | "maxOutputSize" | "preparedDrawList" | "tileFrame" | "outputTileFrame"
+> {
+  /** Target maximum edge of each temporary canvas. Defaults to 2048 px. */
+  tileSize?: number;
+  /** Maximum assembled raw strip memory. Defaults to 32 MiB. */
+  maxStripeBytes?: number;
+}
+
+export interface TiledPngResult {
+  blob: Blob;
+  width: number;
+  height: number;
+  tileFrame: TileFrame;
+  tiled: true;
 }
 
 function finitePositive(value: number, label: string): number {
@@ -404,7 +437,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
     return pending;
   };
 
-  return {
+  const renderer: Renderer = {
     measure(docOrBlueprint, opts = {}): RenderMeasurement {
       throwIfAborted(opts.signal);
       const bp = isBlueprint(docOrBlueprint)
@@ -439,11 +472,13 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const planProfile = wantProfile ? emptyPlanProfile() : undefined;
       reportProgress(resolvedOpts, { stage: "planning" });
       if (wantProfile) perfMark("fpsr-plan-start");
-      const drawList = planDrawList(bp, db, {
-        altMode: resolvedOpts.altMode,
-        background,
-        profileOut: planProfile,
-      });
+      const drawList =
+        resolvedOpts.preparedDrawList ??
+        planDrawList(bp, db, {
+          altMode: resolvedOpts.altMode,
+          background,
+          profileOut: planProfile,
+        });
       throwIfAborted(resolvedOpts.signal);
       if (wantProfile) {
         perfMark("fpsr-plan-end");
@@ -619,7 +654,19 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const iconBakeMs = wantProfile ? nowMs() - t : 0;
 
       t = wantProfile ? nowMs() : 0;
-      const tileFrame = computeTileFrame(drawList.bounds, padTiles);
+      const outputTileFrame =
+        resolvedOpts.outputTileFrame ?? computeTileFrame(drawList.bounds, padTiles);
+      const tileFrame = resolvedOpts.tileFrame ?? outputTileFrame;
+      if (
+        tileFrame.minX < outputTileFrame.minX ||
+        tileFrame.minY < outputTileFrame.minY ||
+        tileFrame.maxX > outputTileFrame.maxX ||
+        tileFrame.maxY > outputTileFrame.maxY ||
+        tileFrame.minX >= tileFrame.maxX ||
+        tileFrame.minY >= tileFrame.maxY
+      ) {
+        throw new Error("tileFrame must be a non-empty viewport inside outputTileFrame");
+      }
       const output = measureTileFrame(tileFrame, requestedPixelsPerTile, opts.maxOutputSize);
       const { width, height, pixelsPerTile } = output;
 
@@ -642,10 +689,14 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         shadowCompositedPixels: 0,
         shadowPeakScratchPixels: 0,
       };
-      canvas2d.executeDrawList(ctx, drawList, images, {
+      const paintList = resolvedOpts.tileFrame
+        ? drawListForTile(drawList, db.frames, tileFrame)
+        : drawList;
+      canvas2d.executeDrawList(ctx, paintList, images, {
         pixelsPerTile,
         padTiles,
         tileFrame,
+        outputTileFrame,
         background,
         showCheckerboard: resolvedOpts.showCheckerboard,
         showSpace: resolvedOpts.showSpace,
@@ -732,5 +783,115 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         },
       };
     },
+
+    async renderTiledPng(docOrBlueprint, opts = {}): Promise<TiledPngResult> {
+      throwIfAborted(opts.signal);
+      const pixelsPerTile = opts.pixelsPerTile ?? 64;
+      if (!Number.isInteger(pixelsPerTile) || pixelsPerTile <= 0) {
+        throw new Error("Tiled PNG export requires an integer pixelsPerTile greater than zero");
+      }
+      const bp = isBlueprint(docOrBlueprint)
+        ? docOrBlueprint
+        : selectBlueprint(docOrBlueprint, opts.blueprintPath);
+      const resolvedOpts = resolveBackgroundOpts(bp, opts);
+      reportProgress(opts, { stage: "planning" });
+      const preparedDrawList = planDrawList(bp, db, {
+        altMode: resolvedOpts.altMode,
+        background: resolvedOpts.background ?? null,
+      });
+      const tileFrame = computeTileFrame(preparedDrawList.bounds, resolvedOpts.padTiles ?? 0);
+      const { width, height } = measureTileFrame(tileFrame, pixelsPerTile);
+      const tileSize = Math.max(pixelsPerTile, Math.floor(opts.tileSize ?? 2048));
+      const maxPaintTileEdge = Math.max(1, Math.floor(tileSize / pixelsPerTile));
+      const viewportBleedTiles = Math.min(2, Math.max(0, Math.floor((maxPaintTileEdge - 1) / 2)));
+      const chunkTileWidth = Math.max(1, maxPaintTileEdge - viewportBleedTiles * 2);
+      const maxStripeBytes = Math.max(
+        width * pixelsPerTile * 4,
+        opts.maxStripeBytes ?? 32 * 1024 * 1024,
+      );
+      const maxStripePixelRows = Math.max(
+        pixelsPerTile,
+        Math.floor(maxStripeBytes / Math.max(1, width * 4) / pixelsPerTile) * pixelsPerTile,
+      );
+      const stripTileHeight = Math.max(
+        1,
+        Math.min(chunkTileWidth, Math.floor(maxStripePixelRows / pixelsPerTile)),
+      );
+      const tileColumns = Math.ceil((tileFrame.maxX - tileFrame.minX) / chunkTileWidth);
+      const tileRows = Math.ceil((tileFrame.maxY - tileFrame.minY) / stripTileHeight);
+      const totalTiles = tileColumns * tileRows;
+      const encoder = createStreamingPngEncoder(width, height);
+      let completedTiles = 0;
+
+      const {
+        tileSize: _tileSize,
+        maxStripeBytes: _maxStripeBytes,
+        profile: _profile,
+        ...renderOpts
+      } = opts;
+
+      for (let minY = tileFrame.minY; minY < tileFrame.maxY; minY += stripTileHeight) {
+        throwIfAborted(opts.signal);
+        const maxY = Math.min(tileFrame.maxY, minY + stripTileHeight);
+        const stripHeight = (maxY - minY) * pixelsPerTile;
+        const strip = new Uint8Array(width * stripHeight * 4);
+
+        for (let minX = tileFrame.minX; minX < tileFrame.maxX; minX += chunkTileWidth) {
+          throwIfAborted(opts.signal);
+          const maxX = Math.min(tileFrame.maxX, minX + chunkTileWidth);
+          const paintRegion: TileFrame = {
+            minX: Math.max(tileFrame.minX, minX - viewportBleedTiles),
+            minY: Math.max(tileFrame.minY, minY - viewportBleedTiles),
+            maxX: Math.min(tileFrame.maxX, maxX + viewportBleedTiles),
+            maxY: Math.min(tileFrame.maxY, maxY + viewportBleedTiles),
+          };
+          const regionDrawList = drawListForTile(preparedDrawList, db.frames, paintRegion);
+          const rendered = await renderer.render(docOrBlueprint, {
+            ...renderOpts,
+            pixelsPerTile,
+            profile: false,
+            tileFrame: paintRegion,
+            outputTileFrame: tileFrame,
+            preparedDrawList: regionDrawList,
+            onProgress: undefined,
+          });
+          const context = rendered.canvas.getContext("2d") as
+            | (Canvas2DContextLike & {
+                getImageData(x: number, y: number, width: number, height: number): ImageData;
+              })
+            | null;
+          if (!context || typeof context.getImageData !== "function") {
+            throw new Error("Tiled PNG export requires Canvas2D getImageData support");
+          }
+          const sourceX = (minX - paintRegion.minX) * pixelsPerTile;
+          const sourceY = (minY - paintRegion.minY) * pixelsPerTile;
+          const regionWidth = (maxX - minX) * pixelsPerTile;
+          const regionHeight = (maxY - minY) * pixelsPerTile;
+          const pixels = context.getImageData(sourceX, sourceY, regionWidth, regionHeight).data;
+          const destinationX = (minX - tileFrame.minX) * pixelsPerTile;
+          for (let row = 0; row < regionHeight; row++) {
+            const sourceStart = row * regionWidth * 4;
+            const destinationStart = (row * width + destinationX) * 4;
+            strip.set(
+              pixels.subarray(sourceStart, sourceStart + regionWidth * 4),
+              destinationStart,
+            );
+          }
+          completedTiles++;
+          reportProgress(opts, {
+            stage: "painting-tiles",
+            completed: completedTiles,
+            total: totalTiles,
+          });
+        }
+        encoder.writeRgbaRows(strip, stripHeight);
+      }
+
+      reportProgress(opts, { stage: "encoding" });
+      const blob = encoder.finish();
+      reportProgress(opts, { stage: "complete" });
+      return { blob, width, height, tileFrame, tiled: true };
+    },
   };
+  return renderer;
 }

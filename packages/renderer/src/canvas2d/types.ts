@@ -53,6 +53,8 @@ export interface ExecuteDrawListOptions {
   padTiles?: number;
   /** Integer tile viewport; when set, canvas origin aligns to tile grid. */
   tileFrame?: { minX: number; minY: number; maxX: number; maxY: number };
+  /** Full output frame when `tileFrame` is only one tiled-render viewport. */
+  outputTileFrame?: { minX: number; minY: number; maxX: number; maxY: number };
   background?: [number, number, number, number] | null;
   /** Draw tile-aligned checkerboard behind commands (replaces solid background). */
   showCheckerboard?: boolean;

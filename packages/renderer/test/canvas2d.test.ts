@@ -830,4 +830,23 @@ describe("executeDrawList", () => {
 
     expect(ctx.calls.some((c) => c.method === "fillText")).toBe(false);
   });
+
+  it("keeps coordinate label stride anchored to the full tiled output", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 8, maxY: 8 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [], {
+      pixelsPerTile: 8,
+      tileFrame: { minX: 3, minY: 3, maxX: 7, maxY: 7 },
+      outputTileFrame: { minX: 0, minY: 0, maxX: 8, maxY: 8 },
+      showCoordinates: true,
+      frames: db.frames,
+    });
+
+    expect(ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "4,4")).toBe(true);
+    expect(ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "3,3")).toBe(false);
+  });
 });

@@ -11,6 +11,7 @@ import {
   rubberbandPan,
   type View,
 } from "./pan-zoom";
+import type { TiledPreviewViewport } from "./preview-tiles";
 import { ViewerToolbar } from "./viewer-toolbar";
 
 export const PreviewCanvasFrame = ({
@@ -19,14 +20,20 @@ export const PreviewCanvasFrame = ({
   overlay,
   width,
   height,
+  onViewportSizeChange,
+  onViewChange,
+  viewportLayer,
   children,
 }: {
   /** Render pixel size — used as the 100% zoom baseline and for one-time fit. */
   width?: number;
   height?: number;
+  onViewportSizeChange?: (size: { width: number; height: number }) => void;
+  onViewChange?: (viewport: TiledPreviewViewport | null) => void;
   className?: string;
   actions?: ReactNode;
   overlay?: ReactNode;
+  viewportLayer?: ReactNode;
   children: ReactNode;
 }) => {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -43,6 +50,7 @@ export const PreviewCanvasFrame = ({
   } | null>(null);
   const [fitKey, setFitKey] = useState<string | null>(null);
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(false);
   /** Spring enabled only after the initial fit has painted — avoids zoom-in flash. */
   const [spring, setSpring] = useState(false);
@@ -54,6 +62,30 @@ export const PreviewCanvasFrame = ({
     viewRef.current = next;
     setView(next);
   }, []);
+  useEffect(() => {
+    const element = shellRef.current;
+    if (!element) return;
+    const report = () => {
+      if (element.clientWidth <= 0 || element.clientHeight <= 0) return;
+      const size = { width: element.clientWidth, height: element.clientHeight };
+      setViewportSize((current) =>
+        current.width === size.width && current.height === size.height ? current : size,
+      );
+      onViewportSizeChange?.(size);
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [onViewportSizeChange]);
+  useEffect(() => {
+    if (!onViewChange) return;
+    if (!ready || viewportSize.width <= 0 || viewportSize.height <= 0) {
+      onViewChange(null);
+      return;
+    }
+    onViewChange({ ...view, ...viewportSize });
+  }, [onViewChange, ready, view, viewportSize]);
   const applyZoomAt = useCallback(
     (nextZoom: number, originX: number, originY: number) => {
       const shell = shellRef.current;
@@ -322,7 +354,7 @@ export const PreviewCanvasFrame = ({
   const onReset = () => {
     commitView({ zoom: fitZoomRef.current, panX: 0, panY: 0 });
   };
-  const transition = spring && !dragging ? SPRING_TRANSITION : "none";
+  const transition = viewportLayer == null && spring && !dragging ? SPRING_TRANSITION : "none";
   return (
     <div
       ref={shellRef}
@@ -350,6 +382,9 @@ export const PreviewCanvasFrame = ({
         >
           {children}
         </div>
+        {ready && viewportLayer != null && (
+          <div className="pointer-events-none absolute inset-0">{viewportLayer}</div>
+        )}
       </div>
 
       {overlay != null && (

@@ -165,6 +165,9 @@ export { drawTerrainBackground } from "./terrain-background.js";
 export type { DrawTerrainBackgroundOptions } from "./terrain-background.js";
 
 export { createRenderer, measureTileFrame, resolveSpacePlanetFrameId } from "./renderer.js";
+export { createStreamingPngEncoder } from "./png-stream.js";
+export type { StreamingPngEncoder } from "./png-stream.js";
+export { drawListForTile } from "./tiled-draw-list.js";
 export type {
   CanvasLike,
   CreateCanvasFn,
@@ -177,6 +180,8 @@ export type {
   RenderOptions,
   RenderProgressEvent,
   RenderResult,
+  TiledPngOptions,
+  TiledPngResult,
 } from "./renderer.js";
 
 export { decodeVersion } from "./types/blueprint.js";

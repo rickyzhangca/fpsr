@@ -12,6 +12,8 @@ export const PreviewExportControls = ({
   exportError,
   controlsDisabled,
   downloadPendingLabel,
+  fullResolution,
+  prepareExport,
 }: {
   blueprint: Blueprint | null;
   exportFormat: ExportFormat;
@@ -19,14 +21,16 @@ export const PreviewExportControls = ({
   exportError: string | undefined;
   controlsDisabled: boolean;
   downloadPendingLabel: string | null;
+  fullResolution: boolean;
+  prepareExport: () => Promise<Blob>;
 }) => {
   const exportLabel = exportFormatLabel(exportFormat);
 
-  const handleDownload = () => {
-    if (!exportBlob) return;
+  const handleDownload = async () => {
     const filename = `${stripRichText(blueprint?.label).replace(/[^\w.-]+/g, "_") || "blueprint"}.${exportFormat}`;
     try {
-      const url = URL.createObjectURL(exportBlob);
+      const blob = exportBlob ?? (await prepareExport());
+      const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = filename;
@@ -41,14 +45,14 @@ export const PreviewExportControls = ({
   };
 
   const handleCopy = async () => {
-    if (!exportBlob) return;
     const mime = EXPORT_OPTIONS[exportFormat].type;
     if (typeof ClipboardItem.supports === "function" && !ClipboardItem.supports(mime)) {
       toast.error(`${exportLabel} images are not supported by this browser's clipboard`);
       return;
     }
     try {
-      await navigator.clipboard.write([new ClipboardItem({ [mime]: exportBlob })]);
+      const blob = exportBlob ?? (await prepareExport());
+      await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
       trackEvent("export_copy", { format: exportFormat });
       toast.success(`${exportLabel} copied to clipboard`);
     } catch (e) {
@@ -61,21 +65,23 @@ export const PreviewExportControls = ({
     <div className="flex items-center gap-2">
       <Button
         variant="secondary"
-        onClick={handleDownload}
-        disabled={!exportBlob || controlsDisabled}
+        onClick={() => void handleDownload()}
+        disabled={controlsDisabled}
         aria-busy={downloadPendingLabel !== null}
         title={exportError}
       >
         {downloadPendingLabel && <Spinner data-icon="inline-start" />}
         {downloadPendingLabel ??
-          (exportBlob ? `Download ${formatExportSize(exportBlob.size)}` : "Unavailable")}
+          (fullResolution
+            ? exportBlob
+              ? `Download full-res · ${formatExportSize(exportBlob.size)}`
+              : "Download full-res PNG"
+            : exportBlob
+              ? `Download ${formatExportSize(exportBlob.size)}`
+              : `Download ${exportLabel}`)}
       </Button>
-      <Button
-        onClick={() => void handleCopy()}
-        disabled={!exportBlob || controlsDisabled}
-        title={exportError}
-      >
-        Copy {exportLabel}
+      <Button onClick={() => void handleCopy()} disabled={controlsDisabled} title={exportError}>
+        {fullResolution ? "Copy full-res PNG" : `Copy ${exportLabel}`}
       </Button>
     </div>
   );

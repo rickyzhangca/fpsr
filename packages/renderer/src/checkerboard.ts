@@ -9,6 +9,8 @@ export function drawTileCheckerboard(
   width: number,
   height: number,
   pixelsPerTile: number,
+  tileOffsetX = 0,
+  tileOffsetY = 0,
 ): void {
   const ppt = Math.max(1, pixelsPerTile);
   const columns = Math.ceil(width / ppt);
@@ -20,7 +22,8 @@ export function drawTileCheckerboard(
     const y = cellY * ppt;
     for (let cellX = 0; cellX < columns; cellX++) {
       const x = cellX * ppt;
-      ctx.fillStyle = (cellX + cellY) % 2 === 0 ? TILE_DARK : TILE_LIGHT;
+      ctx.fillStyle =
+        (cellX + tileOffsetX + cellY + tileOffsetY) % 2 === 0 ? TILE_DARK : TILE_LIGHT;
       ctx.fillRect(x, y, Math.min(ppt, width - x), Math.min(ppt, height - y));
     }
   }

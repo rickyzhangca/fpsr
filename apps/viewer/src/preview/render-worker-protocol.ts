@@ -12,7 +12,17 @@ import type {
   TileFrame,
 } from "fpsr";
 import type { PlanDiagnostics } from "@/process/plan-diagnostics";
+import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
+export type WorkerTiledPreviewOptions = Omit<
+  WorkerRenderOptions,
+  | "maxOutputSize"
+  | "outputTileFrame"
+  | "pixelsPerTile"
+  | "preparedDrawList"
+  | "profile"
+  | "tileFrame"
+>;
 export type WorkerPlanOptions = Pick<PlanOptions, "altMode" | "beltEndings">;
 export interface PreviewRenderProgress {
   value: number;
@@ -36,6 +46,15 @@ export const toPreviewRenderProgress = (event: RenderProgressEvent): PreviewRend
       return { value: 84, label: "Preparing icons" };
     case "painting":
       return { value: 92, label: "Painting" };
+    case "painting-tiles": {
+      const ratio = event.total === 0 ? 1 : event.completed / event.total;
+      return {
+        value: 10 + Math.round(82 * ratio),
+        label: `Rendering tiles ${event.completed}/${event.total}`,
+      };
+    }
+    case "encoding":
+      return { value: 96, label: "Encoding PNG" };
     case "complete":
       return { value: 100, label: "Complete" };
   }
@@ -80,6 +99,34 @@ export type RenderWorkerRequest =
       renderId: number;
       surfaceId: string;
       options: RenderImageOptions;
+    }
+  | {
+      type: "exportFullPng";
+      requestId: number;
+      doc: BlueprintDocument;
+      options: WorkerRenderOptions;
+    }
+  | {
+      type: "openTiledPreview";
+      requestId: number;
+      sessionId: string;
+      doc: BlueprintDocument;
+      options: WorkerTiledPreviewOptions;
+    }
+  | {
+      type: "renderPreviewTile";
+      requestId: number;
+      sessionId: string;
+      tileFrame: TileFrame;
+      pixelsPerTile: PreviewTilePixelsPerTile;
+    }
+  | {
+      type: "closeTiledPreview";
+      sessionId: string;
+    }
+  | {
+      type: "cancelTask";
+      requestId: number;
     };
 export type RenderWorkerResponse =
   | {
@@ -99,7 +146,7 @@ export type RenderWorkerResponse =
   | {
       type: "progress";
       requestId: number;
-      surfaceId: string;
+      surfaceId?: string;
       progress: PreviewRenderProgress;
     }
   | {
@@ -118,6 +165,25 @@ export type RenderWorkerResponse =
       type: "exported";
       requestId: number;
       blob: Blob;
+      width?: number;
+      height?: number;
+      tiled?: boolean;
+    }
+  | {
+      type: "tiledPreviewReady";
+      requestId: number;
+      sessionId: string;
+      measurement: RenderMeasurement;
+    }
+  | {
+      type: "previewTileRendered";
+      requestId: number;
+      sessionId: string;
+      bitmap: ImageBitmap;
+      tileFrame: TileFrame;
+      pixelsPerTile: PreviewTilePixelsPerTile;
+      width: number;
+      height: number;
     }
   | {
       type: "error";

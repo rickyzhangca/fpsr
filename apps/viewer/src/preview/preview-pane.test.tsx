@@ -9,6 +9,7 @@ import type { PreviewRenderProgress } from "./render-worker-protocol";
 const mocks = vi.hoisted(() => ({
   renderPreview: vi.fn(),
   measurePreview: vi.fn(),
+  exportFullResolutionPng: vi.fn(),
   clearPreview: vi.fn(),
   clipboardWrite: vi.fn(),
   createObjectURL: vi.fn(() => "blob:test-export"),
@@ -38,6 +39,7 @@ vi.mock("./preview-renderer", async (importOriginal) => {
     ...actual,
     renderPreview: mocks.renderPreview,
     measurePreview: mocks.measurePreview,
+    exportFullResolutionPng: mocks.exportFullResolutionPng,
     clearPreview: mocks.clearPreview,
   };
 });
@@ -100,6 +102,7 @@ describe("PreviewPane alt-mode toggle", () => {
     localStorage.clear();
     mocks.renderPreview.mockReset();
     mocks.measurePreview.mockReset();
+    mocks.exportFullResolutionPng.mockReset();
     mocks.clearPreview.mockReset();
     mocks.clipboardWrite.mockReset();
     mocks.createObjectURL.mockClear();
@@ -130,6 +133,12 @@ describe("PreviewPane alt-mode toggle", () => {
       width: 64,
       height: 64,
       capped: false,
+    });
+    mocks.exportFullResolutionPng.mockResolvedValue({
+      blob: new Blob([new Uint8Array(4096)], { type: "image/png" }),
+      width: 64,
+      height: 64,
+      tiled: true,
     });
     vi.stubGlobal("ClipboardItem", ClipboardItemMock);
     vi.stubGlobal("URL", {
@@ -500,9 +509,7 @@ describe("PreviewPane alt-mode toggle", () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
     const formatInput = host.querySelector<HTMLInputElement>("#export-format");
-    const formatSwitch = host.querySelector<HTMLButtonElement>(
-      '[data-slot="switch"][aria-label="Use WebP image format"]',
-    );
+    const formatSwitch = host.querySelector<HTMLInputElement>("#export-format");
     expect(formatInput?.checked).toBe(true);
     expect(findButton("Download 2.0 KB")?.disabled).toBe(false);
     const copyWebp = findButton("Copy WebP");
@@ -549,7 +556,7 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(toImageBlob).toHaveBeenCalledTimes(2);
     await act(async () => root.unmount());
   });
-  it("preflights an oversized full-resolution render before painting", async () => {
+  it("measures and exports full resolution without repainting the preview", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
       version: 0,
@@ -584,25 +591,27 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.measurePreview).toHaveBeenCalledTimes(1);
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
-    expect(host.textContent).toContain("Large full-resolution render");
-    expect(host.textContent).toContain("5,696×9,664");
-    const proceed = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Proceed with full res",
-    );
-    expect(proceed).toBeTruthy();
-    act(() => {
-      proceed?.click();
-    });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 180));
-    });
-    expect(mocks.measurePreview).toHaveBeenCalledTimes(2);
-    expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
-    expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({
-      pixelsPerTile: 64,
-      maxOutputSize: undefined,
-    });
+    expect(host.textContent).toContain("Full-resolution tiled preview");
+    expect(host.textContent).toContain("5696×9664px");
+    expect(host.textContent).toContain("preparing visible tiles");
     expect(host.textContent).not.toContain("Large full-resolution render");
+    const formatSwitch = host.querySelector<HTMLInputElement>("#export-format");
+    expect(formatSwitch?.disabled).toBe(true);
+    const download = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Download full-res PNG",
+    );
+    expect(download?.disabled).toBe(false);
+    await act(async () => {
+      download?.click();
+      await Promise.resolve();
+    });
+    expect(mocks.exportFullResolutionPng).toHaveBeenCalledTimes(1);
+    expect(mocks.exportFullResolutionPng.mock.calls[0]?.[1]).toMatchObject({
+      pixelsPerTile: 64,
+      padTiles: 1,
+      signal: expect.any(AbortSignal),
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     await act(async () => root.unmount());
   });
 });

@@ -15,7 +15,9 @@ import {
   type RenderWorkerResponse,
   type WorkerPlanOptions,
   type WorkerRenderOptions,
+  type WorkerTiledPreviewOptions,
 } from "./render-worker-protocol";
+import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 import type { PlanDiagnostics } from "@/process/plan-diagnostics";
 export interface PreviewRenderResult {
   width: number;
@@ -48,6 +50,26 @@ interface PendingExport {
   resolve(blob: Blob): void;
   reject(error: Error): void;
 }
+interface PendingFullExport {
+  kind: "full-export";
+  resolve(result: FullResolutionPngResult): void;
+  reject(error: Error): void;
+  cleanup(): void;
+  onProgress?: (progress: PreviewRenderProgress) => void;
+}
+interface PendingTiledPreview {
+  kind: "tiled-preview";
+  sessionId: string;
+  resolve(session: TiledPreviewSession): void;
+  reject(error: Error): void;
+}
+interface PendingPreviewTile {
+  kind: "preview-tile";
+  sessionId: string;
+  resolve(result: PreviewTileResult): void;
+  reject(error: Error): void;
+  cleanup(): void;
+}
 interface PendingMeasure {
   kind: "measure";
   resolve(measurement: RenderMeasurement): void;
@@ -58,7 +80,43 @@ interface PendingPlan {
   resolve(result: PreviewPlanResult): void;
   reject(error: Error): void;
 }
-type PendingRequest = PendingRender | PendingExport | PendingMeasure | PendingPlan;
+type PendingRequest =
+  | PendingRender
+  | PendingExport
+  | PendingFullExport
+  | PendingTiledPreview
+  | PendingPreviewTile
+  | PendingMeasure
+  | PendingPlan;
+
+export interface FullResolutionPngResult {
+  blob: Blob;
+  width: number;
+  height: number;
+  tiled: boolean;
+}
+
+export type FullResolutionPngOptions = WorkerRenderOptions & {
+  signal?: AbortSignal;
+  onProgress?: (progress: PreviewRenderProgress) => void;
+};
+export interface PreviewTileResult {
+  bitmap: ImageBitmap;
+  tileFrame: TileFrame;
+  pixelsPerTile: PreviewTilePixelsPerTile;
+  width: number;
+  height: number;
+}
+export interface TiledPreviewSession {
+  readonly sessionId: string;
+  readonly measurement: RenderMeasurement;
+  renderTile(
+    tileFrame: TileFrame,
+    pixelsPerTile: PreviewTilePixelsPerTile,
+    signal?: AbortSignal,
+  ): Promise<PreviewTileResult>;
+  close(): void;
+}
 const abortError = (): DOMException => {
   return new DOMException("The render was aborted", "AbortError");
 };
@@ -148,6 +206,64 @@ export class PreviewRenderWorkerClient {
   async plan(blueprint: Blueprint, options: WorkerPlanOptions): Promise<DrawList> {
     return (await this.planWithDiagnostics(blueprint, options)).drawList;
   }
+  async exportFullResolutionPng(
+    doc: BlueprintDocument,
+    options: FullResolutionPngOptions,
+  ): Promise<FullResolutionPngResult> {
+    options.onProgress?.({ value: 2, label: "Starting export worker" });
+    await this.waitUntilReady(options.signal);
+    const requestId = this.nextRequestId++;
+    const signal = options.signal;
+    return new Promise<FullResolutionPngResult>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(abortError());
+        return;
+      }
+      const onAbort = () => {
+        this.pending.delete(requestId);
+        this.worker.postMessage({ type: "cancelTask", requestId } satisfies RenderWorkerRequest);
+        reject(abortError());
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      const { signal: _signal, onProgress: _onProgress, ...workerOptions } = options;
+      this.pending.set(requestId, {
+        kind: "full-export",
+        resolve,
+        reject,
+        cleanup: () => signal?.removeEventListener("abort", onAbort),
+        onProgress: options.onProgress,
+      });
+      this.worker.postMessage({
+        type: "exportFullPng",
+        requestId,
+        doc,
+        options: workerOptions,
+      } satisfies RenderWorkerRequest);
+    });
+  }
+  async openTiledPreview(
+    doc: BlueprintDocument,
+    options: WorkerTiledPreviewOptions,
+  ): Promise<TiledPreviewSession> {
+    await this.waitUntilReady();
+    const requestId = this.nextRequestId++;
+    const sessionId = `tiles-${this.nextSurfaceId++}`;
+    return new Promise<TiledPreviewSession>((resolve, reject) => {
+      this.pending.set(requestId, {
+        kind: "tiled-preview",
+        sessionId,
+        resolve,
+        reject,
+      });
+      this.worker.postMessage({
+        type: "openTiledPreview",
+        requestId,
+        sessionId,
+        doc,
+        options,
+      } satisfies RenderWorkerRequest);
+    });
+  }
   async planWithDiagnostics(
     blueprint: Blueprint,
     options: WorkerPlanOptions,
@@ -166,6 +282,43 @@ export class PreviewRenderWorkerClient {
     const request: RenderWorkerRequest = { type: "clear", surfaceId };
     this.worker.postMessage(request);
     return true;
+  }
+  private renderPreviewTile(
+    sessionId: string,
+    tileFrame: TileFrame,
+    pixelsPerTile: PreviewTilePixelsPerTile,
+    signal?: AbortSignal,
+  ): Promise<PreviewTileResult> {
+    const requestId = this.nextRequestId++;
+    return new Promise<PreviewTileResult>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(abortError());
+        return;
+      }
+      const onAbort = () => {
+        this.pending.delete(requestId);
+        this.worker.postMessage({ type: "cancelTask", requestId } satisfies RenderWorkerRequest);
+        reject(abortError());
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.pending.set(requestId, {
+        kind: "preview-tile",
+        sessionId,
+        resolve,
+        reject,
+        cleanup: () => signal?.removeEventListener("abort", onAbort),
+      });
+      this.worker.postMessage({
+        type: "renderPreviewTile",
+        requestId,
+        sessionId,
+        tileFrame,
+        pixelsPerTile,
+      } satisfies RenderWorkerRequest);
+    });
+  }
+  private closeTiledPreview(sessionId: string): void {
+    this.worker.postMessage({ type: "closeTiledPreview", sessionId } satisfies RenderWorkerRequest);
   }
   private export(surfaceId: string, renderId: number, options: RenderImageOptions): Promise<Blob> {
     const requestId = this.nextRequestId++;
@@ -187,14 +340,24 @@ export class PreviewRenderWorkerClient {
       return;
     }
     const pending = this.pending.get(response.requestId);
-    if (!pending) return;
+    if (!pending) {
+      if (response.type === "previewTileRendered") response.bitmap.close();
+      return;
+    }
     if (response.type === "progress") {
       if (pending.kind === "render") pending.onProgress?.(response.progress);
+      if (pending.kind === "full-export") pending.onProgress?.(response.progress);
       return;
     }
     this.pending.delete(response.requestId);
     if (response.type === "error") {
-      if (pending.kind === "render") pending.cleanup();
+      if (
+        pending.kind === "render" ||
+        pending.kind === "full-export" ||
+        pending.kind === "preview-tile"
+      ) {
+        pending.cleanup();
+      }
       const error = new Error(response.message);
       error.name = response.name;
       pending.reject(error);
@@ -202,6 +365,43 @@ export class PreviewRenderWorkerClient {
     }
     if (response.type === "exported") {
       if (pending.kind === "export") pending.resolve(response.blob);
+      if (pending.kind === "full-export") {
+        pending.cleanup();
+        pending.resolve({
+          blob: response.blob,
+          width: response.width ?? 0,
+          height: response.height ?? 0,
+          tiled: response.tiled === true,
+        });
+      }
+      return;
+    }
+    if (response.type === "tiledPreviewReady") {
+      if (pending.kind === "tiled-preview") {
+        const sessionId = pending.sessionId;
+        pending.resolve({
+          sessionId,
+          measurement: response.measurement,
+          renderTile: (tileFrame, pixelsPerTile, signal) =>
+            this.renderPreviewTile(sessionId, tileFrame, pixelsPerTile, signal),
+          close: () => this.closeTiledPreview(sessionId),
+        });
+      }
+      return;
+    }
+    if (response.type === "previewTileRendered") {
+      if (pending.kind === "preview-tile") {
+        pending.cleanup();
+        pending.resolve({
+          bitmap: response.bitmap,
+          tileFrame: response.tileFrame,
+          pixelsPerTile: response.pixelsPerTile,
+          width: response.width,
+          height: response.height,
+        });
+      } else {
+        response.bitmap.close();
+      }
       return;
     }
     if (response.type === "measured") {
@@ -260,7 +460,13 @@ export class PreviewRenderWorkerClient {
     if (!this.failure) this.failure = error;
     this.rejectReady(this.failure);
     for (const request of this.pending.values()) {
-      if (request.kind === "render") request.cleanup();
+      if (
+        request.kind === "render" ||
+        request.kind === "full-export" ||
+        request.kind === "preview-tile"
+      ) {
+        request.cleanup();
+      }
       request.reject(this.failure);
     }
     this.pending.clear();
@@ -312,6 +518,24 @@ export const planPreviewWithDiagnostics = async (
     throw new Error("Preview planning requires a browser with Web Workers support.");
   }
   return getWorkerClient().planWithDiagnostics(blueprint, options);
+};
+export const exportFullResolutionPng = async (
+  doc: BlueprintDocument,
+  options: FullResolutionPngOptions,
+): Promise<FullResolutionPngResult> => {
+  if (typeof Worker === "undefined") {
+    throw new Error("Full-resolution export requires a browser with Web Workers support.");
+  }
+  return getWorkerClient().exportFullResolutionPng(doc, options);
+};
+export const openTiledPreview = async (
+  doc: BlueprintDocument,
+  options: WorkerTiledPreviewOptions,
+): Promise<TiledPreviewSession> => {
+  if (typeof Worker === "undefined") {
+    throw new Error("Tiled preview requires a browser with Web Workers support.");
+  }
+  return getWorkerClient().openTiledPreview(doc, options);
 };
 export const clearPreview = (canvas: HTMLCanvasElement): void => {
   if (workerClient?.clear(canvas)) return;

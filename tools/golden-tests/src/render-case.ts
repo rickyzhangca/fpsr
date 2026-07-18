@@ -1,10 +1,16 @@
-import { type CanvasLike, createRenderer, decode } from "fpsr";
+import { type CanvasLike, createRenderer, decode, type RenderOptions } from "fpsr";
 import { localAssets } from "fpsr/node";
 import { readFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
 import { type GoldenCase, bpPath } from "./cases.js";
 
-export async function renderCase(c: GoldenCase, assetsDir: string): Promise<Buffer> {
+type SeamRenderOptions = Pick<RenderOptions, "showCheckerboard" | "showCoordinates" | "showSpace">;
+
+export async function renderCase(
+  c: GoldenCase,
+  assetsDir: string,
+  options: SeamRenderOptions = {},
+): Promise<Buffer> {
   const source = await readFile(bpPath(c), "utf8");
   const doc = decode(source.trim());
   const renderer = await createRenderer({
@@ -17,7 +23,31 @@ export async function renderCase(c: GoldenCase, assetsDir: string): Promise<Buff
     altMode: c.alt ?? true,
     showCheckerboard: false,
     background: null,
+    ...options,
   });
 
   return Buffer.from(await result.toPngBuffer());
+}
+
+export async function renderTiledCase(
+  c: GoldenCase,
+  assetsDir: string,
+  options: SeamRenderOptions = {},
+): Promise<Buffer> {
+  const source = await readFile(bpPath(c), "utf8");
+  const doc = decode(source.trim());
+  const renderer = await createRenderer({
+    assets: localAssets(assetsDir),
+    createCanvas: (width, height) => new Canvas(width, height) as unknown as CanvasLike,
+  });
+  const result = await renderer.renderTiledPng(doc, {
+    pixelsPerTile: c.ppt,
+    altMode: c.alt ?? true,
+    showCheckerboard: false,
+    background: null,
+    tileSize: 256,
+    maxStripeBytes: 256 * 256 * 4,
+    ...options,
+  });
+  return Buffer.from(await result.blob.arrayBuffer());
 }

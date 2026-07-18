@@ -41,6 +41,32 @@ document.body.appendChild(canvas as HTMLCanvasElement);
 canvas from blueprint bounds, and paints atlas sprites. Pass `blueprintPath` when
 rendering a nested blueprint book entry.
 
+### Large PNG export
+
+For full-resolution images that may exceed browser canvas limits, use the tiled
+PNG exporter. It renders bounded temporary canvases and feeds their rows into an
+incremental PNG encoder, so it never creates one canvas at the final dimensions:
+
+```ts
+const { blob, width, height } = await renderer.renderTiledPng(doc, {
+  pixelsPerTile: 64,
+  tileSize: 2048,
+  onProgress(event) {
+    console.log(event);
+  },
+});
+
+const link = document.createElement("a");
+link.href = URL.createObjectURL(blob);
+link.download = `blueprint-${width}x${height}.png`;
+link.click();
+URL.revokeObjectURL(link.href);
+```
+
+The exporter always produces lossless PNG. Canvas-based WebP export remains
+available through `render(...).toImageBlob({ type: "image/webp" })` for outputs
+that fit safely in one canvas.
+
 ## Quick start (Node.js)
 
 ```ts
@@ -194,7 +220,9 @@ order for reviewable text diffs.
 | `CanvasLike`               | type     | Canvas / OffscreenCanvas / skia-canvas surface                                              |
 | `RenderOptions`            | type     | Per-render overrides (`blueprintPath`, `altMode`, `showCheckerboard`, `showCoordinates`, …) |
 | `RenderResult`             | type     | `{ canvas, width, height, drawList, toPngBlob, toPngBuffer }`                               |
-| `Renderer`                 | type     | `{ render(docOrBp, opts?) }`                                                                |
+| `TiledPngOptions`          | type     | Full-resolution PNG options including temporary tile and stripe limits                      |
+| `TiledPngResult`           | type     | `{ blob, width, height, tileFrame, tiled: true }`                                           |
+| `Renderer`                 | type     | `{ measure, render, renderTiledPng }`                                                       |
 
 ### Draw-list types
 

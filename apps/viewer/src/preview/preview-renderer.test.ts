@@ -191,6 +191,137 @@ describe("PreviewRenderWorkerClient", () => {
       surfaceId: renderRequest.surfaceId,
     });
   });
+  it("exports a cancellable full-resolution tiled PNG without attaching a canvas", async () => {
+    const worker = new FakeWorker();
+    const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
+    await flushReady(worker);
+    const onProgress = vi.fn<(progress: { value: number; label: string }) => void>();
+    const pending = client.exportFullResolutionPng(doc, {
+      pixelsPerTile: 64,
+      onProgress,
+    });
+    await vi.waitFor(() => {
+      expect(worker.posts.at(-1)?.message.type).toBe("exportFullPng");
+    });
+    const request = worker.posts.at(-1)?.message;
+    if (request?.type !== "exportFullPng") throw new Error("expected full PNG export request");
+    expect(request.options).not.toHaveProperty("onProgress");
+    expect(worker.posts.some((post) => post.message.type === "attach")).toBe(false);
+    worker.respond({
+      type: "progress",
+      requestId: request.requestId,
+      progress: { value: 51, label: "Rendering tiles 3/6" },
+    });
+    expect(onProgress).toHaveBeenLastCalledWith({ value: 51, label: "Rendering tiles 3/6" });
+    const blob = new Blob(["png"], { type: "image/png" });
+    worker.respond({
+      type: "exported",
+      requestId: request.requestId,
+      blob,
+      width: 20_000,
+      height: 12_000,
+      tiled: true,
+    });
+    await expect(pending).resolves.toEqual({
+      blob,
+      width: 20_000,
+      height: 12_000,
+      tiled: true,
+    });
+
+    const controller = new AbortController();
+    const postsBeforeCancel = worker.posts.length;
+    const cancelled = client.exportFullResolutionPng(doc, { signal: controller.signal });
+    await vi.waitFor(() => {
+      expect(worker.posts.length).toBeGreaterThan(postsBeforeCancel);
+    });
+    const cancelRequest = worker.posts.at(-1)?.message;
+    if (cancelRequest?.type !== "exportFullPng") throw new Error("expected export request");
+    controller.abort();
+    await expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
+    expect(worker.posts.at(-1)?.message).toEqual({
+      type: "cancelTask",
+      requestId: cancelRequest.requestId,
+    });
+  });
+  it("opens a reusable tiled-preview session and transfers cancellable image tiles", async () => {
+    const worker = new FakeWorker();
+    const client = new PreviewRenderWorkerClient(worker as unknown as Worker);
+    await flushReady(worker);
+    const sessionPending = client.openTiledPreview(doc, { altMode: true, padTiles: 1 });
+    await vi.waitFor(() => {
+      expect(worker.posts.at(-1)?.message.type).toBe("openTiledPreview");
+    });
+    const openRequest = worker.posts.at(-1)?.message;
+    if (openRequest?.type !== "openTiledPreview") throw new Error("expected open request");
+    const measurement = {
+      tileFrame: { minX: 0, minY: 0, maxX: 32, maxY: 16 },
+      requestedPixelsPerTile: 64,
+      pixelsPerTile: 64,
+      requestedWidth: 2048,
+      requestedHeight: 1024,
+      width: 2048,
+      height: 1024,
+      capped: false,
+    };
+    worker.respond({
+      type: "tiledPreviewReady",
+      requestId: openRequest.requestId,
+      sessionId: openRequest.sessionId,
+      measurement,
+    });
+    const session = await sessionPending;
+    expect(session.measurement).toEqual(measurement);
+
+    const tileFrame = { minX: 0, minY: 0, maxX: 16, maxY: 16 };
+    const tilePending = session.renderTile(tileFrame, 32);
+    const tileRequest = worker.posts.at(-1)?.message;
+    if (tileRequest?.type !== "renderPreviewTile") throw new Error("expected tile request");
+    expect(tileRequest).toMatchObject({
+      sessionId: openRequest.sessionId,
+      tileFrame,
+      pixelsPerTile: 32,
+    });
+    const closeBitmap = vi.fn<() => void>();
+    const bitmap = { close: closeBitmap } as unknown as ImageBitmap;
+    worker.respond({
+      type: "previewTileRendered",
+      requestId: tileRequest.requestId,
+      sessionId: openRequest.sessionId,
+      bitmap,
+      tileFrame,
+      pixelsPerTile: 32,
+      width: 512,
+      height: 512,
+    });
+    await expect(tilePending).resolves.toEqual({
+      bitmap,
+      tileFrame,
+      pixelsPerTile: 32,
+      width: 512,
+      height: 512,
+    });
+    expect(closeBitmap).not.toHaveBeenCalled();
+
+    const controller = new AbortController();
+    const cancelled = session.renderTile(tileFrame, 64, controller.signal);
+    const cancelledRequest = worker.posts.at(-1)?.message;
+    if (cancelledRequest?.type !== "renderPreviewTile") {
+      throw new Error("expected cancellable tile request");
+    }
+    controller.abort();
+    await expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
+    expect(worker.posts.at(-1)?.message).toEqual({
+      type: "cancelTask",
+      requestId: cancelledRequest.requestId,
+    });
+
+    session.close();
+    expect(worker.posts.at(-1)?.message).toEqual({
+      type: "closeTiledPreview",
+      sessionId: openRequest.sessionId,
+    });
+  });
   it("does not transfer a canvas when the worker fails before its ready handshake", async () => {
     const worker = new FakeWorker();
     const client = new PreviewRenderWorkerClient(worker as unknown as Worker);

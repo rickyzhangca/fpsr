@@ -56,6 +56,13 @@ export interface DrawSpaceBackgroundOptions {
   planet?: SpacePlanetDecoration;
   /** Stable salt; selected planets use different skies while rerenders remain reproducible. */
   seed?: number;
+  /** Full output dimensions and this viewport's offset within it (for tiled rendering). */
+  viewport?: {
+    x: number;
+    y: number;
+    fullWidth: number;
+    fullHeight: number;
+  };
 }
 
 /**
@@ -67,14 +74,20 @@ export function drawSpacePlanet(
   width: number,
   height: number,
   planet: SpacePlanetDecoration,
+  viewport?: DrawSpaceBackgroundOptions["viewport"],
 ): void {
   if (width <= 0 || height <= 0) return;
   const { frame, image } = planet;
   if (frame.sw <= 0 || frame.sh <= 0 || frame.w <= 0 || frame.h <= 0) return;
 
-  const radius = Math.max(PLANET_MIN_RADIUS_PX, PLANET_RADIUS_FRACTION * Math.min(width, height));
-  const cx = width / 2 + PLANET_OFFSET_X_OVER_RADIUS * radius;
-  const cy = height / 2 + PLANET_OFFSET_Y_OVER_RADIUS * radius;
+  const fullWidth = viewport?.fullWidth ?? width;
+  const fullHeight = viewport?.fullHeight ?? height;
+  const radius = Math.max(
+    PLANET_MIN_RADIUS_PX,
+    PLANET_RADIUS_FRACTION * Math.min(fullWidth, fullHeight),
+  );
+  const cx = fullWidth / 2 + PLANET_OFFSET_X_OVER_RADIUS * radius - (viewport?.x ?? 0);
+  const cy = fullHeight / 2 + PLANET_OFFSET_Y_OVER_RADIUS * radius - (viewport?.y ?? 0);
   const logicalSize = radius * 2;
   const scale = logicalSize / Math.max(frame.sw, frame.sh);
 
@@ -129,12 +142,14 @@ function drawStar(
   color: string,
   sparkle: boolean,
 ): void {
-  const clippedWidth = Math.min(size, width - x);
-  const clippedHeight = Math.min(size, height - y);
+  const left = Math.max(0, x);
+  const top = Math.max(0, y);
+  const clippedWidth = Math.min(width, x + size) - left;
+  const clippedHeight = Math.min(height, y + size) - top;
   if (clippedWidth <= 0 || clippedHeight <= 0) return;
   ctx.fillStyle = color;
-  ctx.fillRect(x, y, clippedWidth, clippedHeight);
-  if (!sparkle || x <= 0 || y <= 0 || x + 2 >= width || y + 2 >= height) return;
+  ctx.fillRect(left, top, clippedWidth, clippedHeight);
+  if (!sparkle) return;
   ctx.fillRect(x - 1, y, 4, 1);
   ctx.fillRect(x, y - 1, 1, 4);
 }
@@ -151,17 +166,21 @@ export function drawSpaceBackground(
   ctx.fillRect(0, 0, width, height);
 
   const seed = options?.seed == null ? DEFAULT_STAR_SEED : options.seed >>> 0;
+  const viewportX = options?.viewport?.x ?? 0;
+  const viewportY = options?.viewport?.y ?? 0;
   for (const layer of STAR_LAYERS) {
-    const columns = Math.ceil(width / layer.cellSize);
-    const rows = Math.ceil(height / layer.cellSize);
+    const firstCellX = Math.max(0, Math.floor(viewportX / layer.cellSize) - 1);
+    const firstCellY = Math.max(0, Math.floor(viewportY / layer.cellSize) - 1);
+    const lastCellX = Math.ceil((viewportX + width) / layer.cellSize);
+    const lastCellY = Math.ceil((viewportY + height) / layer.cellSize);
     const layerSeed = seed ^ Math.imul(layer.salt, 0x9e37_79b1);
-    for (let cellY = 0; cellY < rows; cellY++) {
-      for (let cellX = 0; cellX < columns; cellX++) {
+    for (let cellY = firstCellY; cellY < lastCellY; cellY++) {
+      for (let cellX = firstCellX; cellX < lastCellX; cellX++) {
         const xUnit = cellHash(cellX, cellY, layerSeed ^ 2);
         const yUnit = cellHash(cellX, cellY, layerSeed ^ 3);
-        const x = cellX * layer.cellSize + Math.floor(xUnit * layer.cellSize);
-        const y = cellY * layer.cellSize + Math.floor(yUnit * layer.cellSize);
-        const density = starDensity(x, y, seed);
+        const globalX = cellX * layer.cellSize + Math.floor(xUnit * layer.cellSize);
+        const globalY = cellY * layer.cellSize + Math.floor(yUnit * layer.cellSize);
+        const density = starDensity(globalX, globalY, seed);
         if (cellHash(cellX, cellY, layerSeed ^ 1) > layer.occupancy * density) continue;
 
         const brightness = lerp(
@@ -175,10 +194,19 @@ export function drawSpaceBackground(
         const blue = Math.round(Math.min(1, brightness * (1 - warmth * 0.16)) * 255);
         const size = cellHash(cellX, cellY, layerSeed ^ 6) < layer.largeChance ? 2 : 1;
         const sparkle = size === 2 && cellHash(cellX, cellY, layerSeed ^ 7) > 0.86;
-        drawStar(ctx, width, height, x, y, size, `rgb(${red},${green},${blue})`, sparkle);
+        drawStar(
+          ctx,
+          width,
+          height,
+          globalX - viewportX,
+          globalY - viewportY,
+          size,
+          `rgb(${red},${green},${blue})`,
+          sparkle,
+        );
       }
     }
   }
 
-  if (options?.planet) drawSpacePlanet(ctx, width, height, options.planet);
+  if (options?.planet) drawSpacePlanet(ctx, width, height, options.planet, options.viewport);
 }
