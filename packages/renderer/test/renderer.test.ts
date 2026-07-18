@@ -3,9 +3,23 @@ import type { AssetSource } from "../src/assets.js";
 import type { Canvas2DContextLike } from "../src/canvas2d.js";
 import * as canvas2d from "../src/canvas2d.js";
 import type { CanvasLike, RenderProgressEvent } from "../src/renderer.js";
-import { createRenderer, measureTileFrame } from "../src/renderer.js";
+import { createRenderer, measureTileFrame, resolveSpacePlanetFrameId } from "../src/renderer.js";
 import type { Blueprint, BlueprintDocument } from "../src/types/blueprint.js";
 import { makeMiniDb } from "./fixtures/mini-db.js";
+
+describe("resolveSpacePlanetFrameId", () => {
+  it("returns the named planet frame when present", () => {
+    const spaceBackground = {
+      planetFrame: 0,
+      planets: { nauvis: 0, vulcanus: 2 },
+    };
+    expect(resolveSpacePlanetFrameId(spaceBackground)).toBe(0);
+    expect(resolveSpacePlanetFrameId(spaceBackground, "nauvis")).toBe(0);
+    expect(resolveSpacePlanetFrameId(spaceBackground, "vulcanus")).toBe(2);
+    expect(resolveSpacePlanetFrameId(spaceBackground, "missing")).toBe(0);
+    expect(resolveSpacePlanetFrameId(undefined, "nauvis")).toBeUndefined();
+  });
+});
 
 function stubCtx(): Canvas2DContextLike {
   return {
@@ -333,6 +347,252 @@ describe("createRenderer", () => {
       expect.objectContaining({ showCheckerboard: true }),
     );
     spy.mockRestore();
+  });
+
+  it("resolves showBackgroundAuto to checkerboard for normal blueprints", async () => {
+    const spy = vi.spyOn(canvas2d, "executeDrawList");
+    const renderer = await createRenderer({
+      assets,
+      renderDb: db,
+      createCanvas: () => stubCanvas(),
+    });
+
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 2 * 2 ** 48,
+      entities: [
+        {
+          entity_number: 1,
+          name: "wooden-chest",
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    };
+
+    await renderer.render(bp, { pixelsPerTile: 32, showBackgroundAuto: true });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        showCheckerboard: true,
+        showSpace: false,
+        terrainBackground: undefined,
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("resolves showBackgroundAuto to space for space-platform blueprints", async () => {
+    const spy = vi.spyOn(canvas2d, "executeDrawList");
+    const renderer = await createRenderer({
+      assets,
+      renderDb: db,
+      createCanvas: () => stubCanvas(),
+    });
+
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 2 * 2 ** 48,
+      entities: [
+        {
+          entity_number: 1,
+          name: "space-platform-hub",
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+      tiles: [{ name: "space-platform-foundation", position: { x: 0, y: 0 } }],
+    };
+
+    await renderer.render(bp, { pixelsPerTile: 32, showBackgroundAuto: true });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        showCheckerboard: false,
+        showSpace: true,
+        terrainBackground: undefined,
+        spaceBackground: undefined,
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("forwards showSpace to executeDrawList", async () => {
+    const spy = vi.spyOn(canvas2d, "executeDrawList");
+    const renderer = await createRenderer({
+      assets,
+      renderDb: db,
+      createCanvas: () => stubCanvas(),
+    });
+
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 2 * 2 ** 48,
+      entities: [
+        {
+          entity_number: 1,
+          name: "wooden-chest",
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    };
+
+    await renderer.render(bp, { pixelsPerTile: 32, showSpace: true });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        showSpace: true,
+        spaceBackground: undefined,
+      }),
+    );
+
+    await renderer.render(bp, {
+      pixelsPerTile: 32,
+      showSpace: true,
+      showSpacePlanet: true,
+    });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        showSpace: true,
+        spaceBackground: expect.objectContaining({
+          planetFrame: db.spaceBackground?.planetFrame,
+          planets: db.spaceBackground?.planets,
+        }),
+      }),
+    );
+
+    await renderer.render(bp, {
+      pixelsPerTile: 32,
+      showSpace: true,
+      showSpacePlanet: true,
+      spacePlanet: "vulcanus",
+    });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        showSpace: true,
+        spaceBackground: expect.objectContaining({
+          planetFrame: db.spaceBackground?.planets?.vulcanus,
+        }),
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("forwards terrainBackground to executeDrawList", async () => {
+    const spy = vi.spyOn(canvas2d, "executeDrawList");
+    const renderer = await createRenderer({
+      assets,
+      renderDb: db,
+      createCanvas: () => stubCanvas(),
+    });
+
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 2 * 2 ** 48,
+      entities: [
+        {
+          entity_number: 1,
+          name: "wooden-chest",
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    };
+
+    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "dirt" });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        terrainBackground: db.terrainBackgrounds?.dirt,
+      }),
+    );
+
+    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "water" });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        terrainBackground: db.terrainBackgrounds?.water,
+      }),
+    );
+
+    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "vulcanus" });
+    expect(spy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        terrainBackground: db.terrainBackgrounds?.vulcanus,
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("loads only the selected terrain mode's atlas pages", async () => {
+    const terrainDb = structuredClone(makeMiniDb());
+    terrainDb.atlases.push(
+      { file: "atlas-dirt.png", width: 256, height: 256 },
+      { file: "atlas-water.png", width: 256, height: 256 },
+    );
+    const dirtFrame =
+      terrainDb.frames.push({
+        a: 1,
+        x: 0,
+        y: 0,
+        w: 256,
+        h: 256,
+        ox: 0,
+        oy: 0,
+        sw: 256,
+        sh: 256,
+      }) - 1;
+    const waterFrame =
+      terrainDb.frames.push({
+        a: 2,
+        x: 0,
+        y: 0,
+        w: 256,
+        h: 256,
+        ox: 0,
+        oy: 0,
+        sw: 256,
+        sh: 256,
+      }) - 1;
+    terrainDb.terrainBackgrounds = {
+      dirt: { patchSize: 4, frames: [dirtFrame], color: [0.5, 0.4, 0.3, 1] },
+      water: { patchSize: 4, frames: [waterFrame], color: [0.2, 0.3, 0.4, 1] },
+    };
+    const loadAtlasImage = vi.fn<AssetSource["loadAtlasImage"]>(async (index) => {
+      return { id: `atlas-${index}` } as unknown as CanvasImageSource;
+    });
+    const renderer = await createRenderer({
+      assets: { ...assets, loadAtlasImage },
+      renderDb: terrainDb,
+      createCanvas: () => stubCanvas(),
+    });
+    const bp: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    };
+
+    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "dirt" });
+    expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1]);
+
+    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "water" });
+    expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1, 2]);
   });
 
   it("renders directly into a supplied destination canvas", async () => {

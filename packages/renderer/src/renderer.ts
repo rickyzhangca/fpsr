@@ -21,9 +21,10 @@ import {
   type PlanProfile,
   type RenderProfile,
 } from "./profile.js";
+import { blueprintPrefersPlatformGraphics } from "./resolve.js";
 import type { Blueprint, BlueprintDocument } from "./types/blueprint.js";
 import type { DrawList } from "./types/draw-list.js";
-import type { RenderDb } from "./types/render-db.js";
+import type { RenderDb, SpaceBackground, TerrainPatchBackground } from "./types/render-db.js";
 
 export interface CanvasLike {
   width: number;
@@ -88,8 +89,27 @@ export interface RenderOptions {
   altMode?: boolean;
   background?: [number, number, number, number] | null;
   padTiles?: number;
+  /**
+   * When true, pick checkerboard vs space from the blueprint (space platform → space).
+   * Overrides the other `show*` background flags.
+   */
+  showBackgroundAuto?: boolean;
   /** Draw tile-aligned checkerboard behind commands (replaces solid background). */
   showCheckerboard?: boolean;
+  /** Draw a procedural space starfield behind commands (replaces solid/checkerboard). */
+  showSpace?: boolean;
+  /**
+   * When `showSpace` is set, also draw the render-db space-platform planet
+   * (e.g. Nauvis) in the bottom-left. Starfield-only when omitted/false.
+   */
+  showSpacePlanet?: boolean;
+  /**
+   * Factorio planet prototype name selecting which starmap frame to draw when
+   * `showSpacePlanet` is set. Falls back to `spaceBackground.planetFrame`.
+   */
+  spacePlanet?: string;
+  /** Named entry from `RenderDb.terrainBackgrounds` (e.g. "dirt", "vulcanus"). */
+  terrainBackground?: string;
   /** Draw tile grid lines and map-space coordinate labels. */
   showCoordinates?: boolean;
   /** Reuse an existing canvas instead of creating one. */
@@ -174,6 +194,19 @@ function isBlueprint(value: BlueprintDocument | Blueprint): value is Blueprint {
   return (value as Blueprint).item === "blueprint";
 }
 
+/** Resolve Auto background into concrete checkerboard / space flags. */
+function resolveBackgroundOpts(bp: Blueprint, opts: RenderOptions): RenderOptions {
+  if (!opts.showBackgroundAuto) return opts;
+  const useSpace = blueprintPrefersPlatformGraphics(bp);
+  return {
+    ...opts,
+    showCheckerboard: !useSpace,
+    showSpace: useSpace,
+    showSpacePlanet: false,
+    terrainBackground: undefined,
+  };
+}
+
 function defaultCreateCanvas(width: number, height: number): CanvasLike {
   if (typeof OffscreenCanvas !== "undefined") {
     return new OffscreenCanvas(width, height) as unknown as CanvasLike;
@@ -237,7 +270,12 @@ async function encodeCanvasBuffer(
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-function collectAtlasIndices(list: DrawList, db: RenderDb): number[] {
+function collectAtlasIndices(
+  list: DrawList,
+  db: RenderDb,
+  terrainBackground?: TerrainPatchBackground,
+  spacePlanetFrameId?: number,
+): number[] {
   const set = new Set<number>();
   for (const cmd of list.commands) {
     if (cmd.kind === "sprite" || cmd.kind === "icon") {
@@ -249,7 +287,44 @@ function collectAtlasIndices(list: DrawList, db: RenderDb): number[] {
       }
     }
   }
+  for (const frameId of terrainBackground?.frames ?? []) {
+    const frame = db.frames[frameId];
+    if (frame) set.add(frame.a);
+  }
+  if (spacePlanetFrameId != null) {
+    const frame = db.frames[spacePlanetFrameId];
+    if (frame) set.add(frame.a);
+  }
   return [...set].sort((a, b) => a - b);
+}
+
+function selectTerrainBackground(
+  db: RenderDb,
+  opts: RenderOptions,
+): TerrainPatchBackground | undefined {
+  if (opts.showSpace) return undefined;
+  if (opts.terrainBackground == null) return undefined;
+  return db.terrainBackgrounds?.[opts.terrainBackground];
+}
+
+/** Resolve the starmap frame for an optional planet prototype name. */
+export function resolveSpacePlanetFrameId(
+  spaceBackground: SpaceBackground | undefined,
+  spacePlanet?: string,
+): number | undefined {
+  if (!spaceBackground) return undefined;
+  if (spacePlanet != null) {
+    const named = spaceBackground.planets?.[spacePlanet];
+    if (named != null) return named;
+  }
+  return spaceBackground.planetFrame;
+}
+
+function selectSpaceBackground(db: RenderDb, opts: RenderOptions): SpaceBackground | undefined {
+  if (!opts.showSpace || !opts.showSpacePlanet || !db.spaceBackground) return undefined;
+  const planetFrame = resolveSpacePlanetFrameId(db.spaceBackground, opts.spacePlanet);
+  if (planetFrame == null) return undefined;
+  return { ...db.spaceBackground, planetFrame };
 }
 
 function summarizeDrawList(list: DrawList, atlasIndices: number[]): DrawListStats {
@@ -349,26 +424,34 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         ? docOrBlueprint
         : selectBlueprint(docOrBlueprint, opts.blueprintPath);
       const selectMs = wantProfile ? nowMs() - t : 0;
+      const resolvedOpts = resolveBackgroundOpts(bp, opts);
 
-      const requestedPixelsPerTile = opts.pixelsPerTile ?? 64;
-      const padTiles = opts.padTiles ?? 0;
-      const background = opts.background ?? null;
+      const requestedPixelsPerTile = resolvedOpts.pixelsPerTile ?? 64;
+      const padTiles = resolvedOpts.padTiles ?? 0;
+      const background = resolvedOpts.background ?? null;
 
       const planProfile = wantProfile ? emptyPlanProfile() : undefined;
-      reportProgress(opts, { stage: "planning" });
+      reportProgress(resolvedOpts, { stage: "planning" });
       if (wantProfile) perfMark("fpsr-plan-start");
       const drawList = planDrawList(bp, db, {
-        altMode: opts.altMode,
+        altMode: resolvedOpts.altMode,
         background,
         profileOut: planProfile,
       });
-      throwIfAborted(opts.signal);
+      throwIfAborted(resolvedOpts.signal);
       if (wantProfile) {
         perfMark("fpsr-plan-end");
         perfMeasure("fpsr-plan", "fpsr-plan-start", "fpsr-plan-end");
       }
 
-      const atlasIndices = collectAtlasIndices(drawList, db);
+      const terrainBackground = selectTerrainBackground(db, resolvedOpts);
+      const spaceBackground = selectSpaceBackground(db, resolvedOpts);
+      const atlasIndices = collectAtlasIndices(
+        drawList,
+        db,
+        terrainBackground,
+        spaceBackground?.planetFrame,
+      );
       const assetEvents: AssetEvent[] = [];
       let loadedAtlasCount = 0;
       reportProgress(opts, {
@@ -558,8 +641,11 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         padTiles,
         tileFrame,
         background,
-        showCheckerboard: opts.showCheckerboard,
-        showCoordinates: opts.showCoordinates,
+        showCheckerboard: resolvedOpts.showCheckerboard,
+        showSpace: resolvedOpts.showSpace,
+        terrainBackground,
+        spaceBackground,
+        showCoordinates: resolvedOpts.showCoordinates,
         frames: db.frames,
         iconImages,
         silhouetteImages,

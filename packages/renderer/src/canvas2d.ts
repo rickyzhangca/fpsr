@@ -1,6 +1,8 @@
 import { drawTileCheckerboard } from "./checkerboard.js";
 import { drawCoordinateOverlay } from "./coordinate-overlay.js";
 import { entityInfoSilhouettePadPx } from "./icon-silhouette.js";
+import { drawSpaceBackground } from "./space-background.js";
+import { drawTerrainBackground } from "./terrain-background.js";
 import { TRAIN_CHAIN_JOINT_RADIUS } from "./train-chains.js";
 import type {
   DrawList,
@@ -10,7 +12,14 @@ import type {
   TrainChainCmd,
   WireCmd,
 } from "./types/draw-list.js";
-import type { FrameMeta } from "./types/render-db.js";
+import type { FrameMeta, SpaceBackground, TerrainPatchBackground } from "./types/render-db.js";
+
+const TERRAIN_FALLBACK_COLOR: [number, number, number, number] = [
+  141 / 255,
+  104 / 255,
+  60 / 255,
+  1,
+];
 
 function packedWidth(frame: FrameMeta): number {
   return frame.pw ?? frame.w;
@@ -76,6 +85,17 @@ export interface ExecuteDrawListOptions {
   background?: [number, number, number, number] | null;
   /** Draw tile-aligned checkerboard behind commands (replaces solid background). */
   showCheckerboard?: boolean;
+  /** Draw a procedural space starfield behind commands (replaces solid/checkerboard). */
+  showSpace?: boolean;
+  /**
+   * When `showSpace` is set, also draw the render-db space-platform planet
+   * (e.g. Nauvis) in the bottom-left. Starfield-only when omitted/false.
+   */
+  showSpacePlanet?: boolean;
+  /** Selected natural-terrain definition from the render database. */
+  terrainBackground?: TerrainPatchBackground;
+  /** Optional space-platform planet decoration from the render database. */
+  spaceBackground?: SpaceBackground;
   /** Draw tile grid lines and map-space coordinate labels after commands. */
   showCoordinates?: boolean;
   /** Transparent per-frame icon crops used for alpha-safe silhouette filtering. */
@@ -656,7 +676,29 @@ export function executeDrawList(
   // rotated/foreshortened hands into a soft "motion blur" smear.
   ctx.imageSmoothingEnabled = false;
 
-  if (opts.showCheckerboard) {
+  if (opts.showSpace) {
+    const planetFrameId = opts.spaceBackground?.planetFrame;
+    const planetFrame = planetFrameId != null ? opts.frames[planetFrameId] : undefined;
+    const planetImage = planetFrame ? images[planetFrame.a] : undefined;
+    drawSpaceBackground(ctx, width, height, {
+      planet:
+        planetFrame && planetImage
+          ? {
+              frame: planetFrame,
+              image: planetImage,
+            }
+          : undefined,
+    });
+  } else if (opts.terrainBackground) {
+    drawTerrainBackground(ctx, width, height, {
+      tileFrame: frame,
+      pixelsPerTile: ppt,
+      frames: opts.frames,
+      images,
+      background: opts.terrainBackground,
+      fallbackColor: opts.terrainBackground.color ?? TERRAIN_FALLBACK_COLOR,
+    });
+  } else if (opts.showCheckerboard) {
     drawTileCheckerboard(ctx, width, height, ppt);
   } else if (opts.background) {
     ctx.fillStyle = rgba(opts.background);

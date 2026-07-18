@@ -566,6 +566,43 @@ export function makeMiniDb(): RenderDb {
         },
       },
     },
+    terrainBackgrounds: {
+      dirt: {
+        patchSize: 4,
+        frames: [0],
+        weights: [1],
+        color: [141 / 255, 104 / 255, 60 / 255, 1],
+      },
+      water: {
+        patchSize: 4,
+        frames: [0],
+        color: [51 / 255, 83 / 255, 95 / 255, 1],
+      },
+      vulcanus: {
+        patchSize: 4,
+        frames: [0],
+        color: [35 / 255, 38 / 255, 30 / 255, 1],
+      },
+      gleba: {
+        patchSize: 4,
+        frames: [0],
+        color: [52 / 255, 55 / 255, 48 / 255, 1],
+      },
+      fulgora: {
+        patchSize: 8,
+        frames: [0],
+        color: [112 / 255, 65 / 255, 50 / 255, 1],
+      },
+      aquilo: {
+        patchSize: 4,
+        frames: [0],
+        color: [220 / 255, 230 / 255, 240 / 255, 1],
+      },
+    },
+    spaceBackground: {
+      planetFrame: 0,
+      planets: { nauvis: 0, vulcanus: 2 },
+    },
     icons: {
       "recipe/iron-gear-wheel": 3,
       "item/iron-plate": 3,

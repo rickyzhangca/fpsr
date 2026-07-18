@@ -108,7 +108,7 @@ planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList;
 // rendering — async, needs assets
 const r = await createRenderer({ assets: AssetSource, renderDb?: RenderDb });
 const measurement = r.measure(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize? });
-const out = await r.render(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize?, altMode?, background?, showCheckerboard?, showCoordinates? });
+const out = await r.render(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize?, altMode?, background?, showCheckerboard?, showBackgroundAuto?, showSpace?, showSpacePlanet?, spacePlanet?, terrainBackground?, showCoordinates? });
 // out: { canvas, width, height, drawList, toPngBlob()/toPngBuffer() }
 
 // asset sources

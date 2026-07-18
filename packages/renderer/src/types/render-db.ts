@@ -469,6 +469,37 @@ export interface TileRenderDef {
   material?: TileMaterialAtlas;
 }
 
+export type TerrainBackgroundName = string;
+
+/**
+ * A full-plane terrain background assembled from world-aligned square patches.
+ * `frames` contains authored variants of the same `patchSize`; `weights`, when
+ * present, mirrors Factorio's weighted tile-main-picture selection.
+ */
+export interface TerrainPatchBackground {
+  /** Width and height of every patch in map tiles. */
+  patchSize: number;
+  /** Authored patch variants, selected deterministically from world coordinates. */
+  frames: FrameId[];
+  /** Optional positive selection weights parallel to `frames`. */
+  weights?: number[];
+  /** Solid RGBA fallback painted before patches and used by older asset bundles. */
+  color: [number, number, number, number];
+}
+
+export type TerrainBackgrounds = Partial<Record<string, TerrainPatchBackground>>;
+
+/**
+ * Decorative space-platform backdrop art (starmap planet spheres).
+ * Drawn in screen space after the procedural starfield when `showSpace` is on.
+ */
+export interface SpaceBackground {
+  /** Default planet frame (Nauvis when available). */
+  planetFrame: FrameId;
+  /** Optional named planet frames keyed by Factorio planet prototype name. */
+  planets?: Record<string, FrameId>;
+}
+
 export interface RenderDb {
   /** Schema version of this IR; bump on breaking change. */
   schema: 2;
@@ -480,6 +511,10 @@ export interface RenderDb {
   frames: FrameMeta[];
   entities: Record<string, EntityRenderDef>;
   tiles: Record<string, TileRenderDef>;
+  /** Optional natural terrain art used by full-canvas preview backgrounds. */
+  terrainBackgrounds?: TerrainBackgrounds;
+  /** Optional space-platform backdrop (planet peeking from the corner). */
+  spaceBackground?: SpaceBackground;
   /** Icon frames by "type/name" (e.g. "item/iron-plate", "utility/unsupported-entity"). */
   icons: Record<string, FrameId>;
   /**

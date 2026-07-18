@@ -103,6 +103,9 @@ function mockCtx(): Canvas2DContextLike & { calls: Call[]; _alpha: number } {
     set imageSmoothingEnabled(value: boolean) {
       calls.push({ method: "set imageSmoothingEnabled", args: [value] });
     },
+    get imageSmoothingEnabled() {
+      return false;
+    },
     set imageSmoothingQuality(value: "low" | "medium" | "high") {
       calls.push({ method: "set imageSmoothingQuality", args: [value] });
     },
@@ -616,6 +619,110 @@ describe("executeDrawList", () => {
     expect(
       ctx.calls.some((c) => c.method === "set fillStyle" && String(c.args[0]).includes("rgba")),
     ).toBe(false);
+  });
+
+  it("prefers space starfield over checkerboard when both are set", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      showSpace: true,
+      showCheckerboard: true,
+      frames: db.frames,
+    });
+
+    expect(ctx.calls.some((c) => c.method === "set fillStyle" && c.args[0] === "#000000")).toBe(
+      true,
+    );
+    expect(ctx.calls.some((c) => c.method === "set fillStyle" && c.args[0] === "#252525")).toBe(
+      false,
+    );
+  });
+
+  it("draws space planet decoration when showSpace and spaceBackground are set", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      showSpace: true,
+      showSpacePlanet: true,
+      spaceBackground: db.spaceBackground,
+      frames: db.frames,
+    });
+
+    expect(ctx.calls.some((c) => c.method === "set fillStyle" && c.args[0] === "#000000")).toBe(
+      true,
+    );
+    expect(ctx.calls.some((c) => c.method === "drawImage")).toBe(true);
+  });
+
+  it("draws starfield without planet when spaceBackground is omitted", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      showSpace: true,
+      frames: db.frames,
+    });
+
+    expect(ctx.calls.some((c) => c.method === "set fillStyle" && c.args[0] === "#000000")).toBe(
+      true,
+    );
+    expect(ctx.calls.some((c) => c.method === "drawImage")).toBe(false);
+  });
+
+  it("draws extracted dirt terrain when terrainBackground is set", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      terrainBackground: db.terrainBackgrounds?.dirt,
+      frames: db.frames,
+    });
+
+    expect(ctx.calls.some((c) => c.method === "drawImage")).toBe(true);
+  });
+
+  it("draws extracted water terrain when terrainBackground water is set", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      terrainBackground: db.terrainBackgrounds?.water,
+      frames: db.frames,
+    });
+
+    expect(ctx.calls.some((c) => c.method === "drawImage")).toBe(true);
   });
 
   it("draws coordinate overlay after entity commands when showCoordinates is set", () => {

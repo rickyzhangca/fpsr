@@ -155,8 +155,12 @@ export { computeTileFrame } from "./frame.js";
 export type { TileFrame } from "./frame.js";
 
 export { blitWithTileCheckerboard, drawTileCheckerboard } from "./checkerboard.js";
+export { drawSpaceBackground, drawSpacePlanet } from "./space-background.js";
+export type { DrawSpaceBackgroundOptions, SpacePlanetDecoration } from "./space-background.js";
+export { drawTerrainBackground } from "./terrain-background.js";
+export type { DrawTerrainBackgroundOptions } from "./terrain-background.js";
 
-export { createRenderer, measureTileFrame } from "./renderer.js";
+export { createRenderer, measureTileFrame, resolveSpacePlanetFrameId } from "./renderer.js";
 export type {
   CanvasLike,
   CreateCanvasFn,
@@ -230,7 +234,11 @@ export type {
   PipeCoverGraphics,
   RenderDb,
   RenderLayerName,
+  SpaceBackground,
   SpriteVariant,
+  TerrainBackgroundName,
+  TerrainBackgrounds,
+  TerrainPatchBackground,
   TileMaterialAtlas,
   TileRenderDef,
   WireAnchorMap,
