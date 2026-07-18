@@ -4,12 +4,12 @@
 "commands": [
 {"entity":1,"frame":4672,"h":6.5625,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":3,"w":7.6563,"x":-3.6406,"y":-3.5312},
 {"entity":2,"frame":2671,"h":6.25,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":3,"w":7.2188,"x":3.7187,"y":-3.375},
-{"entity":1,"frame":6394,"h":3.5625,"kind":"sprite","layer":39,"sortX":0,"sortY":0,"sub":0,"w":3.5938,"x":0.2187,"y":-1.9999},
-{"entity":1,"frame":6397,"h":3.5625,"kind":"sprite","layer":39,"sortX":0,"sortY":0,"sub":0,"w":3.5938,"x":-3.7813,"y":-1.9999},
+{"entity":1,"frame":6399,"h":3.5625,"kind":"sprite","layer":39,"sortX":0,"sortY":0,"sub":0,"w":3.5938,"x":0.2187,"y":-1.9999},
+{"entity":1,"frame":6402,"h":3.5625,"kind":"sprite","layer":39,"sortX":0,"sortY":0,"sub":0,"w":3.5938,"x":-3.7813,"y":-1.9999},
 {"entity":1,"frame":4682,"h":7.1563,"kind":"sprite","layer":39,"sortX":0,"sortY":0,"sub":1,"w":7.4063,"x":-3.7031,"y":-4.3281},
 {"entity":1,"frame":4718,"h":7.0938,"kind":"sprite","layer":39,"sortX":0,"sortY":0,"sub":2,"tint":[0.92,0.07,0,1],"w":7.375,"x":-3.6875,"y":-4.2656},
-{"entity":2,"frame":6394,"h":3.5625,"kind":"sprite","layer":39,"sortX":7,"sortY":0,"sub":0,"w":3.5938,"x":7.2187,"y":-1.9999},
-{"entity":2,"frame":6397,"h":3.5625,"kind":"sprite","layer":39,"sortX":7,"sortY":0,"sub":0,"w":3.5938,"x":3.2187,"y":-1.9999},
+{"entity":2,"frame":6399,"h":3.5625,"kind":"sprite","layer":39,"sortX":7,"sortY":0,"sub":0,"w":3.5938,"x":7.2187,"y":-1.9999},
+{"entity":2,"frame":6402,"h":3.5625,"kind":"sprite","layer":39,"sortX":7,"sortY":0,"sub":0,"w":3.5938,"x":3.2187,"y":-1.9999},
 {"entity":2,"frame":2696,"h":6.375,"kind":"sprite","layer":39,"sortX":7,"sortY":0,"sub":1,"w":6.9063,"x":3.5469,"y":-4.2187},
 {"entity":2,"frame":2778,"h":5.8125,"kind":"sprite","layer":39,"sortX":7,"sortY":0,"sub":2,"tint":[0.43,0.23,0,1],"w":6.25,"x":3.9063,"y":-4.0937},
 {"entity":0,"joints":[{"x":2,"y":-0.25},{"x":5,"y":-0.25}],"kind":"train-chain","layer":66,"segments":[{"x1":2.3,"y1":-0.25,"x2":4.7,"y2":-0.25}],"sortX":0,"sortY":0,"sub":0}

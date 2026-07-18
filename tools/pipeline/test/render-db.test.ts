@@ -448,6 +448,21 @@ describe("render-db contract", () => {
     expect(beacon?.graphics).toHaveLength(5);
   });
 
+  it("covers the roboport bay with closed doors, base patch, and idle antenna", async () => {
+    const db = await loadDb();
+    const roboport = db.entities.roboport;
+    expect(roboport).toBeTruthy();
+    // base+shadow (2) + base_patch + door_down + door_up + base_animation.
+    expect(roboport!.graphics.length).toBeGreaterThanOrEqual(6);
+    const shiftsY = roboport!.graphics
+      .map((group) => group.variants.default?.[0]?.shift?.[1])
+      .filter((y): y is number => typeof y === "number");
+    // Closed door sheets sit above the body center (negative shift Y).
+    expect(shiftsY.some((y) => y < -0.5)).toBe(true);
+    // Idle antenna is the highest still-frame on the unit.
+    expect(Math.min(...shiftsY)).toBeLessThan(-2);
+  });
+
   it("includes always_draw mining-drill working visualisations (heads / fronts)", async () => {
     const db = await loadDb();
     const electric = db.entities["electric-mining-drill"];

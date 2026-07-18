@@ -1,5 +1,5 @@
-import { dirs4, isSprite4Way, leafLayers, type FrameBank } from "../../sprite.js";
 import { fpsrLayer, guessedLayer } from "../../render-layers.js";
+import { dirs4, isSprite4Way, leafLayers, type FrameBank } from "../../sprite.js";
 import type {
   EntityRenderDef,
   LayerGroup,
@@ -113,12 +113,45 @@ export async function distillRoboport(
   bank: FrameBank,
   p: Record<string, unknown>,
 ): Promise<EntityRenderDef> {
-  const base = p.base as RawSprite | undefined;
-  const graphics = await layersFromSprite(bank, base, {
-    layer: guessedLayer("object", "entity body; dump has no render_layer"),
-    indexing: "single",
-  });
-  return baseEntity("simple", "roboport", p, graphics);
+  const groups: LayerGroup[] = [];
+  // Base body paints an opaque black bay recess; covers below fill it for idle/blueprint view.
+  groups.push(
+    ...(await layersFromSprite(bank, p.base as RawSprite | undefined, {
+      layer: guessedLayer("object", "entity body; dump has no render_layer"),
+      indexing: "single",
+    })),
+  );
+  // Hangar floor under the doors (visible around the closed shutter / when doors open).
+  groups.push(
+    ...(await layersFromSprite(bank, p.base_patch as RawSprite | undefined, {
+      layer: guessedLayer("object", "roboport base_patch"),
+      indexing: "single",
+    })),
+  );
+  // Frame 0 = closed iris shutter (door_animation_* sheets open across later frames).
+  groups.push(
+    ...(await layersFromSprite(bank, p.door_animation_down as RawSprite | undefined, {
+      layer: guessedLayer("object", "roboport door_animation_down closed"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  groups.push(
+    ...(await layersFromSprite(bank, p.door_animation_up as RawSprite | undefined, {
+      layer: guessedLayer("object", "roboport door_animation_up closed"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  // Idle antenna / dish still-frame (top-left of the unit).
+  groups.push(
+    ...(await layersFromSprite(bank, p.base_animation as RawSprite | undefined, {
+      layer: guessedLayer("object", "roboport base_animation idle"),
+      indexing: "single",
+      frame: 0,
+    })),
+  );
+  return baseEntity("simple", "roboport", p, groups);
 }
 
 export async function distillTrainStop(
