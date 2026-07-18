@@ -197,15 +197,15 @@ describe("render-db contract", () => {
     expect(db.terrainBackgrounds?.gleba?.patchSize).toBe(4);
     expect(db.terrainBackgrounds?.fulgora?.patchSize).toBe(8);
     expect(db.terrainBackgrounds?.aquilo?.patchSize).toBe(4);
-    if (db.spaceBackground) {
-      expect(db.spaceBackground.planetFrame).toBeGreaterThanOrEqual(0);
-      expect(db.spaceBackground.planetFrame).toBeLessThan(db.frames.length);
-      for (const frame of Object.values(db.spaceBackground.planets ?? {})) {
-        expect(frame).toBeGreaterThanOrEqual(0);
-        expect(frame).toBeLessThan(db.frames.length);
-      }
-      expect(db.spaceBackground.planets?.nauvis).toBe(db.spaceBackground.planetFrame);
+    const spaceBackground = db.spaceBackground;
+    expect(spaceBackground).toBeDefined();
+    expect(spaceBackground!.planetFrame).toBeGreaterThanOrEqual(0);
+    expect(spaceBackground!.planetFrame).toBeLessThan(db.frames.length);
+    for (const frame of Object.values(spaceBackground!.planets ?? {})) {
+      expect(frame).toBeGreaterThanOrEqual(0);
+      expect(frame).toBeLessThan(db.frames.length);
     }
+    expect(spaceBackground!.planets?.nauvis).toBe(spaceBackground!.planetFrame);
   });
 
   it("contains complete alt-mode icon namespaces and placement metadata", async () => {
