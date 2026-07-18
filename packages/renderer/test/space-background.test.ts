@@ -40,6 +40,23 @@ describe("drawSpaceBackground", () => {
     expect(fills).toHaveLength(0);
   });
 
+  it("uses a stable seed to give different planet backdrops different skies", () => {
+    const render = (seed: number) => {
+      const fills: unknown[][] = [];
+      const context = {
+        set fillStyle(_value: string) {},
+        fillRect(...args: unknown[]) {
+          fills.push(args);
+        },
+      } as unknown as Canvas2DContextLike;
+      drawSpaceBackground(context, 480, 320, { seed });
+      return fills.slice(1);
+    };
+
+    expect(render(17)).toEqual(render(17));
+    expect(render(17)).not.toEqual(render(23));
+  });
+
   it("draws an optional planet after the starfield", () => {
     const calls: Array<{ method: string; args: unknown[] }> = [];
     let smoothing = false;

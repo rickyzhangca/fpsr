@@ -2,9 +2,22 @@ import type { Canvas2DContextLike } from "./canvas2d.js";
 import type { FrameMeta } from "./types/render-db.js";
 
 const SPACE_FILL = "#000000";
-/** One candidate star cell; sparse occupancy mimics Factorio's space-rear-star look. */
-const STAR_CELL = 28;
-const STAR_OCCUPANCY = 0.11;
+const DEFAULT_STAR_SEED = 0x51f1_5e77;
+
+interface StarLayer {
+  cellSize: number;
+  occupancy: number;
+  brightness: [number, number];
+  largeChance: number;
+  salt: number;
+}
+
+/** Incommensurate grids overlap into a starfield without a visible repeated lattice. */
+const STAR_LAYERS: readonly StarLayer[] = [
+  { cellSize: 17, occupancy: 0.06, brightness: [0.24, 0.5], largeChance: 0, salt: 11 },
+  { cellSize: 37, occupancy: 0.13, brightness: [0.42, 0.76], largeChance: 0.04, salt: 29 },
+  { cellSize: 79, occupancy: 0.28, brightness: [0.68, 1], largeChance: 0.36, salt: 47 },
+];
 
 /**
  * Factorio `platform_backdrop` placement for Nauvis, expressed relative to
@@ -41,6 +54,8 @@ export interface SpacePlanetDecoration {
 export interface DrawSpaceBackgroundOptions {
   /** Optional starmap planet drawn bottom-left after the starfield. */
   planet?: SpacePlanetDecoration;
+  /** Stable salt; selected planets use different skies while rerenders remain reproducible. */
+  seed?: number;
 }
 
 /**
@@ -79,7 +94,52 @@ export function drawSpacePlanet(
   ctx.imageSmoothingEnabled = previousSmoothing;
 }
 
-/** Fill `width`×`height` with a black starfield; star positions are stable across rerenders. */
+function smoothstep(value: number): number {
+  return value * value * (3 - 2 * value);
+}
+
+function lerp(from: number, to: number, amount: number): number {
+  return from + (to - from) * amount;
+}
+
+/** Smooth low-frequency value noise used only to vary local star density. */
+function densityNoise(x: number, y: number, seed: number): number {
+  const cellX = Math.floor(x);
+  const cellY = Math.floor(y);
+  const tx = smoothstep(x - cellX);
+  const ty = smoothstep(y - cellY);
+  const top = lerp(cellHash(cellX, cellY, seed), cellHash(cellX + 1, cellY, seed), tx);
+  const bottom = lerp(cellHash(cellX, cellY + 1, seed), cellHash(cellX + 1, cellY + 1, seed), tx);
+  return lerp(top, bottom, ty);
+}
+
+function starDensity(x: number, y: number, seed: number): number {
+  const broad = densityNoise(x / 310, y / 310, seed ^ 0x6d2b_79f5);
+  const detail = densityNoise(x / 137, y / 137, seed ^ 0x1b87_3593);
+  return 0.36 + (broad * 0.68 + detail * 0.32) * 0.88;
+}
+
+function drawStar(
+  ctx: Canvas2DContextLike,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  sparkle: boolean,
+): void {
+  const clippedWidth = Math.min(size, width - x);
+  const clippedHeight = Math.min(size, height - y);
+  if (clippedWidth <= 0 || clippedHeight <= 0) return;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, clippedWidth, clippedHeight);
+  if (!sparkle || x <= 0 || y <= 0 || x + 2 >= width || y + 2 >= height) return;
+  ctx.fillRect(x - 1, y, 4, 1);
+  ctx.fillRect(x, y - 1, 1, 4);
+}
+
+/** Fill `width`×`height` with a layered deterministic starfield. */
 export function drawSpaceBackground(
   ctx: Canvas2DContextLike,
   width: number,
@@ -90,21 +150,33 @@ export function drawSpaceBackground(
   ctx.fillStyle = SPACE_FILL;
   ctx.fillRect(0, 0, width, height);
 
-  const columns = Math.ceil(width / STAR_CELL);
-  const rows = Math.ceil(height / STAR_CELL);
-  for (let cellY = 0; cellY < rows; cellY++) {
-    for (let cellX = 0; cellX < columns; cellX++) {
-      if (cellHash(cellX, cellY, 1) > STAR_OCCUPANCY) continue;
-      const brightness = 0.45 + cellHash(cellX, cellY, 2) * 0.55;
-      const channel = Math.round(brightness * 255);
-      const size = cellHash(cellX, cellY, 3) > 0.88 ? 2 : 1;
-      const x =
-        cellX * STAR_CELL + Math.floor(cellHash(cellX, cellY, 4) * Math.max(1, STAR_CELL - size));
-      const y =
-        cellY * STAR_CELL + Math.floor(cellHash(cellX, cellY, 5) * Math.max(1, STAR_CELL - size));
-      if (x >= width || y >= height) continue;
-      ctx.fillStyle = `rgb(${channel},${channel},${channel})`;
-      ctx.fillRect(x, y, Math.min(size, width - x), Math.min(size, height - y));
+  const seed = options?.seed == null ? DEFAULT_STAR_SEED : options.seed >>> 0;
+  for (const layer of STAR_LAYERS) {
+    const columns = Math.ceil(width / layer.cellSize);
+    const rows = Math.ceil(height / layer.cellSize);
+    const layerSeed = seed ^ Math.imul(layer.salt, 0x9e37_79b1);
+    for (let cellY = 0; cellY < rows; cellY++) {
+      for (let cellX = 0; cellX < columns; cellX++) {
+        const xUnit = cellHash(cellX, cellY, layerSeed ^ 2);
+        const yUnit = cellHash(cellX, cellY, layerSeed ^ 3);
+        const x = cellX * layer.cellSize + Math.floor(xUnit * layer.cellSize);
+        const y = cellY * layer.cellSize + Math.floor(yUnit * layer.cellSize);
+        const density = starDensity(x, y, seed);
+        if (cellHash(cellX, cellY, layerSeed ^ 1) > layer.occupancy * density) continue;
+
+        const brightness = lerp(
+          layer.brightness[0],
+          layer.brightness[1],
+          cellHash(cellX, cellY, layerSeed ^ 4),
+        );
+        const warmth = cellHash(cellX, cellY, layerSeed ^ 5) - 0.5;
+        const red = Math.round(Math.min(1, brightness * (1 + warmth * 0.12)) * 255);
+        const green = Math.round(brightness * (1 - Math.abs(warmth) * 0.035) * 255);
+        const blue = Math.round(Math.min(1, brightness * (1 - warmth * 0.16)) * 255);
+        const size = cellHash(cellX, cellY, layerSeed ^ 6) < layer.largeChance ? 2 : 1;
+        const sparkle = size === 2 && cellHash(cellX, cellY, layerSeed ^ 7) > 0.86;
+        drawStar(ctx, width, height, x, y, size, `rgb(${red},${green},${blue})`, sparkle);
+      }
     }
   }
 

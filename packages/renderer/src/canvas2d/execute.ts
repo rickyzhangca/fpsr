@@ -58,6 +58,7 @@ export function executeDrawList(
     const planetFrame = planetFrameId != null ? opts.frames[planetFrameId] : undefined;
     const planetImage = planetFrame ? images[planetFrame.a] : undefined;
     drawSpaceBackground(ctx, width, height, {
+      seed: planetFrameId,
       planet:
         planetFrame && planetImage
           ? {
