@@ -15,6 +15,7 @@ import {
   type RenderWorkerRequest,
   type RenderWorkerResponse,
 } from "./render-worker-protocol";
+import { analyzePlan } from "./plan-diagnostics";
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
 const assets = cdnAssets(ASSETS_BASE, {
@@ -150,7 +151,13 @@ const plan = async (request: Extract<RenderWorkerRequest, { type: "plan" }>): Pr
   try {
     const db = await assets.loadRenderDb();
     const drawList = planDrawList(request.blueprint, db, request.options);
-    workerScope.postMessage({ type: "planned", requestId: request.requestId, drawList });
+    const diagnostics = analyzePlan(request.blueprint, drawList, db);
+    workerScope.postMessage({
+      type: "planned",
+      requestId: request.requestId,
+      drawList,
+      diagnostics,
+    });
   } catch (error) {
     postError(request.requestId, error);
   }

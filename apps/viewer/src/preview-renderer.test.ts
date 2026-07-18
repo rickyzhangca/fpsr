@@ -82,7 +82,24 @@ describe("PreviewRenderWorkerClient", () => {
       commands: [],
       bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
     };
-    worker.respond({ type: "planned", requestId: request.requestId, drawList });
+    const diagnostics = {
+      entities: { total: 0, resolved: 0, unsupported: [] },
+      tiles: { total: 0, resolved: 0, unsupported: [] },
+      drawList: {
+        commandCount: 0,
+        byKind: {},
+        uniqueFrames: 0,
+        uniqueLayers: 0,
+        atlasIndices: [],
+      },
+      checks: {
+        finiteBounds: true,
+        finiteCommands: true,
+        sortedCommands: true,
+        validFrameReferences: true,
+      },
+    };
+    worker.respond({ type: "planned", requestId: request.requestId, drawList, diagnostics });
     await expect(pending).resolves.toEqual(drawList);
   });
   it("transfers a canvas once, reuses its surface, and proxies image export", async () => {

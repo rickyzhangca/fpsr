@@ -19,8 +19,18 @@ describe("getAdapterChecks", () => {
   it("returns all adapters unchecked for null blueprint", () => {
     const checks = getAdapterChecks(null);
     expect(checks).toEqual([
-      { id: "scale-legacy-directions", used: false },
-      { id: "items-object-to-array", used: false },
+      {
+        id: "scale-legacy-directions",
+        label: "Legacy directions",
+        used: false,
+        affectedEntities: 0,
+      },
+      {
+        id: "items-object-to-array",
+        label: "Legacy item format",
+        used: false,
+        affectedEntities: 0,
+      },
     ]);
   });
   it("returns all adapters unchecked for Factorio 2.x blueprints", () => {
@@ -47,7 +57,10 @@ describe("getAdapterChecks", () => {
         },
       ]),
     );
-    expect(checks.find((c) => c.id === "scale-legacy-directions")?.used).toBe(true);
+    expect(checks.find((c) => c.id === "scale-legacy-directions")).toMatchObject({
+      used: true,
+      affectedEntities: 1,
+    });
     expect(checks.find((c) => c.id === "items-object-to-array")?.used).toBe(false);
   });
   it("marks items-object-to-array when legacy items object is present", () => {
@@ -61,7 +74,10 @@ describe("getAdapterChecks", () => {
         },
       ]),
     );
-    expect(checks.find((c) => c.id === "items-object-to-array")?.used).toBe(true);
+    expect(checks.find((c) => c.id === "items-object-to-array")).toMatchObject({
+      used: true,
+      affectedEntities: 1,
+    });
   });
   it("reports version major 2 as skipped", () => {
     const bp = bp2x([]);

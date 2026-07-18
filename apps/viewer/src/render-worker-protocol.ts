@@ -11,6 +11,7 @@ import type {
   RenderProgressEvent,
   TileFrame,
 } from "fpsr";
+import type { PlanDiagnostics } from "./plan-diagnostics";
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
 export type WorkerPlanOptions = Pick<PlanOptions, "altMode" | "beltEndings">;
 export interface PreviewRenderProgress {
@@ -85,6 +86,7 @@ export type RenderWorkerResponse =
       type: "planned";
       requestId: number;
       drawList: DrawList;
+      diagnostics: PlanDiagnostics;
     }
   | {
       type: "measured";

@@ -2,16 +2,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Blueprint, BlueprintDocument, DrawList } from "fpsr";
+import type { Blueprint, BlueprintDocument, DecodeStats, DrawList } from "fpsr";
 import { useAtom } from "jotai";
-import { CircleCheck, CircleSlash } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapter-checks";
 import { formatDrawList } from "./format-draw-list";
 import { JsonViewer } from "./json-viewer";
 import { cn } from "./lib/utils";
-import { planPreview } from "./preview-renderer";
-import { processPreferencesAtom } from "./viewer-preferences";
+import type { PerfReport } from "./perf-report";
+import { createPipelineReceipt } from "./pipeline-receipt";
+import { PipelineReceiptPanel } from "./pipeline-receipt-panel";
+import type { PlanDiagnostics } from "./plan-diagnostics";
+import { planPreviewWithDiagnostics, type PreviewRenderProgress } from "./preview-renderer";
+import { previewPreferencesAtom, processPreferencesAtom } from "./viewer-preferences";
 const ProcessPanel = ({
   title,
   index,
@@ -50,35 +53,30 @@ const ProcessPanel = ({
     </div>
   );
 };
-const ChecksPanel = ({ blueprint }: { blueprint: Blueprint | null }) => {
-  const checks = getAdapterChecks(blueprint);
-  return (
-    <ul className="flex flex-col gap-1 p-3">
-      {checks.map(({ id, used }) => (
-        <li key={id} className="flex items-center gap-2 text-sm">
-          {used ? (
-            <CircleCheck className="size-4 shrink-0 text-primary" />
-          ) : (
-            <CircleSlash className="size-4 shrink-0 text-muted-foreground" />
-          )}
-          <span className={used ? "text-foreground" : "text-muted-foreground"}>{id}</span>
-        </li>
-      ))}
-    </ul>
-  );
-};
 export const ProcessPane = ({
   doc,
   blueprint,
+  blueprintPath,
+  decodeStats,
+  perfReport,
+  renderProgress,
+  renderError,
 }: {
   doc: BlueprintDocument | null;
   blueprint: Blueprint | null;
+  blueprintPath: number[] | null;
+  decodeStats: DecodeStats | null;
+  perfReport: PerfReport | null;
+  renderProgress: PreviewRenderProgress | null;
+  renderError: string | null;
 }) => {
   const planGenRef = useRef(0);
   const [drawList, setDrawList] = useState<DrawList | null>(null);
+  const [planDiagnostics, setPlanDiagnostics] = useState<PlanDiagnostics | null>(null);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [drawLoading, setDrawLoading] = useState(false);
   const [processPreferences, setProcessPreferences] = useAtom(processPreferencesAtom);
+  const [previewPreferences] = useAtom(previewPreferencesAtom);
   const { organizeDrawCommands, panelLayout } = processPreferences;
   const setOrganizeDrawCommands = (value: boolean) => {
     setProcessPreferences((previous) => ({ ...previous, organizeDrawCommands: value }));
@@ -89,6 +87,7 @@ export const ProcessPane = ({
   useEffect(() => {
     if (!blueprint) {
       setDrawList(null);
+      setPlanDiagnostics(null);
       setDrawError(null);
       setDrawLoading(false);
       return;
@@ -97,23 +96,40 @@ export const ProcessPane = ({
     setDrawLoading(true);
     setDrawError(null);
     setDrawList(null);
+    setPlanDiagnostics(null);
     void (async () => {
       try {
-        const list = await planPreview(blueprint, { altMode: true });
+        const result = await planPreviewWithDiagnostics(blueprint, {
+          altMode: previewPreferences.altMode,
+        });
         if (gen !== planGenRef.current) return;
-        setDrawList(list);
+        setDrawList(result.drawList);
+        setPlanDiagnostics(result.diagnostics);
       } catch (e) {
         if (gen !== planGenRef.current) return;
         const message = e instanceof Error ? e.message : "Planning failed";
         setDrawError(message);
         setDrawList(null);
+        setPlanDiagnostics(null);
       } finally {
         if (gen === planGenRef.current) {
           setDrawLoading(false);
         }
       }
     })();
-  }, [blueprint]);
+  }, [blueprint, previewPreferences.altMode]);
+  const receipt = createPipelineReceipt({
+    blueprint,
+    blueprintPath,
+    decodeStats,
+    adapterChecks: getAdapterChecks(blueprint),
+    diagnostics: planDiagnostics,
+    planLoading: drawLoading,
+    planError: drawError,
+    perfReport,
+    renderProgress,
+    renderError,
+  });
   return (
     <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
       <ResizablePanelGroup
@@ -127,18 +143,26 @@ export const ProcessPane = ({
         }}
         className="h-full min-h-[480px] min-w-[540px] flex-1 gap-0.5"
       >
-        <ResizablePanel id="decoded" defaultSize="40" minSize={160} className="min-h-0">
-          <ProcessPanel title="Decoded JSON" index={0} maxIndex={2} scrollContent={false}>
+        <ResizablePanel id="checks" defaultSize="26" minSize={200} className="min-h-0">
+          <ProcessPanel title="Pipeline" index={0} maxIndex={2}>
+            <PipelineReceiptPanel receipt={receipt} />
+          </ProcessPanel>
+        </ResizablePanel>
+
+        <ResizableHandle className="items-start" withHandle handleOnly disableDoubleClick />
+
+        <ResizablePanel id="decoded" defaultSize="36" minSize={160} className="min-h-0">
+          <ProcessPanel title="Decoded JSON" index={1} maxIndex={2} scrollContent={false}>
             <JsonViewer value={decodedValue} />
           </ProcessPanel>
         </ResizablePanel>
 
-        <ResizableHandle withHandle handleOnly disableDoubleClick />
+        <ResizableHandle className="items-start" withHandle handleOnly disableDoubleClick />
 
-        <ResizablePanel id="draw" defaultSize="40" minSize={160} className="min-h-0">
+        <ResizablePanel id="draw" defaultSize="38" minSize={160} className="min-h-0">
           <ProcessPanel
             title="Draw commands"
-            index={1}
+            index={2}
             maxIndex={2}
             scrollContent={false}
             headerRight={
@@ -164,14 +188,6 @@ export const ProcessPane = ({
               <p className="p-4 font-mono text-xs text-destructive">{drawError}</p>
             )}
             {!drawLoading && !drawError && <JsonViewer value={drawValue} />}
-          </ProcessPanel>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle handleOnly disableDoubleClick />
-
-        <ResizablePanel id="checks" defaultSize="20" minSize={160} className="min-h-0">
-          <ProcessPanel title="Checks" index={2} maxIndex={2}>
-            <ChecksPanel blueprint={blueprint} />
           </ProcessPanel>
         </ResizablePanel>
       </ResizablePanelGroup>

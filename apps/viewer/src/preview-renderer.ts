@@ -16,6 +16,7 @@ import {
   type WorkerPlanOptions,
   type WorkerRenderOptions,
 } from "./render-worker-protocol";
+import type { PlanDiagnostics } from "./plan-diagnostics";
 export interface PreviewRenderResult {
   width: number;
   height: number;
@@ -26,6 +27,10 @@ export interface PreviewRenderResult {
   wallMs: number;
   toImageBlob(options: RenderImageOptions): Promise<Blob>;
   toPngBlob(): Promise<Blob>;
+}
+export interface PreviewPlanResult {
+  drawList: DrawList;
+  diagnostics: PlanDiagnostics;
 }
 export type { PreviewRenderProgress } from "./render-worker-protocol";
 export type PreviewRenderOptions = Omit<RenderOptions, "canvas" | "onProgress"> & {
@@ -51,7 +56,7 @@ interface PendingMeasure {
 }
 interface PendingPlan {
   kind: "plan";
-  resolve(drawList: DrawList): void;
+  resolve(result: PreviewPlanResult): void;
   reject(error: Error): void;
 }
 type PendingRequest = PendingRender | PendingExport | PendingMeasure | PendingPlan;
@@ -142,9 +147,15 @@ export class PreviewRenderWorkerClient {
     });
   }
   async plan(blueprint: Blueprint, options: WorkerPlanOptions): Promise<DrawList> {
+    return (await this.planWithDiagnostics(blueprint, options)).drawList;
+  }
+  async planWithDiagnostics(
+    blueprint: Blueprint,
+    options: WorkerPlanOptions,
+  ): Promise<PreviewPlanResult> {
     await this.waitUntilReady();
     const requestId = this.nextRequestId++;
-    return new Promise<DrawList>((resolve, reject) => {
+    return new Promise<PreviewPlanResult>((resolve, reject) => {
       this.pending.set(requestId, { kind: "plan", resolve, reject });
       const request: RenderWorkerRequest = { type: "plan", requestId, blueprint, options };
       this.worker.postMessage(request);
@@ -199,7 +210,9 @@ export class PreviewRenderWorkerClient {
       return;
     }
     if (response.type === "planned") {
-      if (pending.kind === "plan") pending.resolve(response.drawList);
+      if (pending.kind === "plan") {
+        pending.resolve({ drawList: response.drawList, diagnostics: response.diagnostics });
+      }
       return;
     }
     if (pending.kind !== "render") return;
@@ -291,6 +304,15 @@ export const planPreview = async (
     throw new Error("Preview planning requires a browser with Web Workers support.");
   }
   return getWorkerClient().plan(blueprint, options);
+};
+export const planPreviewWithDiagnostics = async (
+  blueprint: Blueprint,
+  options: WorkerPlanOptions = {},
+): Promise<PreviewPlanResult> => {
+  if (typeof Worker === "undefined") {
+    throw new Error("Preview planning requires a browser with Web Workers support.");
+  }
+  return getWorkerClient().planWithDiagnostics(blueprint, options);
 };
 export const clearPreview = (canvas: HTMLCanvasElement): void => {
   if (workerClient?.clear(canvas)) return;

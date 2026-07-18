@@ -1,5 +1,5 @@
-import * as ResizablePrimitive from "react-resizable-panels";
 import { cn } from "@/lib/utils";
+import * as ResizablePrimitive from "react-resizable-panels";
 const ResizablePanelGroup = ({ className, ...props }: ResizablePrimitive.GroupProps) => {
   return (
     <ResizablePrimitive.Group
@@ -30,7 +30,7 @@ const ResizableHandle = ({
       className={cn(
         "relative flex shrink-0 items-center justify-center bg-transparent ring-offset-background focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden",
         handleOnly
-          ? "w-2 [&[aria-orientation=vertical]>div]:h-10 [&[aria-orientation=vertical]>div]:w-1.5 [&[aria-orientation=vertical]>div]:cursor-col-resize [&[aria-orientation=horizontal]>div]:h-1.5 [&[aria-orientation=horizontal]>div]:w-10 [&[aria-orientation=horizontal]>div]:cursor-row-resize"
+          ? "w-2 [&[aria-orientation=vertical]>div]:h-8 [&[aria-orientation=vertical]>div]:w-1 [&[aria-orientation=vertical]>div]:cursor-col-resize [&[aria-orientation=horizontal]>div]:h-1.5 [&[aria-orientation=horizontal]>div]:w-10 [&[aria-orientation=horizontal]>div]:cursor-row-resize"
           : "w-px bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 aria-[orientation=horizontal]:h-px aria-[orientation=horizontal]:w-full aria-[orientation=horizontal]:after:left-0 aria-[orientation=horizontal]:after:h-1 aria-[orientation=horizontal]:after:w-full aria-[orientation=horizontal]:after:translate-x-0 aria-[orientation=horizontal]:after:-translate-y-1/2 [&[aria-orientation=horizontal]>div]:rotate-90",
         className,
       )}

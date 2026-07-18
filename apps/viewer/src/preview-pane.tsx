@@ -63,6 +63,7 @@ export const PreviewPane = ({
   onTileSizeChange,
   onPerfReport,
   onRenderProgress,
+  onRenderError,
 }: {
   doc: BlueprintDocument | null;
   blueprint: Blueprint | null;
@@ -71,6 +72,7 @@ export const PreviewPane = ({
   onTileSizeChange?: (tileSize: string) => void;
   onPerfReport?: (report: PerfReport | null) => void;
   onRenderProgress?: (progress: PreviewRenderProgress | null) => void;
+  onRenderError?: (error: string | null) => void;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
@@ -205,6 +207,7 @@ export const PreviewPane = ({
       onTileSizeChange?.("—");
       onPerfReport?.(null);
       onRenderProgress?.(null);
+      onRenderError?.(null);
       const canvas = canvasRef.current;
       if (canvas) {
         clearPreview(canvas);
@@ -214,6 +217,7 @@ export const PreviewPane = ({
     const gen = ++renderGenRef.current;
     const controller = new AbortController();
     setError(null);
+    onRenderError?.(null);
     setAssetsMissing(false);
     if (!showCoords) setHoverTile(null);
     let timer: number | undefined;
@@ -289,6 +293,7 @@ export const PreviewPane = ({
             const message = e instanceof Error ? e.message : "Render failed";
             setAssetsMissing(isMissingAssetsError(message));
             setError(message);
+            onRenderError?.(message);
             setDimensions(null);
             setLastResult(null);
             setHoverTile(null);
@@ -325,7 +330,9 @@ export const PreviewPane = ({
           setPreflighting(false);
           const message = reason instanceof Error ? reason.message : "Size check failed";
           setError(message);
+          onRenderError?.(message);
           setFullResWarning(null);
+          onRenderProgress?.(null);
         },
       );
     }
@@ -345,6 +352,7 @@ export const PreviewPane = ({
     onTileSizeChange,
     onPerfReport,
     onRenderProgress,
+    onRenderError,
     fullResApproval,
   ]);
   const handleDownload = () => {

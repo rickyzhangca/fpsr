@@ -254,6 +254,7 @@ export const App = () => {
   const [tileSize, setTileSize] = useState("—");
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
   const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     const initialSelectionRevision = selectionRevisionRef.current;
@@ -312,6 +313,7 @@ export const App = () => {
   useEffect(() => {
     setTileSize("—");
     setPerfReport(null);
+    setRenderError(null);
   }, [selectedBlueprint]);
   const activeDecodeStats = decodeStatsBySource[selectedSourceId] ?? null;
   const addCustomFromString = async (source: string) => {
@@ -404,6 +406,11 @@ export const App = () => {
     [selectedSourceId, selectedPath],
   );
   const sidebarSelection = resolveSidebarSelection(allSources, selectedSourceId, selectedPath);
+  const selectedRenderProgress =
+    renderProgress?.sourceId === selectedSourceId &&
+    sameRenderPath(renderProgress.path, selectedPath)
+      ? renderProgress
+      : null;
   const sidebarPanelProps = {
     sampleSources: SAMPLE_SOURCES,
     testSources: TEST_SOURCES,
@@ -526,6 +533,7 @@ export const App = () => {
                       onTileSizeChange={setTileSize}
                       onPerfReport={setPerfReport}
                       onRenderProgress={onRenderProgress}
+                      onRenderError={setRenderError}
                     />
                   </TabsContent>
 
@@ -535,7 +543,15 @@ export const App = () => {
                   >
                     {tab === "process" && (
                       <Suspense fallback={<LazyPaneFallback />}>
-                        <ProcessPane doc={activeDoc} blueprint={selectedBlueprint} />
+                        <ProcessPane
+                          doc={activeDoc}
+                          blueprint={selectedBlueprint}
+                          blueprintPath={selectedPath}
+                          decodeStats={activeDecodeStats}
+                          perfReport={perfReport}
+                          renderProgress={selectedRenderProgress}
+                          renderError={renderError}
+                        />
                       </Suspense>
                     )}
                   </TabsContent>
