@@ -64,9 +64,9 @@ describe("resolveSidebarSelection", () => {
       icons: undefined,
     });
   });
-  it("falls back to catalog label when blueprint has no label", () => {
+  it("uses an empty label when blueprint has no label", () => {
     const sources = [blueprintSource("smoke", "Smoke")];
-    expect(resolveSidebarSelection(sources, "smoke", null).label).toBe("Smoke");
+    expect(resolveSidebarSelection(sources, "smoke", null).label).toBe("");
   });
   it("resolves a book root selection", () => {
     const sources = [bookSource("tests", "base items")];

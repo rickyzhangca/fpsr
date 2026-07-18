@@ -1,3 +1,6 @@
+import { BlueprintIcons } from "@/blueprint/blueprint-icons";
+import { FactorioItemIcon } from "@/blueprint/factorio-item-icon";
+import { FactorioRichText } from "@/blueprint/factorio-rich-text";
 import { Progress } from "@/components/ui/progress";
 import {
   Tree,
@@ -6,15 +9,12 @@ import {
   TreeItemButton,
   TreeItemIconSlot,
 } from "@/components/ui/tree";
+import { sidebarExpansionAtom, type SidebarSectionId } from "@/shell/viewer-preferences";
 import { hotkeysCoreFeature, selectionFeature, syncDataLoaderFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { type BlueprintDocument, type BookTreeItemKind, type Icon, buildBookTree } from "fpsr";
+import { buildBookTree, type BlueprintDocument, type BookTreeItemKind, type Icon } from "fpsr";
 import { useAtom } from "jotai";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { BlueprintIcons } from "@/blueprint/blueprint-icons";
-import { FactorioItemIcon } from "@/blueprint/factorio-item-icon";
-import { FactorioRichText } from "@/blueprint/factorio-rich-text";
-import { sidebarExpansionAtom, type SidebarSectionId } from "@/shell/viewer-preferences";
 const INDENT_PX = 12;
 const ROOT_ID = "root";
 const sameItemIds = (left: string[], right: string[]): boolean => {
@@ -80,7 +80,7 @@ export const docToSidebarItems = (source: SidebarSource): Record<string, Sidebar
           id: source.id,
           sourceId: source.id,
           path: [],
-          label: item.label || source.label,
+          label: item.label,
           kind: "book",
           icons: item.icons,
           children: item.children.map((c) => `${source.id}:${c}`),
@@ -105,7 +105,7 @@ export const docToSidebarItems = (source: SidebarSource): Record<string, Sidebar
         id: source.id,
         sourceId: source.id,
         path: [],
-        label: source.doc.blueprint.label || source.label,
+        label: source.doc.blueprint.label ?? "",
         kind: "blueprint",
         icons: source.doc.blueprint.icons,
         children: [],
@@ -304,7 +304,11 @@ export const SidebarTree = ({
               </TreeItemIconSlot>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5 pl-1.5">
                 <span className="min-w-0 truncate">
-                  <FactorioRichText text={item.getItemName()} size="sm" />
+                  <FactorioRichText
+                    text={item.getItemName()}
+                    fallback={data.kind === "book" ? "<Unnamed book>" : "<Unnamed blueprint>"}
+                    size="sm"
+                  />
                 </span>
                 {progress && (
                   <span data-slot="tree-item-status" className="flex h-3 w-full items-center">

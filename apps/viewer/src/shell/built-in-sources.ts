@@ -1,3 +1,4 @@
+import type { SidebarSelectableKind, SidebarSource } from "@/sidebar/sidebar-tree";
 import {
   type Blueprint,
   type BlueprintBook,
@@ -8,7 +9,6 @@ import {
   selectBlueprint,
   selectBook,
 } from "fpsr";
-import type { SidebarSelectableKind, SidebarSource } from "@/sidebar/sidebar-tree";
 import beltRingBp from "../../../../fixtures/golden/belt-ring.bp.txt?raw";
 import pipePlantBp from "../../../../fixtures/golden/pipe-plant.bp.txt?raw";
 import smokeBp from "../../../../fixtures/golden/smoke.bp.txt?raw";
@@ -21,33 +21,17 @@ import type { LastView } from "./last-view";
 import { readLastView } from "./last-view";
 
 const SAMPLES = [
-  { id: "smoke", label: "Smoke", value: smokeBp.trim() },
-  { id: "belt-ring", label: "Belt ring", value: beltRingBp.trim() },
-  { id: "pipe-plant", label: "Pipe plant", value: pipePlantBp.trim() },
+  { id: "smoke", value: smokeBp.trim() },
+  { id: "belt-ring", value: beltRingBp.trim() },
+  { id: "pipe-plant", value: pipePlantBp.trim() },
 ] as const;
 
 const TEST_BOOKS = [
-  { id: "tests-base-game-2.1.11", label: "base items 2.1.11", value: baseGameTestsBp.trim() },
-  {
-    id: "tests-space-age-2.1.11",
-    label: "space age items 2.1.11",
-    value: spaceAgeTestsBp.trim(),
-  },
-  {
-    id: "tests-quality-2.1.11",
-    label: "quality items 2.1.11",
-    value: qualityTestsBp.trim(),
-  },
-  {
-    id: "tests-elevated-rails-2.1.11",
-    label: "elevated rails items 2.1.11",
-    value: elevatedRailsTestsBp.trim(),
-  },
-  {
-    id: "tests-recycler-2.1.11",
-    label: "recycler items 2.1.11",
-    value: recyclerTestsBp.trim(),
-  },
+  { id: "tests-base-game-2.1.11", value: baseGameTestsBp.trim() },
+  { id: "tests-space-age-2.1.11", value: spaceAgeTestsBp.trim() },
+  { id: "tests-quality-2.1.11", value: qualityTestsBp.trim() },
+  { id: "tests-elevated-rails-2.1.11", value: elevatedRailsTestsBp.trim() },
+  { id: "tests-recycler-2.1.11", value: recyclerTestsBp.trim() },
 ] as const;
 
 export const DEFAULT_SAMPLE = SAMPLES[0];
@@ -103,7 +87,7 @@ export const resolveSelectedBlueprint = (
 };
 
 const decodeBuiltInSources = (
-  sources: readonly { id: string; label: string; value: string }[],
+  sources: readonly { id: string; value: string }[],
 ): BuiltInSidebarSource[] => {
   return sources.flatMap((source) => {
     const decoded = tryDecode(source.value);
@@ -111,7 +95,7 @@ const decodeBuiltInSources = (
       ? [
           {
             id: source.id,
-            label: source.label,
+            label: sourceLabel(decoded.doc, ""),
             doc: decoded.doc,
             raw: source.value,
             stats: decoded.stats,
