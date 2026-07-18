@@ -44,7 +44,7 @@
   },
   "coverage": {
     "entityPrototypeCount": 109,
-    "entityPoseCaseCount": 935,
+    "entityPoseCaseCount": 938,
     "adjacencyMaskCaseCount": 0,
     "beltNeighborhoodCaseCount": 0,
     "tileCaseCount": 8,
@@ -1063,6 +1063,9 @@
         "production/electricity/pose/solar-panel/d00",
         "production/electricity/pose/accumulator/d00",
         "production/electricity/pose/nuclear-reactor/d00",
+        "production/electricity/pose/nuclear-reactor/d04",
+        "production/electricity/pose/nuclear-reactor/d08",
+        "production/electricity/pose/nuclear-reactor/d12",
         "production/electricity/pose/heat-pipe/d00",
         "production/electricity/pose/heat-exchanger/d00",
         "production/electricity/pose/heat-exchanger/d04",
@@ -1073,7 +1076,7 @@
         "production/electricity/pose/steam-turbine/d08",
         "production/electricity/pose/steam-turbine/d12"
       ],
-      "entityCount": 20,
+      "entityCount": 23,
       "tileCount": 0
     },
     {
@@ -19400,19 +19403,91 @@
         0
       ],
       "cropTiles": {
-        "left": -0.4999500000000001,
+        "left": -0.5,
         "top": 22.328175,
-        "right": 5.203175,
-        "bottom": 28.265675
+        "right": 5.5,
+        "bottom": 28.5
       },
       "focusEntityNumbers": [
         11
       ],
       "entityName": "nuclear-reactor",
       "pose": {
-        "axis": "single",
+        "axis": "direction",
         "metadataSource": "base-only-render-db",
         "direction": 0
+      }
+    },
+    {
+      "id": "production/electricity/pose/nuclear-reactor/d04",
+      "caseKind": "entity-pose",
+      "pageId": "entity-poses/production/electricity",
+      "pagePath": [
+        1,
+        0
+      ],
+      "cropTiles": {
+        "left": 5.5,
+        "top": 22.328175,
+        "right": 11.5,
+        "bottom": 28.5
+      },
+      "focusEntityNumbers": [
+        12
+      ],
+      "entityName": "nuclear-reactor",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "base-only-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "production/electricity/pose/nuclear-reactor/d08",
+      "caseKind": "entity-pose",
+      "pageId": "entity-poses/production/electricity",
+      "pagePath": [
+        1,
+        0
+      ],
+      "cropTiles": {
+        "left": 11.50005,
+        "top": 22.328175,
+        "right": 17.3438,
+        "bottom": 28.31255
+      },
+      "focusEntityNumbers": [
+        13
+      ],
+      "entityName": "nuclear-reactor",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "base-only-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "production/electricity/pose/nuclear-reactor/d12",
+      "caseKind": "entity-pose",
+      "pageId": "entity-poses/production/electricity",
+      "pagePath": [
+        1,
+        0
+      ],
+      "cropTiles": {
+        "left": 17.5,
+        "top": 22.328175,
+        "right": 23.5,
+        "bottom": 28.5
+      },
+      "focusEntityNumbers": [
+        14
+      ],
+      "entityName": "nuclear-reactor",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "base-only-render-db",
+        "direction": 12
       }
     },
     {
@@ -19430,7 +19505,7 @@
         "bottom": 30.4375
       },
       "focusEntityNumbers": [
-        12
+        15
       ],
       "entityName": "heat-pipe",
       "pose": {
@@ -19454,7 +19529,7 @@
         "bottom": 35.093775
       },
       "focusEntityNumbers": [
-        13
+        16
       ],
       "entityName": "heat-exchanger",
       "pose": {
@@ -19478,7 +19553,7 @@
         "bottom": 36.01565
       },
       "focusEntityNumbers": [
-        14
+        17
       ],
       "entityName": "heat-exchanger",
       "pose": {
@@ -19502,7 +19577,7 @@
         "bottom": 35.0938
       },
       "focusEntityNumbers": [
-        15
+        18
       ],
       "entityName": "heat-exchanger",
       "pose": {
@@ -19526,7 +19601,7 @@
         "bottom": 36.015625
       },
       "focusEntityNumbers": [
-        16
+        19
       ],
       "entityName": "heat-exchanger",
       "pose": {
@@ -19550,7 +19625,7 @@
         "bottom": 42.828125
       },
       "focusEntityNumbers": [
-        17
+        20
       ],
       "entityName": "steam-turbine",
       "pose": {
@@ -19574,7 +19649,7 @@
         "bottom": 40.7656625
       },
       "focusEntityNumbers": [
-        18
+        21
       ],
       "entityName": "steam-turbine",
       "pose": {
@@ -19598,7 +19673,7 @@
         "bottom": 42.828125
       },
       "focusEntityNumbers": [
-        19
+        22
       ],
       "entityName": "steam-turbine",
       "pose": {
@@ -19622,7 +19697,7 @@
         "bottom": 40.7656625
       },
       "focusEntityNumbers": [
-        20
+        23
       ],
       "entityName": "steam-turbine",
       "pose": {
@@ -20744,10 +20819,10 @@
         0
       ],
       "cropTiles": {
-        "left": -0.140625,
+        "left": 0.20310000000000006,
         "top": 11.515675,
-        "right": 8.4688,
-        "bottom": 20.37505
+        "right": 9.6406,
+        "bottom": 21.703175
       },
       "focusEntityNumbers": [
         2

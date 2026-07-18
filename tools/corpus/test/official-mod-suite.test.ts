@@ -64,7 +64,7 @@ describe("official-mod visual suite foundation", () => {
     ]);
     expect(suite.manifest.coverage).toEqual({
       entityPrototypeCount: 34,
-      entityPlacementCaseCount: 137,
+      entityPlacementCaseCount: 140,
       tilePrototypeCount: 7,
       tileCaseCount: 7,
       pageCount: 6,

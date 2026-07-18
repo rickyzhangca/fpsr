@@ -5,7 +5,6 @@ import {
   type BlueprintDocument,
   type BlueprintEntity,
   type DrawListBounds,
-  type Icon,
   type RenderDb,
   type Tile,
 } from "fpsr";
@@ -21,11 +20,20 @@ import {
   type PageSpec,
 } from "./mod-book-spec.js";
 import { OFFICIAL_MOD_BOOK_SPECS, OFFICIAL_MOD_PROFILE } from "./official-mod-book-specs.js";
+import {
+  BLUEPRINT_VERSION,
+  CASES_PER_ROW,
+  CASE_GAP_TILES,
+  CROP_MARGIN_TILES,
+  chunk,
+  cleanCoordinate,
+  itemIcons,
+  makeBook as makeBlueprintBook,
+  packedTranslation,
+  type SuiteCaseBounds,
+  type SuiteLattice,
+} from "./suite-layout.js";
 
-const BLUEPRINT_VERSION = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
-const CASES_PER_ROW = 4;
-const CASE_GAP_TILES = 1;
-const CROP_MARGIN_TILES = CASE_GAP_TILES / 2;
 const TILE_PATCH_SIZE = 7;
 
 export type OfficialModSuiteCaseKind = "entity-pose" | "tile-patch";
@@ -109,25 +117,18 @@ export interface OfficialModSuiteBuild {
   manifest: OfficialModSuiteManifest;
 }
 
-interface CaseBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
 interface EntityCase {
   kind: "entity";
   name: string;
   pose: EntityPose;
-  bounds: CaseBounds;
-  lattice: { x: 0 | 0.5; y: 0 | 0.5 };
+  bounds: SuiteCaseBounds;
+  lattice: SuiteLattice;
 }
 
 interface TileCase {
   kind: "tile";
   name: string;
-  bounds: CaseBounds;
+  bounds: SuiteCaseBounds;
   lattice: { x: 0; y: 0 };
 }
 
@@ -140,40 +141,31 @@ interface PageDraft {
   cells: OfficialModSuiteCell[];
 }
 
-function itemIcons(names: readonly string[]): Icon[] {
-  return names.slice(0, 4).map((name, index) => ({
-    index: index + 1,
-    signal: { type: "item", name },
-  }));
-}
-
 function makeBook(
   label: string,
   icons: readonly string[],
   entries: BlueprintBook["blueprints"],
 ): BlueprintBook {
+  return makeBlueprintBook(label, itemIcons(...icons), entries);
+}
+
+function drawListToSuiteBounds(bounds: DrawListBounds): SuiteCaseBounds {
   return {
-    item: "blueprint-book",
-    label,
-    icons: itemIcons(icons),
-    active_index: 0,
-    version: BLUEPRINT_VERSION,
-    blueprints: entries,
+    left: bounds.minX,
+    top: bounds.minY,
+    right: bounds.maxX,
+    bottom: bounds.maxY,
   };
 }
 
-function clean(value: number): number {
-  return Math.round(value * 1_000_000_000) / 1_000_000_000;
-}
-
-function selectionBounds(name: string, renderDb: RenderDb): CaseBounds {
+function selectionBounds(name: string, renderDb: RenderDb): SuiteCaseBounds {
   const def = renderDb.entities[name];
   if (!def) throw new Error(`Missing render metadata for ${name}`);
   return {
-    minX: def.selectionBox[0][0],
-    minY: def.selectionBox[0][1],
-    maxX: def.selectionBox[1][0],
-    maxY: def.selectionBox[1][1],
+    left: def.selectionBox[0][0],
+    top: def.selectionBox[0][1],
+    right: def.selectionBox[1][0],
+    bottom: def.selectionBox[1][1],
   };
 }
 
@@ -204,7 +196,7 @@ function entityBounds(
   pose: EntityPose,
   renderDb: RenderDb,
   diagnostics: OfficialModSuiteManifest["rendererDiagnostics"],
-): CaseBounds {
+): SuiteCaseBounds {
   try {
     const drawList = planDrawList(
       {
@@ -215,7 +207,7 @@ function entityBounds(
       renderDb,
     );
     if (drawList.commands.length > 0 && usableBounds(drawList.bounds)) {
-      return drawList.bounds;
+      return drawListToSuiteBounds(drawList.bounds);
     }
     diagnostics.push({ entityName: name, message: "planner emitted no usable visual bounds" });
   } catch (error) {
@@ -243,18 +235,6 @@ function entityLattice(name: string, pose: EntityPose, renderDb: RenderDb): Enti
     x: placedWidth % 2 === 0 ? 0 : 0.5,
     y: placedHeight % 2 === 0 ? 0 : 0.5,
   };
-}
-
-function packedTranslation(minimum: number, localBound: number, fraction: 0 | 0.5): number {
-  return Math.ceil(minimum - localBound - fraction - Number.EPSILON * 8) + fraction;
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    rows.push(items.slice(index, index + size));
-  }
-  return rows;
 }
 
 /**
@@ -286,7 +266,7 @@ function placementCaseRows(
   const tileCases: TileCase[] = (spec.tiles ?? []).map((name) => ({
     kind: "tile",
     name,
-    bounds: { minX: 0, minY: 0, maxX: TILE_PATCH_SIZE, maxY: TILE_PATCH_SIZE },
+    bounds: { left: 0, top: 0, right: TILE_PATCH_SIZE, bottom: TILE_PATCH_SIZE },
     lattice: { x: 0, y: 0 },
   }));
   rows.push(...chunk(tileCases, CASES_PER_ROW));
@@ -313,16 +293,16 @@ function buildPage(
 
     for (const placement of row) {
       const minimumLeft = previousRight == null ? 0 : previousRight + CASE_GAP_TILES;
-      const translateX = packedTranslation(minimumLeft, placement.bounds.minX, placement.lattice.x);
-      const translateY = packedTranslation(rowTop, placement.bounds.minY, placement.lattice.y);
+      const translateX = packedTranslation(minimumLeft, placement.bounds.left, placement.lattice.x);
+      const translateY = packedTranslation(rowTop, placement.bounds.top, placement.lattice.y);
       const placedBounds = {
-        minX: clean(placement.bounds.minX + translateX),
-        minY: clean(placement.bounds.minY + translateY),
-        maxX: clean(placement.bounds.maxX + translateX),
-        maxY: clean(placement.bounds.maxY + translateY),
+        left: cleanCoordinate(placement.bounds.left + translateX),
+        top: cleanCoordinate(placement.bounds.top + translateY),
+        right: cleanCoordinate(placement.bounds.right + translateX),
+        bottom: cleanCoordinate(placement.bounds.bottom + translateY),
       };
-      previousRight = placedBounds.maxX;
-      rowBottom = Math.max(rowBottom, placedBounds.maxY);
+      previousRight = placedBounds.right;
+      rowBottom = Math.max(rowBottom, placedBounds.bottom);
 
       let focusEntityNumbers: number[] = [];
       if (placement.kind === "entity") {
@@ -354,10 +334,10 @@ function buildPage(
         pageId: spec.id,
         pagePath: [],
         cropTiles: {
-          left: placedBounds.minX - CROP_MARGIN_TILES,
-          top: placedBounds.minY - CROP_MARGIN_TILES,
-          right: placedBounds.maxX + CROP_MARGIN_TILES,
-          bottom: placedBounds.maxY + CROP_MARGIN_TILES,
+          left: placedBounds.left - CROP_MARGIN_TILES,
+          top: placedBounds.top - CROP_MARGIN_TILES,
+          right: placedBounds.right + CROP_MARGIN_TILES,
+          bottom: placedBounds.bottom + CROP_MARGIN_TILES,
         },
         focusEntityNumbers,
         ...(placement.kind === "entity"
@@ -382,7 +362,7 @@ function buildPage(
     blueprint: {
       item: "blueprint",
       label: spec.label,
-      icons: itemIcons(spec.icons),
+      icons: itemIcons(...spec.icons),
       description: `Generated FPSR ${mod} placement page.`,
       version: BLUEPRINT_VERSION,
       ...(entities.length > 0 ? { entities } : {}),

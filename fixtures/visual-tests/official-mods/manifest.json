@@ -98,7 +98,7 @@
   },
   "coverage": {
     "entityPrototypeCount": 34,
-    "entityPlacementCaseCount": 137,
+    "entityPlacementCaseCount": 140,
     "tilePrototypeCount": 7,
     "tileCaseCount": 7,
     "pageCount": 6
@@ -195,10 +195,13 @@
         "pose/fusion-generator/d08",
         "pose/fusion-generator/d12",
         "pose/heating-tower/d00",
+        "pose/heating-tower/d04",
+        "pose/heating-tower/d08",
+        "pose/heating-tower/d12",
         "pose/lightning-rod/d00",
         "pose/lightning-collector/d00"
       ],
-      "entityCount": 34,
+      "entityCount": 37,
       "tileCount": 0
     },
     {
@@ -1855,19 +1858,88 @@
         1
       ],
       "cropTiles": {
-        "left": 0.4688,
+        "left": 0.375,
         "top": 72.125025,
         "right": 6.3438,
-        "bottom": 77.625025
+        "bottom": 77.75
       },
       "focusEntityNumbers": [
         32
       ],
       "entityName": "heating-tower",
       "pose": {
-        "axis": "single",
+        "axis": "direction",
         "metadataSource": "official-mod-render-db",
         "direction": 0
+      }
+    },
+    {
+      "id": "pose/heating-tower/d04",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 6.4688,
+        "top": 72.125025,
+        "right": 12.3438,
+        "bottom": 77.625025
+      },
+      "focusEntityNumbers": [
+        33
+      ],
+      "entityName": "heating-tower",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 4
+      }
+    },
+    {
+      "id": "pose/heating-tower/d08",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 12.4688,
+        "top": 72.125025,
+        "right": 18.3438,
+        "bottom": 77.625025
+      },
+      "focusEntityNumbers": [
+        34
+      ],
+      "entityName": "heating-tower",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 8
+      }
+    },
+    {
+      "id": "pose/heating-tower/d12",
+      "caseKind": "entity-pose",
+      "pageId": "official-mods/space-age/production",
+      "pagePath": [
+        1
+      ],
+      "cropTiles": {
+        "left": 18.4688,
+        "top": 72.125025,
+        "right": 24.3438,
+        "bottom": 77.625025
+      },
+      "focusEntityNumbers": [
+        35
+      ],
+      "entityName": "heating-tower",
+      "pose": {
+        "axis": "direction",
+        "metadataSource": "official-mod-render-db",
+        "direction": 12
       }
     },
     {
@@ -1884,7 +1956,7 @@
         "bottom": 84.57815
       },
       "focusEntityNumbers": [
-        33
+        36
       ],
       "entityName": "lightning-rod",
       "pose": {
@@ -1907,7 +1979,7 @@
         "bottom": 92.70315
       },
       "focusEntityNumbers": [
-        34
+        37
       ],
       "entityName": "lightning-collector",
       "pose": {
@@ -1924,10 +1996,10 @@
         2
       ],
       "cropTiles": {
-        "left": -0.140625,
+        "left": -0.046825000000000006,
         "top": 0.390675,
-        "right": 12.95315,
-        "bottom": 10.4375
+        "right": 14.95315,
+        "bottom": 10.671925
       },
       "focusEntityNumbers": [
         1
@@ -1947,10 +2019,10 @@
         2
       ],
       "cropTiles": {
-        "left": -0.2969,
+        "left": 0.42184999999999995,
         "top": 10.874975,
-        "right": 6.875025,
-        "bottom": 16.078125
+        "right": 7.875025,
+        "bottom": 16.578175
       },
       "focusEntityNumbers": [
         2
@@ -1994,9 +2066,9 @@
       ],
       "cropTiles": {
         "left": 7.53125,
-        "top": 16.531225,
+        "top": 17.531225,
         "right": 14.453175,
-        "bottom": 22.7813
+        "bottom": 23.7813
       },
       "focusEntityNumbers": [
         4
@@ -2017,9 +2089,9 @@
       ],
       "cropTiles": {
         "left": 15.4375,
-        "top": 16.531275,
+        "top": 17.531275,
         "right": 22.437525,
-        "bottom": 23.218725
+        "bottom": 24.218725
       },
       "focusEntityNumbers": [
         5
@@ -2040,9 +2112,9 @@
       ],
       "cropTiles": {
         "left": 22.73435,
-        "top": 16.515675,
+        "top": 17.515675,
         "right": 30.749975,
-        "bottom": 22.62505
+        "bottom": 23.62505
       },
       "focusEntityNumbers": [
         6
@@ -2063,9 +2135,9 @@
       ],
       "cropTiles": {
         "left": 0.484375,
-        "top": 23.7813,
+        "top": 24.7813,
         "right": 6.10935,
-        "bottom": 28.609425
+        "bottom": 29.609425
       },
       "focusEntityNumbers": [
         7
@@ -2086,9 +2158,9 @@
       ],
       "cropTiles": {
         "left": 6.29685,
-        "top": 23.28125,
+        "top": 24.28125,
         "right": 11.515625,
-        "bottom": 28.78125
+        "bottom": 29.78125
       },
       "focusEntityNumbers": [
         8
@@ -2109,9 +2181,9 @@
       ],
       "cropTiles": {
         "left": 12.29685,
-        "top": 23.375,
+        "top": 24.375,
         "right": 17.10935,
-        "bottom": 28.8125
+        "bottom": 29.8125
       },
       "focusEntityNumbers": [
         9
@@ -2132,9 +2204,9 @@
       ],
       "cropTiles": {
         "left": 17.484375,
-        "top": 23.28125,
+        "top": 24.28125,
         "right": 23.10935,
-        "bottom": 28.78125
+        "bottom": 29.78125
       },
       "focusEntityNumbers": [
         10
@@ -2155,9 +2227,9 @@
       ],
       "cropTiles": {
         "left": 0.4063,
-        "top": 29.2656,
+        "top": 30.2656,
         "right": 3.984375,
-        "bottom": 33.374975
+        "bottom": 34.374975
       },
       "focusEntityNumbers": [
         11
@@ -2178,9 +2250,9 @@
       ],
       "cropTiles": {
         "left": 4.4375,
-        "top": 29.0938,
+        "top": 30.0938,
         "right": 8.9531,
-        "bottom": 32.79685
+        "bottom": 33.79685
       },
       "focusEntityNumbers": [
         12
@@ -2201,9 +2273,9 @@
       ],
       "cropTiles": {
         "left": 9.4063,
-        "top": 29.2656,
+        "top": 30.2656,
         "right": 12.984375,
-        "bottom": 33.374975
+        "bottom": 34.374975
       },
       "focusEntityNumbers": [
         13
@@ -2224,9 +2296,9 @@
       ],
       "cropTiles": {
         "left": 13.4375,
-        "top": 29.0938,
+        "top": 30.0938,
         "right": 17.9531,
-        "bottom": 32.79685
+        "bottom": 33.79685
       },
       "focusEntityNumbers": [
         14
@@ -2247,9 +2319,9 @@
       ],
       "cropTiles": {
         "left": 0.21875,
-        "top": 33.70315,
+        "top": 34.70315,
         "right": 5.90625,
-        "bottom": 43.359425
+        "bottom": 44.359425
       },
       "focusEntityNumbers": [
         15
@@ -2545,10 +2617,10 @@
         0
       ],
       "cropTiles": {
-        "left": 0.453125,
-        "top": 0.46875,
-        "right": 3.53125,
-        "bottom": 3.640625
+        "left": 0.234375,
+        "top": -0.046875,
+        "right": 9.104375,
+        "bottom": 6.75
       },
       "focusEntityNumbers": [
         1
@@ -2568,10 +2640,10 @@
         0
       ],
       "cropTiles": {
-        "left": 3.640625,
-        "top": 0.0625,
-        "right": 8.34375,
-        "bottom": 3.953125
+        "left": 9.5,
+        "top": 0.40625,
+        "right": 19.854375,
+        "bottom": 8.25
       },
       "focusEntityNumbers": [
         2
@@ -2591,10 +2663,10 @@
         0
       ],
       "cropTiles": {
-        "left": 8.5,
-        "top": -0.265625,
-        "right": 11.5,
-        "bottom": 2.28125
+        "left": 20.5,
+        "top": 0.046875,
+        "right": 28.885625,
+        "bottom": 6.625
       },
       "focusEntityNumbers": [
         3
@@ -2614,10 +2686,10 @@
         0
       ],
       "cropTiles": {
-        "left": 11.65625,
-        "top": 0.0625,
-        "right": 16.34375,
-        "bottom": 3.953125
+        "left": 29.484375,
+        "top": 0.4375,
+        "right": 39.823125,
+        "bottom": 8.46875
       },
       "focusEntityNumbers": [
         4
@@ -2637,10 +2709,10 @@
         0
       ],
       "cropTiles": {
-        "left": 0.453125,
-        "top": 4.46875,
-        "right": 3.53125,
-        "bottom": 7.640625
+        "left": 0.234375,
+        "top": 8.953125,
+        "right": 9.104375,
+        "bottom": 15.75
       },
       "focusEntityNumbers": [
         5
@@ -2660,10 +2732,10 @@
         0
       ],
       "cropTiles": {
-        "left": 3.640625,
-        "top": 4.0625,
-        "right": 8.34375,
-        "bottom": 7.953125
+        "left": 9.5,
+        "top": 9.40625,
+        "right": 19.854375,
+        "bottom": 17.25
       },
       "focusEntityNumbers": [
         6
@@ -2683,10 +2755,10 @@
         0
       ],
       "cropTiles": {
-        "left": 8.5,
-        "top": 4.734375,
-        "right": 11.5,
-        "bottom": 7.28125
+        "left": 20.5,
+        "top": 9.046875,
+        "right": 28.885625,
+        "bottom": 15.625
       },
       "focusEntityNumbers": [
         7
@@ -2706,10 +2778,10 @@
         0
       ],
       "cropTiles": {
-        "left": 11.65625,
-        "top": 4.0625,
-        "right": 16.34375,
-        "bottom": 7.953125
+        "left": 29.484375,
+        "top": 9.4375,
+        "right": 39.823125,
+        "bottom": 17.46875
       },
       "focusEntityNumbers": [
         8
@@ -2729,10 +2801,10 @@
         0
       ],
       "cropTiles": {
-        "left": -0.46875,
-        "top": 8.21875,
-        "right": 4.46875,
-        "bottom": 13.796875
+        "left": 0.203125,
+        "top": 17.65625,
+        "right": 11.02625,
+        "bottom": 27.046875
       },
       "focusEntityNumbers": [
         9
@@ -2752,10 +2824,10 @@
         0
       ],
       "cropTiles": {
-        "left": 4.53125,
-        "top": 8.21875,
-        "right": 9.46875,
-        "bottom": 13.796875
+        "left": 11.3125,
+        "top": 17.65625,
+        "right": 22.15125,
+        "bottom": 27.046875
       },
       "focusEntityNumbers": [
         10
@@ -2775,10 +2847,10 @@
         0
       ],
       "cropTiles": {
-        "left": 9.921875,
-        "top": 8.859375,
-        "right": 16.078125,
-        "bottom": 13.140625
+        "left": 22.78125,
+        "top": 18.203125,
+        "right": 34.62,
+        "bottom": 26.328125
       },
       "focusEntityNumbers": [
         11
@@ -2798,10 +2870,10 @@
         0
       ],
       "cropTiles": {
-        "left": 16.921875,
-        "top": 8.875,
-        "right": 23.078125,
-        "bottom": 13.140625
+        "left": 34.765625,
+        "top": 18.21875,
+        "right": 46.52625,
+        "bottom": 26.578125
       },
       "focusEntityNumbers": [
         12
@@ -2821,10 +2893,10 @@
         0
       ],
       "cropTiles": {
-        "left": -0.46875,
-        "top": 14.21875,
-        "right": 4.46875,
-        "bottom": 19.796875
+        "left": 0.203125,
+        "top": 27.65625,
+        "right": 11.02625,
+        "bottom": 37.046875
       },
       "focusEntityNumbers": [
         13
@@ -2844,10 +2916,10 @@
         0
       ],
       "cropTiles": {
-        "left": 4.53125,
-        "top": 14.21875,
-        "right": 9.46875,
-        "bottom": 19.796875
+        "left": 11.3125,
+        "top": 27.65625,
+        "right": 22.15125,
+        "bottom": 37.046875
       },
       "focusEntityNumbers": [
         14
@@ -2867,10 +2939,10 @@
         0
       ],
       "cropTiles": {
-        "left": 9.921875,
-        "top": 13.859375,
-        "right": 16.078125,
-        "bottom": 18.140625
+        "left": 22.78125,
+        "top": 27.203125,
+        "right": 34.62,
+        "bottom": 35.328125
       },
       "focusEntityNumbers": [
         15
@@ -2890,10 +2962,10 @@
         0
       ],
       "cropTiles": {
-        "left": 16.921875,
-        "top": 13.875,
-        "right": 23.078125,
-        "bottom": 18.140625
+        "left": 34.765625,
+        "top": 27.21875,
+        "right": 46.52625,
+        "bottom": 35.578125
       },
       "focusEntityNumbers": [
         16
@@ -2913,10 +2985,10 @@
         0
       ],
       "cropTiles": {
-        "left": -0.46875,
-        "top": 20.21875,
-        "right": 3.53125,
-        "bottom": 26.640625
+        "left": 0.203125,
+        "top": 37.65625,
+        "right": 10.104375,
+        "bottom": 47.75
       },
       "focusEntityNumbers": [
         17
@@ -2936,10 +3008,10 @@
         0
       ],
       "cropTiles": {
-        "left": 4.46875,
-        "top": 20.21875,
-        "right": 8.46875,
-        "bottom": 26.640625
+        "left": 10.234375,
+        "top": 37.65625,
+        "right": 20.15125,
+        "bottom": 47.765625
       },
       "focusEntityNumbers": [
         18
@@ -2959,10 +3031,10 @@
         0
       ],
       "cropTiles": {
-        "left": 8.5,
-        "top": 19.859375,
-        "right": 15.078125,
-        "bottom": 23.28125
+        "left": 20.5,
+        "top": 37.21875,
+        "right": 32.62,
+        "bottom": 44.609375
       },
       "focusEntityNumbers": [
         19
@@ -2982,10 +3054,10 @@
         0
       ],
       "cropTiles": {
-        "left": 15.5,
-        "top": 20.734375,
-        "right": 22.078125,
-        "bottom": 24.140625
+        "left": 33.5,
+        "top": 37.046875,
+        "right": 45.52625,
+        "bottom": 44.390625
       },
       "focusEntityNumbers": [
         20
@@ -3005,10 +3077,10 @@
         0
       ],
       "cropTiles": {
-        "left": 0.46875,
-        "top": 27.46875,
-        "right": 4.46875,
-        "bottom": 33.796875
+        "left": 0.234375,
+        "top": 47.953125,
+        "right": 10.02625,
+        "bottom": 58.046875
       },
       "focusEntityNumbers": [
         21
@@ -3028,10 +3100,10 @@
         0
       ],
       "cropTiles": {
-        "left": 4.53125,
-        "top": 27.46875,
-        "right": 8.53125,
-        "bottom": 33.796875
+        "left": 10.3125,
+        "top": 47.953125,
+        "right": 20.104375,
+        "bottom": 58.0625
       },
       "focusEntityNumbers": [
         22
@@ -3051,10 +3123,10 @@
         0
       ],
       "cropTiles": {
-        "left": 8.921875,
-        "top": 26.734375,
-        "right": 15.5,
-        "bottom": 30.140625
+        "left": 20.78125,
+        "top": 48.046875,
+        "right": 32.885625,
+        "bottom": 55.328125
       },
       "focusEntityNumbers": [
         23
@@ -3074,10 +3146,10 @@
         0
       ],
       "cropTiles": {
-        "left": 15.921875,
-        "top": 26.875,
-        "right": 22.5,
-        "bottom": 30.28125
+        "left": 33.765625,
+        "top": 48.21875,
+        "right": 45.885625,
+        "bottom": 55.625
       },
       "focusEntityNumbers": [
         24
@@ -3097,10 +3169,10 @@
         0
       ],
       "cropTiles": {
-        "left": -0.34375,
-        "top": 34.0625,
-        "right": 5.46875,
-        "bottom": 39.796875
+        "left": 0.484375,
+        "top": 58.4375,
+        "right": 12.02625,
+        "bottom": 68.046875
       },
       "focusEntityNumbers": [
         25
@@ -3120,10 +3192,10 @@
         0
       ],
       "cropTiles": {
-        "left": 5.53125,
-        "top": 34.0625,
-        "right": 11.34375,
-        "bottom": 39.796875
+        "left": 12.3125,
+        "top": 58.40625,
+        "right": 23.854375,
+        "bottom": 68.046875
       },
       "focusEntityNumbers": [
         26
@@ -3143,10 +3215,10 @@
         0
       ],
       "cropTiles": {
-        "left": 11.921875,
-        "top": 34.0625,
-        "right": 18.34375,
-        "bottom": 39.140625
+        "left": 24.78125,
+        "top": 58.40625,
+        "right": 36.854375,
+        "bottom": 67.328125
       },
       "focusEntityNumbers": [
         27
@@ -3166,10 +3238,10 @@
         0
       ],
       "cropTiles": {
-        "left": 18.921875,
-        "top": 33.875,
-        "right": 25.34375,
-        "bottom": 38.953125
+        "left": 37.765625,
+        "top": 58.21875,
+        "right": 49.8075,
+        "bottom": 67.484375
       },
       "focusEntityNumbers": [
         28
@@ -3189,10 +3261,10 @@
         0
       ],
       "cropTiles": {
-        "left": -0.46875,
-        "top": 40.21875,
-        "right": 5.34375,
-        "bottom": 45.953125
+        "left": 0.203125,
+        "top": 68.65625,
+        "right": 11.8075,
+        "bottom": 78.421875
       },
       "focusEntityNumbers": [
         29
@@ -3212,10 +3284,10 @@
         0
       ],
       "cropTiles": {
-        "left": 5.65625,
-        "top": 40.21875,
-        "right": 11.46875,
-        "bottom": 45.953125
+        "left": 12.5,
+        "top": 68.65625,
+        "right": 24.15125,
+        "bottom": 78.25
       },
       "focusEntityNumbers": [
         30
@@ -3235,10 +3307,10 @@
         0
       ],
       "cropTiles": {
-        "left": 11.65625,
-        "top": 39.859375,
-        "right": 18.078125,
-        "bottom": 44.953125
+        "left": 24.5,
+        "top": 68.203125,
+        "right": 36.62,
+        "bottom": 77.25
       },
       "focusEntityNumbers": [
         31
@@ -3258,10 +3330,10 @@
         0
       ],
       "cropTiles": {
-        "left": 18.65625,
-        "top": 40.0625,
-        "right": 25.078125,
-        "bottom": 45.140625
+        "left": 37.484375,
+        "top": 68.4375,
+        "right": 49.52625,
+        "bottom": 77.390625
       },
       "focusEntityNumbers": [
         32
@@ -3282,9 +3354,9 @@
       ],
       "cropTiles": {
         "left": -0.015625,
-        "top": 46.593775,
-        "right": 5.609375,
-        "bottom": 66.593775
+        "top": 78.953175,
+        "right": 10.124975,
+        "bottom": 99.734425
       },
       "focusEntityNumbers": [
         33
@@ -3304,10 +3376,10 @@
         0
       ],
       "cropTiles": {
-        "left": 6.5,
-        "top": 46.7344,
-        "right": 23.578125,
-        "bottom": 55.343775
+        "left": 10.5,
+        "top": 79.046925,
+        "right": 32.92185,
+        "bottom": 88.343775
       },
       "focusEntityNumbers": [
         34
@@ -3327,10 +3399,10 @@
         0
       ],
       "cropTiles": {
-        "left": 23.984375,
-        "top": 46.14065,
-        "right": 29.609375,
-        "bottom": 63.57815
+        "left": 32.984375,
+        "top": 79.14065,
+        "right": 43.124975,
+        "bottom": 96.81255
       },
       "focusEntityNumbers": [
         35
@@ -3350,10 +3422,10 @@
         0
       ],
       "cropTiles": {
-        "left": 30.421875,
-        "top": 46.7344,
-        "right": 47.5,
-        "bottom": 53.718775
+        "left": 43.421875,
+        "top": 79.046925,
+        "right": 60.98435,
+        "bottom": 86.718775
       },
       "focusEntityNumbers": [
         36
@@ -3374,9 +3446,9 @@
       ],
       "cropTiles": {
         "left": 0.40625,
-        "top": 67.203125,
+        "top": 100.203125,
         "right": 9.0625,
-        "bottom": 74.59375
+        "bottom": 107.59375
       },
       "focusEntityNumbers": [
         37
@@ -3397,9 +3469,9 @@
       ],
       "cropTiles": {
         "left": 9.4375,
-        "top": 67.03125,
+        "top": 100.03125,
         "right": 18.6875,
-        "bottom": 74.3125
+        "bottom": 107.3125
       },
       "focusEntityNumbers": [
         38
@@ -3420,9 +3492,9 @@
       ],
       "cropTiles": {
         "left": 19.359375,
-        "top": 67.03125,
+        "top": 100.03125,
         "right": 28.953125,
-        "bottom": 74.359375
+        "bottom": 107.359375
       },
       "focusEntityNumbers": [
         39
@@ -3443,9 +3515,9 @@
       ],
       "cropTiles": {
         "left": 29.421875,
-        "top": 67.171875,
+        "top": 100.171875,
         "right": 39.15625,
-        "bottom": 74.4375
+        "bottom": 107.4375
       },
       "focusEntityNumbers": [
         40
@@ -3466,9 +3538,9 @@
       ],
       "cropTiles": {
         "left": -0.4375,
-        "top": 74.796875,
+        "top": 107.796875,
         "right": 8.84375,
-        "bottom": 81.703125
+        "bottom": 114.703125
       },
       "focusEntityNumbers": [
         41
@@ -3489,9 +3561,9 @@
       ],
       "cropTiles": {
         "left": 9.3125,
-        "top": 75.171875,
+        "top": 108.171875,
         "right": 19.03125,
-        "bottom": 82.4375
+        "bottom": 115.4375
       },
       "focusEntityNumbers": [
         42
@@ -3512,9 +3584,9 @@
       ],
       "cropTiles": {
         "left": 19.390625,
-        "top": 75.03125,
+        "top": 108.03125,
         "right": 28.859375,
-        "bottom": 82.359375
+        "bottom": 115.359375
       },
       "focusEntityNumbers": [
         43
@@ -3535,9 +3607,9 @@
       ],
       "cropTiles": {
         "left": 29.453125,
-        "top": 75.03125,
+        "top": 108.03125,
         "right": 38.625,
-        "bottom": 82.3125
+        "bottom": 115.3125
       },
       "focusEntityNumbers": [
         44
