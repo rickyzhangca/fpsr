@@ -3,6 +3,8 @@ import type { Blueprint, BlueprintDocument } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { PreviewPane } from "./preview-pane";
+import type { PreviewRenderProgress, PreviewRenderResult } from "./preview-renderer";
 const mocks = vi.hoisted(() => ({
   renderPreview: vi.fn(),
   measurePreview: vi.fn(),
@@ -10,6 +12,20 @@ const mocks = vi.hoisted(() => ({
   clipboardWrite: vi.fn(),
   createObjectURL: vi.fn(() => "blob:test-export"),
   revokeObjectURL: vi.fn(),
+  loadRenderDb: vi.fn(async () => ({
+    spaceBackground: {
+      planetFrame: 0,
+      planets: { nauvis: 0, vulcanus: 1 },
+    },
+    terrainBackgrounds: {
+      dirt: { patchSize: 4, frames: [0], color: [0.5, 0.4, 0.3, 1] },
+      water: { patchSize: 32, frames: [0], color: [0.2, 0.3, 0.4, 1] },
+      vulcanus: { patchSize: 4, frames: [0], color: [0.1, 0.15, 0.1, 1] },
+      gleba: { patchSize: 4, frames: [0], color: [0.2, 0.22, 0.19, 1] },
+      fulgora: { patchSize: 8, frames: [0], color: [0.4, 0.25, 0.2, 1] },
+      aquilo: { patchSize: 4, frames: [0], color: [0.85, 0.9, 0.95, 1] },
+    },
+  })),
 }));
 class ClipboardItemMock {
   static supports = vi.fn(() => true);
@@ -24,6 +40,11 @@ vi.mock("./preview-renderer", async (importOriginal) => {
     clearPreview: mocks.clearPreview,
   };
 });
+vi.mock("./viewer-assets", () => ({
+  viewerAssets: {
+    loadRenderDb: mocks.loadRenderDb,
+  },
+}));
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
@@ -47,8 +68,6 @@ vi.mock("./preview-canvas-frame", () => ({
     </>
   ),
 }));
-import { PreviewPane } from "./preview-pane";
-import type { PreviewRenderProgress, PreviewRenderResult } from "./preview-renderer";
 const result = (): PreviewRenderResult => {
   return {
     width: 32,
@@ -84,6 +103,21 @@ describe("PreviewPane alt-mode toggle", () => {
     mocks.clipboardWrite.mockReset();
     mocks.createObjectURL.mockClear();
     mocks.revokeObjectURL.mockClear();
+    mocks.loadRenderDb.mockClear();
+    mocks.loadRenderDb.mockResolvedValue({
+      spaceBackground: {
+        planetFrame: 0,
+        planets: { nauvis: 0, vulcanus: 1 },
+      },
+      terrainBackgrounds: {
+        dirt: { patchSize: 4, frames: [0], color: [0.5, 0.4, 0.3, 1] },
+        water: { patchSize: 32, frames: [0], color: [0.2, 0.3, 0.4, 1] },
+        vulcanus: { patchSize: 4, frames: [0], color: [0.1, 0.15, 0.1, 1] },
+        gleba: { patchSize: 4, frames: [0], color: [0.2, 0.22, 0.19, 1] },
+        fulgora: { patchSize: 8, frames: [0], color: [0.4, 0.25, 0.2, 1] },
+        aquilo: { patchSize: 4, frames: [0], color: [0.85, 0.9, 0.95, 1] },
+      },
+    });
     ClipboardItemMock.supports.mockClear();
     mocks.renderPreview.mockImplementation(async () => result());
     mocks.measurePreview.mockResolvedValue({
@@ -146,7 +180,10 @@ describe("PreviewPane alt-mode toggle", () => {
       pixelsPerTile: 64,
       maxOutputSize: { width: 4096, height: 4096 },
       padTiles: 1,
-      showCheckerboard: true,
+      showBackgroundAuto: true,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: undefined,
       signal: expect.any(AbortSignal),
     });
     const toggle = host.querySelector<HTMLButtonElement>("#alt-mode");
@@ -174,11 +211,11 @@ describe("PreviewPane alt-mode toggle", () => {
     expect(copy?.disabled).toBe(false);
     await act(async () => root.unmount());
   });
-  it("rerenders when checkerboard is toggled", async () => {
+  it("rerenders when background mode changes", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
       version: 0,
-      label: "Checkerboard test",
+      label: "Background test",
       entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
     };
     const doc: BlueprintDocument = { blueprint };
@@ -190,17 +227,238 @@ describe("PreviewPane alt-mode toggle", () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
-    expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({ showCheckerboard: true });
-    const toggle = host.querySelector<HTMLButtonElement>("#checkerboard");
-    expect(toggle).toBeTruthy();
+    expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({
+      showBackgroundAuto: true,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: undefined,
+    });
+    const backgroundSwitch = host.querySelector<HTMLButtonElement>("#background");
+    expect(backgroundSwitch).toBeTruthy();
     act(() => {
-      toggle?.click();
+      backgroundSwitch?.click();
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 180));
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
-    expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({ showCheckerboard: false });
+    expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: undefined,
+    });
+    const trigger = host.querySelector<HTMLButtonElement>("#background-mode");
+    expect(trigger).toBeTruthy();
+    expect(trigger?.disabled).toBe(true);
+    act(() => {
+      backgroundSwitch?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(3);
+    expect(mocks.renderPreview.mock.calls[2]?.[2]).toMatchObject({
+      showBackgroundAuto: true,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: undefined,
+    });
+    expect(trigger?.disabled).toBe(false);
+    act(() => {
+      trigger?.click();
+    });
+    const space = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Space",
+    );
+    expect(space).toBeTruthy();
+    act(() => {
+      space?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(4);
+    expect(mocks.renderPreview.mock.calls[3]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: true,
+      showSpacePlanet: false,
+      terrainBackground: undefined,
+    });
+    act(() => {
+      trigger?.click();
+    });
+    const nauvisOrbit = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Nauvis orbit",
+    );
+    expect(nauvisOrbit).toBeTruthy();
+    act(() => {
+      nauvisOrbit?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(5);
+    expect(mocks.renderPreview.mock.calls[4]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: true,
+      showSpacePlanet: true,
+      spacePlanet: "nauvis",
+      terrainBackground: undefined,
+    });
+    act(() => {
+      trigger?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const vulcanusOrbit = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Vulcanus orbit",
+    );
+    expect(vulcanusOrbit).toBeTruthy();
+    act(() => {
+      vulcanusOrbit?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(6);
+    expect(mocks.renderPreview.mock.calls[5]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: true,
+      showSpacePlanet: true,
+      spacePlanet: "vulcanus",
+      terrainBackground: undefined,
+    });
+    act(() => {
+      trigger?.click();
+    });
+    const dirt = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Dirt",
+    );
+    expect(dirt).toBeTruthy();
+    act(() => {
+      dirt?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(7);
+    expect(mocks.renderPreview.mock.calls[6]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: "dirt",
+    });
+    act(() => {
+      trigger?.click();
+    });
+    const water = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Water",
+    );
+    expect(water).toBeTruthy();
+    act(() => {
+      water?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(8);
+    expect(mocks.renderPreview.mock.calls[7]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: "water",
+    });
+    // Re-selecting the current mode must not leave the UI stuck on "Rendering".
+    act(() => {
+      trigger?.click();
+    });
+    const waterAgain = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Water",
+    );
+    expect(waterAgain).toBeTruthy();
+    act(() => {
+      waterAgain?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(8);
+    expect(
+      [...host.querySelectorAll<HTMLButtonElement>("button")].some(
+        (button) => button.textContent === "Rendering",
+      ),
+    ).toBe(false);
+    act(() => {
+      trigger?.click();
+    });
+    const auto = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Auto",
+    );
+    expect(auto).toBeTruthy();
+    act(() => {
+      auto?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(9);
+    expect(mocks.renderPreview.mock.calls[8]?.[2]).toMatchObject({
+      showBackgroundAuto: true,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: undefined,
+    });
+    act(() => {
+      trigger?.click();
+    });
+    const vulcanus = [...document.querySelectorAll<HTMLElement>("[role='option']")].find(
+      (option) => option.textContent === "Vulcanus",
+    );
+    expect(vulcanus).toBeTruthy();
+    act(() => {
+      vulcanus?.click();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(10);
+    expect(mocks.renderPreview.mock.calls[9]?.[2]).toMatchObject({
+      showBackgroundAuto: false,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: "vulcanus",
+    });
+    await act(async () => root.unmount());
+  });
+
+  it("passes showBackgroundAuto for space-platform blueprints without resolving locally", async () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "Platform background test",
+      entities: [{ entity_number: 1, name: "space-platform-hub", position: { x: 0.5, y: 0.5 } }],
+      tiles: [{ name: "space-platform-foundation", position: { x: 0, y: 0 } }],
+    };
+    const doc: BlueprintDocument = { blueprint };
+    const root = createRoot(host);
+    act(() => {
+      root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+    expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({
+      showBackgroundAuto: true,
+      showCheckerboard: false,
+      showSpace: false,
+      terrainBackground: undefined,
+    });
     await act(async () => root.unmount());
   });
   it("prepares the selected format once for sized downloads and matching clipboard copies", async () => {

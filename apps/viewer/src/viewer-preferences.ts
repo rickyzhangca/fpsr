@@ -2,12 +2,27 @@ import { atomWithStorage } from "jotai/utils";
 
 export type ViewerTab = "preview" | "process" | "performance";
 
+export type PreviewBackgroundMode =
+  | "auto"
+  | "checkerboard"
+  | "space"
+  | "orbit"
+  | "dirt"
+  | "water"
+  | "vulcanus"
+  | "gleba"
+  | "fulgora"
+  | "aquilo";
+
 export interface PreviewPreferences {
   limitTo4k: boolean;
   exportFormat: "webp" | "png";
   altMode: boolean;
   showCoords: boolean;
-  showCheckerboard: boolean;
+  showBackground: boolean;
+  backgroundMode: PreviewBackgroundMode;
+  /** Factorio planet prototype name used when `backgroundMode` is `"orbit"`. */
+  orbitPlanet: string;
 }
 
 export interface ProcessPreferences {
@@ -34,15 +49,70 @@ export const isViewerTab = (value: unknown): value is ViewerTab => {
   return value === "preview" || value === "process" || value === "performance";
 };
 
-const isPreviewPreferences = (value: unknown): value is PreviewPreferences => {
+export const isPreviewBackgroundMode = (value: unknown): value is PreviewBackgroundMode => {
   return (
-    isRecord(value) &&
-    isBoolean(value.limitTo4k) &&
-    (value.exportFormat === "webp" || value.exportFormat === "png") &&
-    isBoolean(value.altMode) &&
-    isBoolean(value.showCoords) &&
-    isBoolean(value.showCheckerboard)
+    value === "auto" ||
+    value === "checkerboard" ||
+    value === "space" ||
+    value === "orbit" ||
+    value === "dirt" ||
+    value === "water" ||
+    value === "vulcanus" ||
+    value === "gleba" ||
+    value === "fulgora" ||
+    value === "aquilo"
   );
+};
+
+const isNonEmptyString = (value: unknown): value is string => {
+  return typeof value === "string" && value.length > 0;
+};
+
+const normalizePreviewPreferences = (value: unknown): PreviewPreferences | null => {
+  if (!isRecord(value)) return null;
+  if (
+    !isBoolean(value.limitTo4k) ||
+    (value.exportFormat !== "webp" && value.exportFormat !== "png") ||
+    !isBoolean(value.altMode) ||
+    !isBoolean(value.showCoords)
+  ) {
+    return null;
+  }
+  let backgroundMode: PreviewBackgroundMode;
+  let showBackground: boolean;
+  let orbitPlanet = isNonEmptyString(value.orbitPlanet) ? value.orbitPlanet : "nauvis";
+  if (isPreviewBackgroundMode(value.backgroundMode)) {
+    backgroundMode = value.backgroundMode;
+    showBackground = isBoolean(value.showBackground) ? value.showBackground : true;
+  } else if (value.backgroundMode === "nauvis-orbit") {
+    // Migrate single-planet orbit mode into orbit + planet name.
+    backgroundMode = "orbit";
+    orbitPlanet = "nauvis";
+    showBackground = isBoolean(value.showBackground) ? value.showBackground : true;
+  } else if (value.backgroundMode === "transparent") {
+    // Migrate transparent-from-select into switch-off + retained select value.
+    backgroundMode = "checkerboard";
+    showBackground = false;
+  } else if (isBoolean(value.showCheckerboard)) {
+    // Migrate pre-space preference shape.
+    backgroundMode = "checkerboard";
+    showBackground = value.showCheckerboard;
+  } else {
+    return null;
+  }
+  return {
+    limitTo4k: value.limitTo4k,
+    exportFormat: value.exportFormat,
+    altMode: value.altMode,
+    showCoords: value.showCoords,
+    showBackground,
+    backgroundMode,
+    orbitPlanet,
+  };
+};
+
+const isPreviewPreferences = (value: unknown): value is PreviewPreferences => {
+  return normalizePreviewPreferences(value) !== null;
 };
 
 const isPanelLayout = (value: unknown): value is Record<string, number> => {
@@ -71,11 +141,15 @@ const isSidebarExpansion = (value: unknown): value is SidebarExpansion => {
   );
 };
 
-const createValidatedStorage = <Value>(validate: (value: unknown) => value is Value) => {
+const createValidatedStorage = <Value>(
+  validate: (value: unknown) => value is Value,
+  normalize?: (value: unknown) => Value | null,
+) => {
   const read = (raw: string | null, initialValue: Value): Value => {
     if (raw === null) return initialValue;
     try {
       const parsed: unknown = JSON.parse(raw);
+      if (normalize) return normalize(parsed) ?? initialValue;
       return validate(parsed) ? parsed : initialValue;
     } catch {
       return initialValue;
@@ -129,7 +203,9 @@ export const DEFAULT_PREVIEW_PREFERENCES: PreviewPreferences = {
   exportFormat: "webp",
   altMode: true,
   showCoords: false,
-  showCheckerboard: true,
+  showBackground: true,
+  backgroundMode: "auto",
+  orbitPlanet: "nauvis",
 };
 
 export const DEFAULT_PROCESS_PREFERENCES: ProcessPreferences = {
@@ -156,7 +232,7 @@ export const activeTabAtom = atomWithStorage(
 export const previewPreferencesAtom = atomWithStorage(
   VIEWER_PREFERENCE_KEYS.preview,
   DEFAULT_PREVIEW_PREFERENCES,
-  createValidatedStorage(isPreviewPreferences),
+  createValidatedStorage(isPreviewPreferences, normalizePreviewPreferences),
   storageOptions,
 );
 

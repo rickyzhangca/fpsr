@@ -40,6 +40,109 @@ describe("viewer preferences", () => {
     unsubscribe();
   });
 
+  it("defaults backgroundMode to auto", () => {
+    expect(DEFAULT_PREVIEW_PREFERENCES.backgroundMode).toBe("auto");
+
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom).backgroundMode).toBe("auto");
+    unsubscribe();
+  });
+
+  it("accepts persisted auto backgroundMode", () => {
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        ...DEFAULT_PREVIEW_PREFERENCES,
+        backgroundMode: "auto",
+      }),
+    );
+
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom).backgroundMode).toBe("auto");
+    unsubscribe();
+  });
+
+  it("migrates legacy showCheckerboard into showBackground", () => {
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        limitTo4k: true,
+        exportFormat: "webp",
+        altMode: true,
+        showCoords: false,
+        showCheckerboard: false,
+      }),
+    );
+
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom)).toEqual({
+      limitTo4k: true,
+      exportFormat: "webp",
+      altMode: true,
+      showCoords: false,
+      showBackground: false,
+      backgroundMode: "checkerboard",
+      orbitPlanet: "nauvis",
+    });
+    unsubscribe();
+  });
+
+  it("migrates transparent backgroundMode into showBackground off", () => {
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        limitTo4k: true,
+        exportFormat: "webp",
+        altMode: true,
+        showCoords: false,
+        backgroundMode: "transparent",
+      }),
+    );
+
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom)).toEqual({
+      limitTo4k: true,
+      exportFormat: "webp",
+      altMode: true,
+      showCoords: false,
+      showBackground: false,
+      backgroundMode: "checkerboard",
+      orbitPlanet: "nauvis",
+    });
+    unsubscribe();
+  });
+
+  it("migrates nauvis-orbit into orbit + orbitPlanet", () => {
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        limitTo4k: true,
+        exportFormat: "webp",
+        altMode: true,
+        showCoords: false,
+        showBackground: true,
+        backgroundMode: "nauvis-orbit",
+      }),
+    );
+
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom)).toEqual({
+      limitTo4k: true,
+      exportFormat: "webp",
+      altMode: true,
+      showCoords: false,
+      showBackground: true,
+      backgroundMode: "orbit",
+      orbitPlanet: "nauvis",
+    });
+    unsubscribe();
+  });
+
   it("falls back to Preview when the removed Compare tab was persisted", () => {
     localStorage.setItem(VIEWER_PREFERENCE_KEYS.activeTab, JSON.stringify("compare"));
 
