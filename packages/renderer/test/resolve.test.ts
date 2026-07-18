@@ -199,6 +199,20 @@ describe("resolve", () => {
     expect(corner?.selections[0]?.variantKey).toBe("0110");
   });
 
+  it("maps north-east wall corners to ending_right (no south stub)", () => {
+    const out = resolve(
+      bp([
+        { entity_number: 1, name: "stone-wall", position: { x: 0.5, y: 1.5 } },
+        { entity_number: 2, name: "stone-wall", position: { x: 1.5, y: 1.5 } },
+        { entity_number: 3, name: "stone-wall", position: { x: 0.5, y: 0.5 } },
+      ]),
+      db,
+    );
+    // Entity 1 has N+E neighbors (raw 1100); Factorio picture is ending_right.
+    expect(out.find((r) => r.entity.entity_number === 1)?.selections[0]?.variantKey).toBe("0100");
+    expect(out.find((r) => r.entity.entity_number === 2)?.selections[0]?.variantKey).toBe("0001");
+  });
+
   it("walls connect to adjacent gates", () => {
     const out = resolve(
       bp([

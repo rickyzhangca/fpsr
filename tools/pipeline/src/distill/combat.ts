@@ -1,5 +1,5 @@
-import { leafLayers, type FrameBank } from "../sprite.js";
 import { fpsrLayer, guessedLayer } from "../render-layers.js";
+import { leafLayers, type FrameBank } from "../sprite.js";
 import type {
   EntityRenderDef,
   LayerGroup,
@@ -10,21 +10,26 @@ import type {
 import { colorFromProto } from "./shared/color.js";
 import { baseEntity, layersFromSprite } from "./shared/layers.js";
 
+/**
+ * NESW bitmask → WallPictures key. Factorio only authors south-extending pieces;
+ * north links are drawn by the northern neighbour, so N-only / N+E / N+W collapse
+ * onto single / ending_* / straight_horizontal (same as the runtime wallMask).
+ */
 export const WALL_MASK_KEYS: Record<string, string> = {
   "0000": "single",
-  "1000": "ending_right", // approximate: stub north-only
+  "1000": "single",
   "0100": "ending_right",
-  "0010": "ending_left", // approximate
+  "0010": "straight_vertical",
   "0001": "ending_left",
-  "1100": "corner_right_down", // approximate
+  "1100": "ending_right",
   "1010": "straight_vertical",
-  "1001": "corner_left_down", // approximate
+  "1001": "ending_left",
   "0110": "corner_right_down",
   "0101": "straight_horizontal",
   "0011": "corner_left_down",
-  "1110": "t_up",
-  "1101": "t_up",
-  "1011": "t_up",
+  "1110": "corner_right_down",
+  "1101": "straight_horizontal",
+  "1011": "corner_left_down",
   "0111": "t_up",
   "1111": "t_up",
 };
