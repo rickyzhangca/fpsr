@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
+import { resolveSpritePath } from "../paths.js";
+import { fpsrLayer, guessedLayer } from "../render-layers.js";
 import {
   averageColor,
   cropEntireFile,
@@ -12,8 +14,6 @@ import {
   round4,
   type FrameBank,
 } from "../sprite.js";
-import { resolveSpritePath } from "../paths.js";
-import { fpsrLayer, guessedLayer } from "../render-layers.js";
 import type {
   DataRaw,
   EntityKind,
@@ -551,37 +551,40 @@ export async function distillWaterBackground(
   };
 }
 
+async function optionalTerrainBackground(
+  label: string,
+  distill: () => Promise<TerrainPatchBackground>,
+): Promise<TerrainPatchBackground | undefined> {
+  try {
+    return await distill();
+  } catch (err) {
+    // Base-only dumps omit space-age tiles; keep dirt/water and skip the rest.
+    console.log(`\n  terrain ${label} SKIP (${err instanceof Error ? err.message : String(err)})`);
+    return undefined;
+  }
+}
+
 export async function distillTerrainBackgrounds(
   bank: FrameBank,
   raw: DataRaw,
 ): Promise<TerrainBackgrounds> {
   return {
-    dirt: await distillTerrainBackground(bank, raw, "dirt-1", [141 / 255, 104 / 255, 60 / 255, 1]),
-    water: await distillWaterBackground(bank, raw),
-    vulcanus: await distillTerrainBackground(bank, raw, "volcanic-soil-dark", [
-      35 / 255,
-      38 / 255,
-      30 / 255,
-      1,
-    ]),
-    gleba: await distillTerrainBackground(bank, raw, "highland-dark-rock", [
-      52 / 255,
-      55 / 255,
-      48 / 255,
-      1,
-    ]),
-    fulgora: await distillMaterialBackground(bank, raw, "fulgoran-dust", [
-      112 / 255,
-      65 / 255,
-      50 / 255,
-      1,
-    ]),
-    aquilo: await distillTerrainBackground(bank, raw, "snow-flat", [
-      220 / 255,
-      230 / 255,
-      240 / 255,
-      1,
-    ]),
+    dirt: await optionalTerrainBackground("dirt", () =>
+      distillTerrainBackground(bank, raw, "dirt-1", [141 / 255, 104 / 255, 60 / 255, 1]),
+    ),
+    water: await optionalTerrainBackground("water", () => distillWaterBackground(bank, raw)),
+    vulcanus: await optionalTerrainBackground("vulcanus", () =>
+      distillTerrainBackground(bank, raw, "volcanic-soil-dark", [35 / 255, 38 / 255, 30 / 255, 1]),
+    ),
+    gleba: await optionalTerrainBackground("gleba", () =>
+      distillTerrainBackground(bank, raw, "highland-dark-rock", [52 / 255, 55 / 255, 48 / 255, 1]),
+    ),
+    fulgora: await optionalTerrainBackground("fulgora", () =>
+      distillMaterialBackground(bank, raw, "fulgoran-dust", [112 / 255, 65 / 255, 50 / 255, 1]),
+    ),
+    aquilo: await optionalTerrainBackground("aquilo", () =>
+      distillTerrainBackground(bank, raw, "snow-flat", [220 / 255, 230 / 255, 240 / 255, 1]),
+    ),
   };
 }
 
