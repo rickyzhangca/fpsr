@@ -1,257 +1,21 @@
 import { cardinalDirection } from "./resolve.js";
-import type { BlueprintEntity, BlueprintFilter, SignalId } from "./types/blueprint.js";
+import type { BlueprintEntity } from "./types/blueprint.js";
 import { RENDER_LAYERS, type IconCmd } from "./types/draw-list.js";
 import type { EntityRenderDef, RenderDb } from "./types/render-db.js";
+import {
+  type ResolvedAltSignal,
+  altSignalFrame,
+  entitySignals,
+  filterSignals,
+  resolveAltSignals,
+  splitterLaneFilter,
+  isSplitterType,
+} from "./alt-mode-signals.js";
+import { iconDrawSpec, iconLayout, insertPlanSignals } from "./alt-mode-request-pin.js";
 
-type AltSignal = SignalId & { type: string };
+export { altSignalFrame, signalIconKeys } from "./alt-mode-signals.js";
+export { planRequestPinCommands } from "./alt-mode-request-pin.js";
 
-const SIGNAL_PREFIX: Record<string, string> = {
-  item: "item",
-  fluid: "fluid",
-  virtual: "virtual-signal",
-  "virtual-signal": "virtual-signal",
-  entity: "entity",
-  recipe: "recipe",
-  quality: "quality",
-  "space-location": "space-location",
-  "asteroid-chunk": "asteroid-chunk",
-};
-
-function asSignal(value: unknown, defaultType = "item"): AltSignal | undefined {
-  if (typeof value === "string") return { name: value, type: defaultType };
-  if (!value || typeof value !== "object") return undefined;
-  const obj = value as Record<string, unknown>;
-  if (obj.id && typeof obj.id === "object") return asSignal(obj.id, defaultType);
-  if (obj.value && typeof obj.value === "object") return asSignal(obj.value, defaultType);
-  if (obj.signal && typeof obj.signal === "object") return asSignal(obj.signal, defaultType);
-  if (typeof obj.name !== "string") return undefined;
-  return {
-    name: obj.name,
-    type: typeof obj.type === "string" ? obj.type : defaultType,
-    ...(typeof obj.quality === "string" ? { quality: obj.quality } : {}),
-  };
-}
-
-function signalKey(signal: SignalId): string {
-  return `${signal.type ?? "item"}/${signal.name}/${signal.quality ?? "normal"}`;
-}
-
-function collectSignals(value: unknown, defaultType = "item", out: AltSignal[] = []): AltSignal[] {
-  if (Array.isArray(value)) {
-    for (const item of value) collectSignals(item, defaultType, out);
-    return out;
-  }
-  if (!value || typeof value !== "object") return out;
-  const obj = value as Record<string, unknown>;
-  const direct = asSignal(obj, defaultType);
-  if (direct) {
-    out.push(direct);
-    return out;
-  }
-  for (const [key, child] of Object.entries(obj)) {
-    if (key === "index" || key === "count" || key === "comparator") continue;
-    collectSignals(child, defaultType, out);
-  }
-  return out;
-}
-
-function filterSignals(filters: BlueprintFilter[] | undefined, defaultType = "item"): AltSignal[] {
-  return collectSignals(filters ?? [], defaultType);
-}
-
-function uniqueSignals(signals: AltSignal[]): AltSignal[] {
-  const seen = new Set<string>();
-  return signals.filter((signal) => {
-    const key = signalKey(signal);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-/** Ordered render-db icon keys for a Blueprint SignalID (UI lookup chain). */
-export function signalIconKeys(signal: SignalId): string[] {
-  const type = signal.type ?? "item";
-  const prefix = SIGNAL_PREFIX[type] ?? type;
-  const primary = `${prefix}/${signal.name}`;
-
-  switch (type) {
-    case "item":
-      return [primary, `entity/${signal.name}`, `recipe/${signal.name}`];
-    case "entity":
-      return [primary, `item/${signal.name}`];
-    case "recipe":
-      return [primary, `item/${signal.name}`];
-    default:
-      return [primary];
-  }
-}
-
-/** Resolve Blueprint SignalID namespaces and tolerate older/default item shapes. */
-export function altSignalFrame(db: RenderDb, signal: SignalId): number | undefined {
-  for (const key of signalIconKeys(signal)) {
-    const frame = db.icons[key];
-    if (frame !== undefined) return frame;
-  }
-  return undefined;
-}
-
-const MAX_INSERT_PLAN_ICONS = 16;
-
-function positiveInteger(value: unknown, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(0, Math.floor(value));
-}
-
-/** Expand insert plans into their actual inventory-slot order and multiplicity. */
-function insertPlanSignals(items: BlueprintEntity["items"]): AltSignal[] {
-  if (!Array.isArray(items)) return [];
-  const slotted: {
-    signal: AltSignal;
-    inventory: number;
-    stack: number;
-    order: number;
-  }[] = [];
-  const fallback: { signal: AltSignal; order: number }[] = [];
-  let order = 0;
-
-  for (const item of items) {
-    const signal = asSignal(item.id);
-    if (!signal) continue;
-    const positions = Array.isArray(item.items?.in_inventory) ? item.items.in_inventory : [];
-    if (positions.length > 0) {
-      for (const position of positions) {
-        const count = Math.min(positiveInteger(position.count, 1), MAX_INSERT_PLAN_ICONS);
-        for (let i = 0; i < count; i++) {
-          slotted.push({
-            signal: { ...signal },
-            inventory: Number.isFinite(position.inventory)
-              ? position.inventory
-              : Number.MAX_SAFE_INTEGER,
-            stack: Number.isFinite(position.stack) ? position.stack : Number.MAX_SAFE_INTEGER,
-            order: order++,
-          });
-        }
-      }
-      continue;
-    }
-
-    // `grid_count` is the 2.x equipment-grid shape and is also used by the 1.x
-    // items-object migration. Preserve it as a compatibility fallback.
-    const gridCount = positiveInteger(item.items?.grid_count, 0);
-    const count = Math.min(gridCount > 0 ? gridCount : 1, MAX_INSERT_PLAN_ICONS);
-    for (let i = 0; i < count; i++) fallback.push({ signal: { ...signal }, order: order++ });
-  }
-
-  slotted.sort((a, b) => a.inventory - b.inventory || a.stack - b.stack || a.order - b.order);
-  return [...slotted.map((entry) => entry.signal), ...fallback.map((entry) => entry.signal)].slice(
-    0,
-    MAX_INSERT_PLAN_ICONS,
-  );
-}
-
-function isSplitterType(def: EntityRenderDef): boolean {
-  return def.protoType === "splitter" || def.protoType === "lane-splitter";
-}
-
-/** Splitter filters render on the output-priority lane, not as centered primary icons. */
-function splitterLaneFilter(entity: BlueprintEntity, def: EntityRenderDef): AltSignal | undefined {
-  if (!isSplitterType(def)) return undefined;
-  if (!entity.output_priority || entity.output_priority === "none") return undefined;
-  return asSignal(entity.filter) ?? filterSignals(entity.filters)[0];
-}
-
-function entitySignals(entity: BlueprintEntity, def: EntityRenderDef): AltSignal[] {
-  const signals: AltSignal[] = [];
-  if (entity.recipe) {
-    signals.push({ name: entity.recipe, type: "recipe", quality: entity.recipe_quality });
-  }
-
-  // Splitter output filters are placed on the priority lane in splitterPriorityCommands.
-  if (!splitterLaneFilter(entity, def)) {
-    const directFilter = asSignal(
-      entity.filter,
-      def.protoType === "mining-drill" ? "entity" : "item",
-    );
-    if (directFilter) signals.push(directFilter);
-    signals.push(...filterSignals(entity.filters));
-  }
-  signals.push(...filterSignals(entity["priority-list"]));
-  signals.push(...filterSignals(entity["chunk-filter"], "asteroid-chunk"));
-  if (entity.fluid_filter) signals.push({ name: entity.fluid_filter, type: "fluid" });
-
-  for (const inventory of [
-    entity.inventory,
-    entity.trunk_inventory,
-    entity.ammo_inventory,
-    entity.burner_fuel_inventory,
-    entity["result-inventory"],
-  ]) {
-    signals.push(...filterSignals(inventory?.filters));
-  }
-  signals.push(...collectSignals(entity.request_filters));
-  // Combinator / display-panel control_behavior drives built-in graphics (or
-  // conditional messages); Factorio does not dump those as entity-info icons.
-  // Display panels only expose a static single entity.icon in alt mode.
-  if (entity.icon) signals.push({ ...entity.icon, type: entity.icon.type ?? "item" });
-
-  return uniqueSignals(signals);
-}
-
-function iconLayout(count: number, scale: number): [number, number][] {
-  if (count <= 1) return [[0, 0]];
-  if (count === 2)
-    return [
-      [-scale * 0.3, 0],
-      [scale * 0.3, 0],
-    ];
-  const cols = Math.min(3, Math.ceil(Math.sqrt(count)));
-  const rows = Math.ceil(count / cols);
-  const spacing = scale * 0.62;
-  const out: [number, number][] = [];
-  for (let i = 0; i < count; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    out.push([(col - (cols - 1) / 2) * spacing, (row - (rows - 1) / 2) * spacing]);
-  }
-  return out;
-}
-
-type ResolvedAltSignal = { signal: AltSignal; frame: number };
-
-function resolveAltSignals(db: RenderDb, signals: AltSignal[]): ResolvedAltSignal[] {
-  return signals
-    .map((signal) => ({
-      signal,
-      frame: altSignalFrame(db, signal) ?? db.icons["utility/missing-icon"],
-    }))
-    .filter((entry): entry is ResolvedAltSignal => entry.frame !== undefined);
-}
-
-/** Extra gap between recipe and module rows on assemblers (tiles). */
-const ASSEMBLER_INSERT_PLAN_Y_OFFSET = 0.2;
-/**
- * Visible request-pin size in tiles (36 px at the viewer’s default 64 ppt).
- */
-const INSERT_PLAN_ICON_SCALE = 36 / 64;
-/** Edge-to-edge gap between visible pin chrome (~2 px at 64 ppt). */
-const INSERT_PLAN_GAP_TILES = 2 / 64;
-
-function insertPlanLayout(count: number): { scale: number; xOffsets: number[] } {
-  if (count <= 0) return { scale: 0, xOffsets: [] };
-  const scale = INSERT_PLAN_ICON_SCALE;
-  const step = scale + INSERT_PLAN_GAP_TILES;
-  return {
-    scale,
-    xOffsets: Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * step),
-  };
-}
-
-/**
- * Opaque pin height ÷ width from `item-request-slot` (a>20 bbox ≈ 44×62).
- * Used when estimating pin vertical extent for rolling-stock placement.
- */
-const REQUEST_PIN_HEIGHT_OVER_WIDTH = 62 / 44;
 /**
  * Entity corner quality badge size in tiles when `quality_indicator_scale` is 1
  * (3-tile entities).
@@ -272,17 +36,6 @@ function qualityIndicatorScale(def: EntityRenderDef): number {
   const tw = Math.max(1, Math.ceil(Math.abs(x2 - x1) - 1e-6));
   const th = Math.max(1, Math.ceil(Math.abs(y2 - y1) - 1e-6));
   return Math.min(1, Math.max(0.5, Math.min(tw, th) / 3));
-}
-
-/**
- * Rolling-stock request-pin Y offset from entity center.
- *
- * Note: locomotive `icons_positioning.shift[1] = 0.3` and the IconSequencePositioning
- * default `0.7` are for inventory/burner alt-info, not item-request pins — using
- * those overshot. Empirically pins sit about half a pin-height below center.
- */
-function trainInsertPlanShiftY(pinSize: number): number {
-  return (pinSize * REQUEST_PIN_HEIGHT_OVER_WIDTH) / 2;
 }
 
 function qualityBadgeCommands(
@@ -423,17 +176,6 @@ function splitterPriorityCommands(
   return commands;
 }
 
-function iconDrawSpec(def: EntityRenderDef) {
-  return (
-    def.iconDrawSpecification ?? {
-      shift: [0, 0] as [number, number],
-      scale: def.kind === "inserter" ? 0.5 : 0.75,
-      scaleForMany: 0.5,
-      renderLayer: "entity-info-icon" as const,
-    }
-  );
-}
-
 function isDirectionalCombinator(def: EntityRenderDef): boolean {
   return (
     def.protoType === "arithmetic-combinator" ||
@@ -511,66 +253,6 @@ function emptyInserterFilterCommand(
     size: spec.scale,
     silhouette: true,
   };
-}
-
-/**
- * Build insert-plan request-pin icons (sub 20–49). Always shown, not gated by alt mode.
- * Y matches the Factorio layout used when recipe/primary icons are present: pins sit
- * below those icons when the entity has primary signals, otherwise at the entity anchor.
- */
-export function planRequestPinCommands(
-  entity: BlueprintEntity,
-  def: EntityRenderDef,
-  db: RenderDb,
-): IconCmd[] {
-  const insertPlans = resolveAltSignals(db, insertPlanSignals(entity.items));
-  if (insertPlans.length === 0) return [];
-
-  const spec = iconDrawSpec(def);
-  const pinBackingFrame = db.icons["utility/item-request-slot"];
-  const darkBackingFrame = db.icons["utility/entity-info-dark-background"];
-  const useRequestPin = pinBackingFrame !== undefined;
-  const layer = RENDER_LAYERS[spec.renderLayer];
-  const insertLayout = insertPlanLayout(insertPlans.length);
-
-  // Rolling stock: request pins hang below entity center by ~half pin height.
-  // Do not reuse icon_draw_specification (cargo badge) or icons_positioning
-  // (burner alt-info) — those are different overlays.
-  const insertAnchorY =
-    def.kind === "train"
-      ? entity.position.y + trainInsertPlanShiftY(insertLayout.scale)
-      : entity.position.y + spec.shift[1];
-
-  const primary = resolveAltSignals(db, entitySignals(entity, def));
-  let insertY = insertAnchorY;
-  if (primary.length > 0) {
-    const primaryScale = primary.length > 1 ? spec.scaleForMany : spec.scale;
-    const primaryOffsets = iconLayout(primary.length, primaryScale);
-    const primaryBottom = primary.reduce((bottom, _entry, index) => {
-      const y = entity.position.y + spec.shift[1] + (primaryOffsets[index]?.[1] ?? 0);
-      return Math.max(bottom, y + primaryScale / 2);
-    }, Number.NEGATIVE_INFINITY);
-    const assemblerInsertYOffset = def.kind === "assembler" ? ASSEMBLER_INSERT_PLAN_Y_OFFSET : 0;
-    insertY = primaryBottom + insertLayout.scale / 2 + assemblerInsertYOffset;
-  }
-
-  return insertPlans.map(({ frame }, index) => ({
-    kind: "icon" as const,
-    layer,
-    sortY: 0,
-    sortX: 0,
-    entity: entity.entity_number,
-    sub: 20 + index,
-    frame,
-    x: entity.position.x + spec.shift[0] + (insertLayout.xOffsets[index] ?? 0),
-    y: insertY,
-    size: insertLayout.scale,
-    ...(useRequestPin
-      ? { backingFrame: pinBackingFrame, backingStyle: "request-pin" as const }
-      : darkBackingFrame !== undefined
-        ? { backingFrame: darkBackingFrame }
-        : { backing: true }),
-  }));
 }
 
 /** Build deterministic alt-mode (entity-info) commands for one blueprint entity. */

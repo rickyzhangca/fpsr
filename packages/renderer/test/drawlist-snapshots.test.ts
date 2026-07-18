@@ -574,9 +574,9 @@ describe("drawlist snapshots (committed render-db)", () => {
     expect(support.some((command) => command.layer === RENDER_LAYERS["elevated-object"])).toBe(
       false,
     );
-    expect(
-      rail.some((command) => command.layer === RENDER_LAYERS["elevated-rail-metal"]),
-    ).toBe(true);
+    expect(rail.some((command) => command.layer === RENDER_LAYERS["elevated-rail-metal"])).toBe(
+      true,
+    );
     expect(rail.some((command) => command.layer === RENDER_LAYERS["elevated-lower-object"])).toBe(
       true,
     );
