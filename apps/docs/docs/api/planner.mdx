@@ -3,15 +3,20 @@ title: Planner
 description: Resolve connectivity and plan draw lists (@rickyzhangca/fpsr/planner).
 ---
 
-From `@rickyzhangca/fpsr/planner`:
+From `@rickyzhangca/fpsr/planner`. The entry’s `.d.ts` is the complete surface; this table lists the supported core.
 
-| Export                    | Kind     | Description                                                                |
-| ------------------------- | -------- | -------------------------------------------------------------------------- |
-| `resolve`                 | function | `(bp, renderDb, opts?)` → `{ entities, warnings }`                         |
-| `planDrawList`            | function | `(bp, renderDb, opts?)` → `DrawList`                                       |
-| `planDrawListWithOptions` | function | Same as plan; returns `{ drawList, profile? }` when `profile: true`        |
-| `analyzePlan`             | function | `(bp, drawList, renderDb)` → resolve coverage + draw-list integrity checks |
-| `PlanOptions`             | type     | `altMode`, `beltEndings`, optional `profile`                               |
-| `serializeDrawList`       | function | Stable JSON serialization for fixtures                                     |
+| Export                              | Kind     | Description                                                                |
+| ----------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `resolve`                           | function | `(bp, renderDb, opts?)` → `{ entities, warnings }`                         |
+| `planDrawList`                      | function | `(bp, renderDb, opts?)` → `DrawList`                                       |
+| `planDrawListWithOptions`           | function | Same as plan; returns `{ drawList, profile? }` when `profile: true`        |
+| `planUpgradePlannerDrawList`        | function | Plan a draw list for an upgrade planner                                    |
+| `planDeconstructionPlannerDrawList` | function | Plan a draw list for a deconstruction planner                              |
+| `analyzePlan`                       | function | `(bp, drawList, renderDb)` → resolve coverage + draw-list integrity checks |
+| `drawListForTile`                   | function | Clip a draw list to a tile viewport                                        |
+| `PlanOptions`                       | type     | `altMode`, `beltEndings`, optional `profile`                               |
+| `serializeDrawList`                 | function | Stable JSON serialization for fixtures                                     |
+
+All `plan*` helpers live on this entry (not on the root package).
 
 See [Pure planning](/guide/planning) for a worked example.

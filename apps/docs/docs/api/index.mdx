@@ -3,7 +3,7 @@ title: API reference
 description: Export tables for @rickyzhangca/fpsr and related entry points.
 ---
 
-This section lists the public exports of `@rickyzhangca/fpsr`. Prefer the [Guide](/guide) for tutorials; use these pages when you need a specific symbol.
+This section lists the **supported core** exports of `@rickyzhangca/fpsr`. Prefer the [Guide](/guide) for tutorials; use these pages when you need a specific symbol. Each entry’s published `.d.ts` is the complete surface — these tables are a curated subset.
 
 | Page                            | Package path                                       |
 | ------------------------------- | -------------------------------------------------- |
@@ -16,4 +16,8 @@ This section lists the public exports of `@rickyzhangca/fpsr`. Prefer the [Guide
 
 :::note
 This reference is hand-maintained from the published package surface. It is not generated TypeScript documentation.
+:::
+
+:::warning Unstable
+`@rickyzhangca/fpsr/unstable-prepared-viewport` exports `renderPreparedViewport` for interactive per-tile paint (used by the in-repo viewer). It is **experimental** and is **not** covered by semver. Prefer `createRenderer().render` / `renderTiledPng` for stable output.
 :::

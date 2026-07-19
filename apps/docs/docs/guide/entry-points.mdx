@@ -3,12 +3,13 @@ title: Entry points
 description: Package export paths for @rickyzhangca/fpsr.
 ---
 
-| Import                         | Contents                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------ |
-| `@rickyzhangca/fpsr`           | Decode/encode, books, migrate, `createRenderer`, `cdnAssets`, core types |
-| `@rickyzhangca/fpsr/planner`   | `resolve`, `planDrawList`, draw-list helpers, belt/train/wire utilities  |
-| `@rickyzhangca/fpsr/canvas`    | `executeDrawList`, background painters, silhouette helpers               |
-| `@rickyzhangca/fpsr/render-db` | Full `RenderDb` / entity / terrain type surface                          |
-| `@rickyzhangca/fpsr/node`      | `localAssets` (filesystem; requires `skia-canvas`)                       |
+| Import                                          | Contents                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------ |
+| `@rickyzhangca/fpsr`                            | Decode/encode, books, migrate, `createRenderer`, `cdnAssets`, core types |
+| `@rickyzhangca/fpsr/planner`                    | `resolve`, `planDrawList`, planner draw-list helpers, draw-list types    |
+| `@rickyzhangca/fpsr/canvas`                     | `executeDrawList`, background painters, silhouette helpers               |
+| `@rickyzhangca/fpsr/render-db`                  | Full `RenderDb` / entity / terrain type surface                          |
+| `@rickyzhangca/fpsr/node`                       | `localAssets` (filesystem; Node-only; requires `skia-canvas`)            |
+| `@rickyzhangca/fpsr/unstable-prepared-viewport` | Experimental `renderPreparedViewport` (no semver)                        |
 
-Detailed export tables live under [API](/api).
+Detailed export tables live under [API](/api). Each entry’s `.d.ts` is the complete surface; the API pages list the supported core.

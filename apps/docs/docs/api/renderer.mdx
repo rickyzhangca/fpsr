@@ -3,7 +3,7 @@ title: Renderer
 description: High-level createRenderer, asset sources, and render options.
 ---
 
-From `@rickyzhangca/fpsr` (and `@rickyzhangca/fpsr/node` for `localAssets`):
+From `@rickyzhangca/fpsr` (and `@rickyzhangca/fpsr/node` for `localAssets`). The entry’s `.d.ts` is the complete surface; this table lists the supported core.
 
 | Export                          | Kind     | Description                                                          |
 | ------------------------------- | -------- | -------------------------------------------------------------------- |
@@ -18,5 +18,7 @@ From `@rickyzhangca/fpsr` (and `@rickyzhangca/fpsr/node` for `localAssets`):
 | `Renderer`                      | type     | `{ measure, render, renderTiledPng, dispose }`                       |
 
 `Renderer.dispose()` clears renderer-owned icon/silhouette caches only. It does **not** call `AssetSource.dispose()` or close atlas images owned by the asset source.
+
+`@rickyzhangca/fpsr/node` is Node-only (`browser` export condition throws). Use `cdnAssets` in browsers.
 
 See [Quick start](/guide/quickstart), [Assets](/guide/assets), and [Rendering](/guide/rendering).
