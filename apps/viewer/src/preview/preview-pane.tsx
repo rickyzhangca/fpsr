@@ -168,20 +168,24 @@ export const PreviewPane = ({
   const localAssetsAvailable = canUseLocalAssets();
   const effectiveUseCdnAssets = localAssetsAvailable ? useCdnAssets : true;
   const assetOrigin: AssetOrigin = effectiveUseCdnAssets ? "cdn" : "local";
-  const revertFailedAssetOriginSwitch = (message: string): boolean => {
-    const previous = lastSuccessfulAssetOriginRef.current;
-    if (previous == null || previous === assetOrigin) return false;
-    if (revertingAssetOriginRef.current) return true;
-    revertingAssetOriginRef.current = true;
-    toast.error(
-      assetOrigin === "cdn" ? "Failed to load CDN assets" : "Failed to load local assets",
-      {
-        description: isMissingAssetsError(message) ? ASSETS_MISSING_HINT : message,
-      },
-    );
-    setUseCdnAssets(previous === "cdn");
-    return true;
-  };
+  const revertFailedAssetOriginSwitch = useCallback(
+    (message: string): boolean => {
+      const previous = lastSuccessfulAssetOriginRef.current;
+      if (previous == null || previous === assetOrigin) return false;
+      if (revertingAssetOriginRef.current) return true;
+      revertingAssetOriginRef.current = true;
+      toast.error(
+        assetOrigin === "cdn" ? "Failed to load CDN assets" : "Failed to load local assets",
+        {
+          description: isMissingAssetsError(message) ? ASSETS_MISSING_HINT : message,
+        },
+      );
+      if (!canUseLocalAssets()) return true;
+      setPreviewPreferences((prefs) => ({ ...prefs, useCdnAssets: previous === "cdn" }));
+      return true;
+    },
+    [assetOrigin, setPreviewPreferences],
+  );
   const [orbitPlanets, setOrbitPlanets] = useState<string[]>([...DEFAULT_ORBIT_PLANETS]);
   const [terrainModes, setTerrainModes] = useState<string[]>([...TERRAIN_BACKGROUND_MODES]);
   const [loading, setLoading] = useState(false);
@@ -554,6 +558,7 @@ export const PreviewPane = ({
     showCoords,
     decodeStats,
     assetOrigin,
+    revertFailedAssetOriginSwitch,
   ]);
   useEffect(() => {
     exportAbortRef.current?.abort();
@@ -604,7 +609,7 @@ export const PreviewPane = ({
     return () => {
       stale = true;
     };
-  }, [doc, limitTo4k, tiledPreviewOptions, assetOrigin]);
+  }, [doc, limitTo4k, tiledPreviewOptions, assetOrigin, revertFailedAssetOriginSwitch]);
   const handleViewportSizeChange = useCallback((size: { width: number; height: number }) => {
     const next = adaptivePreviewSize(size);
     setPreviewMaxOutput((current) =>

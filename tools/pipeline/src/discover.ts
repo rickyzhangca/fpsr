@@ -156,14 +156,14 @@ export function discoverPlaceableTiles(raw: DataRaw): string[] {
     }
   }
   // Sibling right-hazard tiles (placed by rotating the left item in-game).
-  for (const n of [...names]) {
+  for (const n of Array.from(names)) {
     if (n.endsWith("-left")) {
       const right = `${n.slice(0, -5)}-right`;
       if (raw.tile?.[right]) names.add(right);
     }
   }
   // Frozen surface variants (e.g. concrete → frozen-concrete); one hop only.
-  for (const n of [...names]) {
+  for (const n of Array.from(names)) {
     const frozen = (raw.tile?.[n] as { frozen_variant?: unknown } | undefined)?.frozen_variant;
     if (typeof frozen === "string" && raw.tile?.[frozen]) names.add(frozen);
   }

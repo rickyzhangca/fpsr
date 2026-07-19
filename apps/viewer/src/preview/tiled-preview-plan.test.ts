@@ -1,4 +1,10 @@
-import type { AssetSource, AssetTier, BlueprintDocument, FrameMeta, RenderDb } from "@rickyzhangca/fpsr";
+import type {
+  AssetSource,
+  AssetTier,
+  BlueprintDocument,
+  FrameMeta,
+  RenderDb,
+} from "@rickyzhangca/fpsr";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createTiledPreviewTierPlanCache } from "./tiled-preview-plan";
 
@@ -93,7 +99,7 @@ describe("tiled preview tier planning", () => {
   it("plans upgrade planner book entries without selecting a blueprint", async () => {
     const db = dbForFrame(0, 2);
     const assets: AssetSource = {
-      loadRenderDb: vi.fn(async () => db),
+      loadRenderDb: vi.fn<() => Promise<RenderDb>>(async () => db),
       loadAtlasImage: vi.fn<() => Promise<CanvasImageSource>>(),
     };
     const doc: BlueprintDocument = {

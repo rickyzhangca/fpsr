@@ -438,9 +438,7 @@ function bookCoverFields(book: BlueprintBook): Pick<BookTreeItem, "icons" | "ico
       iconBackgroundKey: cover.nested.backgroundKey,
     };
   }
-  return {
-    ...(cover.icons.length > 0 ? { icons: cover.icons } : {}),
-  };
+  return cover.icons.length > 0 ? { icons: cover.icons } : {};
 }
 
 function addBookEntries(

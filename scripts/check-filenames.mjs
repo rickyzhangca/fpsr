@@ -15,7 +15,7 @@ const VALID = /^[a-z0-9]+(-[a-z0-9]+)*(\.(test|worker|d))?\.(ts|tsx|js|mjs)$/;
 
 function* walkDirs(dir) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (ent.name === "node_modules" || ent.name === "dist") continue;
+    if (ent.name === "node_modules" || ent.name === "dist" || ent.name.startsWith(".")) continue;
     const full = path.join(dir, ent.name);
     if (!ent.isDirectory()) continue;
     if (DIR_NAMES.has(ent.name)) yield full;
@@ -25,7 +25,7 @@ function* walkDirs(dir) {
 
 function* walkFiles(dir) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (ent.name === "node_modules" || ent.name === "dist") continue;
+    if (ent.name === "node_modules" || ent.name === "dist" || ent.name.startsWith(".")) continue;
     const full = path.join(dir, ent.name);
     if (ent.isDirectory()) yield* walkFiles(full);
     else if (EXTS.has(path.extname(ent.name))) yield full;
