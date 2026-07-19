@@ -29,5 +29,21 @@ export default defineConfig({
     sitemap: true,
     robots: true,
   },
+  analytics: {
+    scripts: [
+      {
+        src: "https://www.googletagmanager.com/gtag/js?id=G-W2STQT8FQE",
+        strategy: "async",
+      },
+      {
+        content: `
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-W2STQT8FQE');
+`,
+      },
+    ],
+  },
   redirects: [{ from: "/", to: "/guide", status: 301 }],
 });
