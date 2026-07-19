@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vp run -F './packages/*' -F './apps/*' -F './tools/*' build",
-    "test": "vp run -F './packages/*' -F './apps/*' -F './tools/*' --concurrency-limit 1 test",
+    "test": "pnpm -F @rickyzhangca/fpsr build && vp run -F './packages/*' -F './apps/*' -F './tools/*' --concurrency-limit 1 test",
     "lint": "vp lint --deny-warnings",
     "typecheck": "pnpm -F @rickyzhangca/fpsr build && vp run -F './packages/*' -F './apps/*' -F './tools/*' typecheck",
     "format": "vp fmt",
