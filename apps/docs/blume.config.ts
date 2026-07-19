@@ -18,7 +18,7 @@ export default defineConfig({
     ],
     featured: [
       {
-        label: "Open viewer",
+        label: "Open demo",
         href: "https://fpsr.fprints.xyz",
         icon: "external-link",
       },
