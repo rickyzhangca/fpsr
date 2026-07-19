@@ -82,8 +82,8 @@ vp install
    blueprint strings.
 2. **Draw-list snapshots** (`fixtures/drawlist/`) — `planDrawList` output via
    `serializeDrawList()`; reviewable text diffs.
-3. **Golden PNGs** (`fixtures/golden/`) — small curated local baselines,
-   pixel-diffed in tests (0.1% tolerance). Skipped when local atlases are absent.
+3. **Golden PNGs** (`fixtures/golden/`) — canary pages from the 2.1.11 visual-test
+   books, pixel-diffed in tests (0.1% tolerance). Skipped when local atlases are absent.
 4. **Ground truth** (`fixtures/ground-truth/`, gitignored) — PNGs from the real
    game via `@fpsr/ground-truth`; dev-time reference only, never asserted in CI.
 

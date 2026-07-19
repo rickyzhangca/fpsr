@@ -35,8 +35,8 @@ Large modules are split behind thin facades at the old paths (`resolve.ts`, `pla
 | Folder / file | Responsibility                                                                    |
 | ------------- | --------------------------------------------------------------------------------- |
 | `resolve/`    | Belt/pipe/wall/train resolution, neighbor grids, `resolve` / `resolveWithContext` |
-| `plan/`       | Draw-list planning: tiles, wires, pipe covers, circuit connectors, belt readers   |
-| `canvas2d/`   | Canvas2D backend: sprite/wire/icon drawing, `executeDrawList`                     |
+| `plan/`       | Draw-list planning: tiles, wires, planners, pipe covers, connectors, belt readers |
+| `canvas2d/`   | Canvas2D backend: sprite/wire/icon/text drawing, `executeDrawList`                |
 | `types/`      | Blueprint, draw-list, and render-db type barrels                                  |
 
 ## `tools/pipeline/src/distill`

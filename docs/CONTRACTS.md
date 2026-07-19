@@ -95,6 +95,11 @@ When a blueprint has `"snap-to-grid"`, the planner emits a `snap-grid` command o
 the blueprint origin `(0,0)` with size `snap-to-grid`. `position-relative-to-grid`
 affects world absolute placement only (see `snapGridRect` / `emitSnapGrid`).
 
+Upgrade / deconstruction planner documents plan icon grids (no entity-info silhouette)
+instead of world entities. Deconstruction planners also emit `text` commands for section
+and mode labels; the Canvas2D backend draws them with `fpsr-dejavu` (DejaVu Sans from the
+asset manifest) when registered, otherwise a system sans-serif fallback.
+
 ## Public API (packages/renderer)
 
 ```ts
@@ -167,8 +172,10 @@ Amendments ratified during M1 (binding):
   message parameters), splitter priorities, and quality badges. It does not
   infer live inventories, fluids, furnace state, or mining targets.
 - `RenderDb.icons` uses Blueprint `SignalId` namespaces (`item/`, `recipe/`,
-  `fluid/`, `virtual-signal/`, `entity/`, `quality/`, `space-location/`, and
-  `asteroid-chunk/`) plus internal `utility/` entity-info frames.
+  `fluid/`, `virtual-signal/`, `entity/`, `quality/`, `space-location/`,
+  `asteroid-chunk/`, and `tile/`) plus internal `utility/` entity-info frames.
+  `tile/{name}` is a 1×1 map-texture swatch for planner/UI tile filters; placing
+  items keep their normal `item/` icons.
 - `cdnAssets(baseUrl, options?)` accepts `{ decodeImage, fetchImpl }` for
   environments without `createImageBitmap`.
 - Belt straight-row mapping is `BELT_STRAIGHT_INDEX = {0: 2, 4: 0, 8: 3, 12: 1}`
@@ -199,10 +206,10 @@ interchangeable.
 2. **Draw-list snapshots** (`fixtures/drawlist/`): `planDrawList` output serialized with
    stable key order and numbers rounded to 4 decimals via the provided
    `serializeDrawList()` helper. Reviewable text diffs are the point.
-3. **Golden PNGs** (`fixtures/golden/`): small curated local baselines,
-   pixel-diffed with a 0.1% tolerance. PNG files are gitignored (not
-   redistributed); blueprint strings and `cases.json` are committed. Tests skip
-   automatically when local atlases or golden PNGs are absent.
+3. **Golden PNGs** (`fixtures/golden/`): canary pages from the 2.1.11 visual-test
+   books (`fixtures/visual-tests/`), pixel-diffed with a 0.1% tolerance. PNG files
+   are gitignored (not redistributed); `cases.json` is a thin selection config.
+   Tests skip automatically when local atlases or golden PNGs are absent.
 4. **Ground truth** (`fixtures/ground-truth/`, gitignored): PNGs from the real game via
    `tools/ground-truth`; dev-time reference for approval only, never asserted in CI.
 
