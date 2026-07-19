@@ -1,14 +1,18 @@
 // @vitest-environment jsdom
+import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
 
 const mocks = vi.hoisted(() => ({
   progressCallbacks: [] as Array<(progress: PreviewRenderProgress | null) => void>,
   sidebarProps: [] as Array<{
     selectedSourceId: string;
-    onSelect: (sourceId: string, path: number[], kind: "book" | "blueprint") => void;
+    onSelect: (
+      sourceId: string,
+      path: number[],
+      kind: "book" | "blueprint" | "upgrade_planner",
+    ) => void;
   }>,
   listCustoms: vi.fn(async () => []),
 }));
@@ -21,7 +25,11 @@ vi.mock("@/blueprint/custom-blueprints-db", () => ({
 vi.mock("@/sidebar/sidebar-panels", () => ({
   SidebarPanels: (props: {
     selectedSourceId: string;
-    onSelect: (sourceId: string, path: number[], kind: "book" | "blueprint") => void;
+    onSelect: (
+      sourceId: string,
+      path: number[],
+      kind: "book" | "blueprint" | "upgrade_planner",
+    ) => void;
   }) => {
     mocks.sidebarProps.push(props);
     return null;
@@ -29,6 +37,7 @@ vi.mock("@/sidebar/sidebar-panels", () => ({
 }));
 vi.mock("@/sidebar/blueprint-summary", () => ({ BlueprintSummary: () => null }));
 vi.mock("@/sidebar/book-summary", () => ({ BookSummary: () => null }));
+vi.mock("@/sidebar/upgrade-planner-summary", () => ({ UpgradePlannerSummary: () => null }));
 vi.mock("@/preview/preview-pane", () => ({
   PreviewPane: ({
     onRenderProgress,
@@ -92,23 +101,23 @@ describe("App render progress", () => {
     );
     localStorage.setItem(
       "fpsr-viewer:last-view",
-      JSON.stringify({ sourceId: "smoke", path: null, kind: "blueprint" }),
+      JSON.stringify({ sourceId: "untra-megabase", path: null, kind: "blueprint" }),
     );
 
     const root = createRoot(host);
     act(() => root.render(<App />));
 
     const sidebar = mocks.sidebarProps.at(-1);
-    expect(sidebar?.selectedSourceId).toBe("smoke");
-    act(() => sidebar?.onSelect("belt-ring", [], "blueprint"));
-    expect(mocks.sidebarProps.at(-1)?.selectedSourceId).toBe("belt-ring");
+    expect(sidebar?.selectedSourceId).toBe("untra-megabase");
+    act(() => sidebar?.onSelect("esn-squeegee", [], "book"));
+    expect(mocks.sidebarProps.at(-1)?.selectedSourceId).toBe("esn-squeegee");
 
     await act(async () => {
       resolveCustoms?.([]);
       await Promise.resolve();
     });
 
-    expect(mocks.sidebarProps.at(-1)?.selectedSourceId).toBe("belt-ring");
+    expect(mocks.sidebarProps.at(-1)?.selectedSourceId).toBe("esn-squeegee");
     await act(async () => root.unmount());
   });
 });

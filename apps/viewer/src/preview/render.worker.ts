@@ -10,7 +10,6 @@ import {
   computeTileFrame,
   createRenderer,
   measureTileFrame,
-  selectBlueprint,
   type AssetEvent,
   type AssetSource,
   type AssetTier,
@@ -265,8 +264,8 @@ const openTiledPreview = async (
   request: Extract<RenderWorkerRequest, { type: "openTiledPreview" }>,
 ): Promise<void> => {
   try {
-    const blueprint = selectBlueprint(request.doc, request.options.blueprintPath);
-    const getTierPlan = createTiledPreviewTierPlanCache(assets, blueprint, {
+    const getTierPlan = createTiledPreviewTierPlanCache(assets, request.doc, {
+      blueprintPath: request.options.blueprintPath,
       altMode: request.options.altMode,
       background: request.options.background,
     });

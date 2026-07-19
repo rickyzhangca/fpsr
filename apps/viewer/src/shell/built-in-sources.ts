@@ -9,9 +9,11 @@ import {
   selectBlueprint,
   selectBook,
 } from "fpsr";
-import beltRingBp from "../../../../fixtures/golden/belt-ring.bp.txt?raw";
-import pipePlantBp from "../../../../fixtures/golden/pipe-plant.bp.txt?raw";
-import smokeBp from "../../../../fixtures/golden/smoke.bp.txt?raw";
+import esnSqueegeeBp from "../../../../fixtures/demos/esn-squeegee.bp.txt?raw";
+import nauvisMidGameBp from "../../../../fixtures/demos/nauvis-mid-game.bp.txt?raw";
+import redrumBookBp from "../../../../fixtures/demos/redrum-book.bp.txt?raw";
+import untraMegabaseBp from "../../../../fixtures/demos/untra-megabase.bp.txt?raw";
+import upgradesDowngradesBp from "../../../../fixtures/demos/upgrades-downgrades.bp.txt?raw";
 import baseGameTestsBp from "../../../../fixtures/visual-tests/base-game/book.bp.txt?raw";
 import elevatedRailsTestsBp from "../../../../fixtures/visual-tests/official-mods/elevated-rails.bp.txt?raw";
 import qualityTestsBp from "../../../../fixtures/visual-tests/official-mods/quality.bp.txt?raw";
@@ -21,9 +23,11 @@ import type { LastView } from "./last-view";
 import { readLastView } from "./last-view";
 
 const SAMPLES = [
-  { id: "smoke", value: smokeBp.trim() },
-  { id: "belt-ring", value: beltRingBp.trim() },
-  { id: "pipe-plant", value: pipePlantBp.trim() },
+  { id: "untra-megabase", value: untraMegabaseBp.trim() },
+  { id: "esn-squeegee", value: esnSqueegeeBp.trim() },
+  { id: "nauvis-mid-game", value: nauvisMidGameBp.trim() },
+  { id: "redrum-book", value: redrumBookBp.trim() },
+  { id: "upgrades-downgrades", value: upgradesDowngradesBp.trim() },
 ] as const;
 
 const TEST_BOOKS = [
