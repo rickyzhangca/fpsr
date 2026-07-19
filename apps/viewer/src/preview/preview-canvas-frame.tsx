@@ -65,12 +65,15 @@ export const PreviewCanvasFrame = ({
   useEffect(() => {
     const element = shellRef.current;
     if (!element) return;
+    let lastWidth = 0;
+    let lastHeight = 0;
     const report = () => {
       if (element.clientWidth <= 0 || element.clientHeight <= 0) return;
       const size = { width: element.clientWidth, height: element.clientHeight };
-      setViewportSize((current) =>
-        current.width === size.width && current.height === size.height ? current : size,
-      );
+      if (size.width === lastWidth && size.height === lastHeight) return;
+      lastWidth = size.width;
+      lastHeight = size.height;
+      setViewportSize(size);
       onViewportSizeChange?.(size);
     };
     report();

@@ -272,7 +272,7 @@ export const SidebarTree = ({
     treeRef.current.rebuildTree();
   }, [items]);
   return (
-    <Tree {...tree.getContainerProps("Blueprints")}>
+    <Tree {...tree.getContainerProps("Blueprints")} className="w-max min-w-full">
       {tree.getItems().map((item) => {
         const id = item.getId();
         if (id === ROOT_ID) return null;
@@ -284,13 +284,14 @@ export const SidebarTree = ({
           progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
         const isPlanner = data.kind === "upgrade_planner" || data.kind === "deconstruction_planner";
         return (
-          <TreeItem key={id}>
+          <TreeItem key={id} className="w-max min-w-full">
             <TreeItemButton
               {...item.getProps()}
               indent={item.getItemMeta().level * INDENT_PX}
               data-selected={item.isSelected() || undefined}
               data-focused={item.isFocused() || undefined}
               data-muted={isPlanner || undefined}
+              className="w-max min-w-full"
             >
               <TreeItemIconSlot>
                 {isFolder ? (
@@ -302,8 +303,8 @@ export const SidebarTree = ({
               <TreeItemIconSlot className="size-9">
                 <TreeItemKindIcon kind={data.kind} icons={data.icons} />
               </TreeItemIconSlot>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5 pl-1.5">
-                <span className="min-w-0 truncate">
+              <span className="flex shrink-0 flex-col gap-0.5 pl-1.5">
+                <span className="whitespace-nowrap">
                   <FactorioRichText
                     text={item.getItemName()}
                     fallback={data.kind === "book" ? "<Unnamed book>" : "<Unnamed blueprint>"}

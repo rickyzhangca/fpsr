@@ -84,6 +84,7 @@ describe("viewer preferences", () => {
       altMode: true,
       showCoords: false,
       showBackground: false,
+      useCdnAssets: false,
       backgroundMode: "checkerboard",
       orbitPlanet: "nauvis",
     });
@@ -110,6 +111,7 @@ describe("viewer preferences", () => {
       altMode: true,
       showCoords: false,
       showBackground: false,
+      useCdnAssets: false,
       backgroundMode: "checkerboard",
       orbitPlanet: "nauvis",
     });
@@ -137,10 +139,42 @@ describe("viewer preferences", () => {
       altMode: true,
       showCoords: false,
       showBackground: true,
+      useCdnAssets: false,
       backgroundMode: "orbit",
       orbitPlanet: "nauvis",
     });
     unsubscribe();
+  });
+
+  it("defaults missing useCdnAssets to local and accepts persisted CDN", () => {
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        limitTo4k: true,
+        exportFormat: "webp",
+        altMode: true,
+        showCoords: false,
+        showBackground: true,
+        backgroundMode: "auto",
+        orbitPlanet: "nauvis",
+      }),
+    );
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom).useCdnAssets).toBe(false);
+    unsubscribe();
+
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        ...DEFAULT_PREVIEW_PREFERENCES,
+        useCdnAssets: true,
+      }),
+    );
+    const store2 = createStore();
+    const unsubscribe2 = store2.sub(previewPreferencesAtom, () => {});
+    expect(store2.get(previewPreferencesAtom).useCdnAssets).toBe(true);
+    unsubscribe2();
   });
 
   it("falls back to Preview when the removed Compare tab was persisted", () => {

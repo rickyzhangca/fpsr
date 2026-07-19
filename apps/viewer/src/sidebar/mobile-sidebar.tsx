@@ -26,7 +26,11 @@ export const MobileSidebar = ({
             Select a blueprint or blueprint book
           </DrawerDescription>
         </DrawerHeader>
-        <ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+        <ScrollArea
+          className="min-h-0 min-w-0 flex-1"
+          viewportClassName="scroll-fade overflow-x-hidden"
+          contentClassName="min-w-0! w-full max-w-full"
+        >
           {children}
         </ScrollArea>
       </DrawerContent>

@@ -1,4 +1,5 @@
 import { formatGameVersion } from "@/blueprint/blueprint-meta";
+import { clearFactorioItemIconCache } from "@/blueprint/factorio-item-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,7 +13,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PerfReport } from "@/performance/perf-report";
-import { viewerAssets } from "@/shell/viewer-assets";
+import type { AssetOrigin } from "@/shell/asset-config";
+import { setViewerAssetOrigin, viewerAssets } from "@/shell/viewer-assets";
 import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
 import {
   countBlueprintComponents,
@@ -52,6 +54,7 @@ import {
   exportFullResolutionPng,
   measurePreview,
   renderPreview,
+  setPreviewAssetOrigin,
   type PreviewRenderResult,
 } from "./preview-renderer";
 import type { TiledPreviewViewport } from "./preview-tiles";
@@ -117,6 +120,7 @@ export const PreviewPane = ({
     altMode,
     showCoords,
     showBackground,
+    useCdnAssets,
     backgroundMode,
     orbitPlanet,
   } = previewPreferences;
@@ -138,6 +142,9 @@ export const PreviewPane = ({
   const setShowBackground = (value: boolean) => {
     setPreviewPreferences((previous) => ({ ...previous, showBackground: value }));
   };
+  const setUseCdnAssets = (value: boolean) => {
+    setPreviewPreferences((previous) => ({ ...previous, useCdnAssets: value }));
+  };
   const setBackgroundSelection = (mode: PreviewBackgroundMode, planet?: string) => {
     setPreviewPreferences((previous) => ({
       ...previous,
@@ -145,6 +152,7 @@ export const PreviewPane = ({
       ...(planet != null ? { orbitPlanet: planet } : {}),
     }));
   };
+  const assetOrigin: AssetOrigin = useCdnAssets ? "cdn" : "local";
   const [orbitPlanets, setOrbitPlanets] = useState<string[]>([...DEFAULT_ORBIT_PLANETS]);
   const [terrainModes, setTerrainModes] = useState<string[]>([...TERRAIN_BACKGROUND_MODES]);
   const [loading, setLoading] = useState(false);
@@ -163,6 +171,18 @@ export const PreviewPane = ({
   const [previewMaxOutput, setPreviewMaxOutput] = useState<{ width: number; height: number }>(
     MAX_OUTPUT_SIZE,
   );
+  const previewMaxOutputRef = useRef(previewMaxOutput);
+  previewMaxOutputRef.current = previewMaxOutput;
+  // Keep parent callbacks off effect deps — new identities (or Alert-driven
+  // viewport size changes) must not restart a failed render in a loop.
+  const onTileSizeChangeRef = useRef(onTileSizeChange);
+  onTileSizeChangeRef.current = onTileSizeChange;
+  const onPerfReportRef = useRef(onPerfReport);
+  onPerfReportRef.current = onPerfReport;
+  const onRenderProgressRef = useRef(onRenderProgress);
+  onRenderProgressRef.current = onRenderProgress;
+  const onRenderErrorRef = useRef(onRenderError);
+  onRenderErrorRef.current = onRenderError;
   const [preparedExports, setPreparedExports] = useState<{
     key: object;
     formats: Partial<
@@ -181,6 +201,11 @@ export const PreviewPane = ({
     tx: number;
     ty: number;
   } | null>(null);
+  useEffect(() => {
+    setViewerAssetOrigin(assetOrigin);
+    clearFactorioItemIconCache();
+    void setPreviewAssetOrigin(assetOrigin).catch(() => undefined);
+  }, [assetOrigin]);
   useEffect(() => {
     let cancelled = false;
     void viewerAssets
@@ -202,7 +227,7 @@ export const PreviewPane = ({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [assetOrigin]);
   const orbitPlanetOptions = sortOrbitPlanets(
     orbitPlanets.includes(orbitPlanet) ? orbitPlanets : [...orbitPlanets, orbitPlanet],
   );
@@ -241,8 +266,8 @@ export const PreviewPane = ({
     [blueprintPath, altMode, renderBackground, showCoords],
   );
   useEffect(() => {
-    onTileSizeChange?.(formatTileSize(lastResult));
-  }, [lastResult, onTileSizeChange]);
+    onTileSizeChangeRef.current?.(formatTileSize(lastResult));
+  }, [lastResult]);
   const effectiveExportFormat: ExportFormat = limitTo4k ? exportFormat : "png";
   const exportKey = limitTo4k ? lastResult : fullMeasurement;
   const prepareCurrentExport = useCallback(async (): Promise<Blob> => {
@@ -275,7 +300,7 @@ export const PreviewPane = ({
           signal: controller.signal,
           onProgress(progress) {
             setExportProgressLabel(progress.label);
-            onRenderProgress?.(progress);
+            onRenderProgressRef.current?.(progress);
           },
         }).then((result) => result.blob);
     cache.promises[effectiveExportFormat] = promise;
@@ -309,7 +334,7 @@ export const PreviewPane = ({
       if (exportPromisesRef.current?.key === exportKey) {
         setExportPending(false);
         setExportProgressLabel(null);
-        if (!limitTo4k) onRenderProgress?.(null);
+        if (!limitTo4k) onRenderProgressRef.current?.(null);
       }
       if (exportAbortRef.current === controller) exportAbortRef.current = null;
     }
@@ -321,7 +346,6 @@ export const PreviewPane = ({
     effectiveExportFormat,
     limitTo4k,
     tiledPreviewOptions,
-    onRenderProgress,
   ]);
   useEffect(() => {
     if (!limitTo4k || !lastResult) return;
@@ -349,10 +373,10 @@ export const PreviewPane = ({
       setError(null);
       setAssetsMissing(false);
       setHoverTile(null);
-      onTileSizeChange?.("—");
-      onPerfReport?.(null);
-      onRenderProgress?.(null);
-      onRenderError?.(null);
+      onTileSizeChangeRef.current?.("—");
+      onPerfReportRef.current?.(null);
+      onRenderProgressRef.current?.(null);
+      onRenderErrorRef.current?.(null);
       const canvas = canvasRef.current;
       if (canvas) {
         clearPreview(canvas);
@@ -362,7 +386,7 @@ export const PreviewPane = ({
     const gen = ++renderGenRef.current;
     const controller = new AbortController();
     setError(null);
-    onRenderError?.(null);
+    onRenderErrorRef.current?.(null);
     setAssetsMissing(false);
     if (!showCoords) setHoverTile(null);
     let timer: number | undefined;
@@ -373,25 +397,41 @@ export const PreviewPane = ({
     } as const;
     const startRender = () => {
       setLoading(true);
-      onRenderProgress?.({ value: 1, label: "Queued" });
+      onRenderProgressRef.current?.({ value: 1, label: "Queued" });
       timer = window.setTimeout(() => {
         const finishRender = (completed: boolean) => {
           if (gen !== renderGenRef.current) return;
           setLoading(false);
-          if (!completed) onRenderProgress?.(null);
+          if (!completed) onRenderProgressRef.current?.(null);
         };
         const display = canvasRef.current;
         if (!display) {
           finishRender(false);
           return;
         }
-        void renderPreview(display, doc, {
-          ...renderOptions,
-          maxOutputSize: previewMaxOutput,
-          signal: controller.signal,
-          onProgress: onRenderProgress,
-        })
-          .then(async (result) => {
+        void (async () => {
+          try {
+            await setPreviewAssetOrigin(assetOrigin);
+          } catch (reason: unknown) {
+            if (gen !== renderGenRef.current) return;
+            const message =
+              reason instanceof Error ? reason.message : "Failed to switch asset source";
+            setError(message);
+            onRenderErrorRef.current?.(message);
+            finishRender(false);
+            return;
+          }
+          if (gen !== renderGenRef.current || controller.signal.aborted) {
+            finishRender(false);
+            return;
+          }
+          try {
+            const result = await renderPreview(display, doc, {
+              ...renderOptions,
+              maxOutputSize: previewMaxOutputRef.current,
+              signal: controller.signal,
+              onProgress: (progress) => onRenderProgressRef.current?.(progress),
+            });
             if (gen !== renderGenRef.current) return;
             const profile = result.profile;
             if (profile) {
@@ -413,18 +453,17 @@ export const PreviewPane = ({
                 assetDetails: result.assetDetails,
                 sessionBytes: result.sessionBytes,
               };
-              onPerfReport?.(report);
+              onPerfReportRef.current?.(report);
             }
             setDimensions({ width: result.width, height: result.height });
             setLastResult(result);
-            onRenderProgress?.({
+            onRenderProgressRef.current?.({
               value: 100,
               label: "Complete",
               durationMs: result.wallMs,
             });
             finishRender(true);
-          })
-          .catch((e: unknown) => {
+          } catch (e: unknown) {
             if (controller.signal.aborted) {
               finishRender(false);
               return;
@@ -433,13 +472,14 @@ export const PreviewPane = ({
             const message = e instanceof Error ? e.message : "Render failed";
             setAssetsMissing(isMissingAssetsError(message));
             setError(message);
-            onRenderError?.(message);
+            onRenderErrorRef.current?.(message);
             setDimensions(null);
             setLastResult(null);
             setHoverTile(null);
-            onPerfReport?.(null);
+            onPerfReportRef.current?.(null);
             finishRender(false);
-          });
+          }
+        })();
       }, 150);
     };
     startRender();
@@ -447,18 +487,7 @@ export const PreviewPane = ({
       if (timer != null) window.clearTimeout(timer);
       controller.abort();
     };
-  }, [
-    doc,
-    blueprint,
-    previewMaxOutput,
-    tiledPreviewOptions,
-    showCoords,
-    decodeStats,
-    onTileSizeChange,
-    onPerfReport,
-    onRenderProgress,
-    onRenderError,
-  ]);
+  }, [doc, blueprint, tiledPreviewOptions, showCoords, decodeStats, assetOrigin]);
   useEffect(() => {
     exportAbortRef.current?.abort();
     exportAbortRef.current = null;
@@ -477,31 +506,33 @@ export const PreviewPane = ({
     setFullMeasurement(null);
     setMeasuringFull(true);
     setError(null);
-    onRenderProgress?.({ value: 3, label: "Measuring full-resolution output" });
-    void measurePreview(doc, {
-      ...tiledPreviewOptions,
-      pixelsPerTile: FULL_PIXELS_PER_TILE,
-    }).then(
-      (measurement) => {
+    onRenderProgressRef.current?.({ value: 3, label: "Measuring full-resolution output" });
+    void (async () => {
+      try {
+        await setPreviewAssetOrigin(assetOrigin);
+        if (stale) return;
+        const measurement = await measurePreview(doc, {
+          ...tiledPreviewOptions,
+          pixelsPerTile: FULL_PIXELS_PER_TILE,
+        });
         if (stale) return;
         setFullMeasurement(measurement);
         setMeasuringFull(false);
-        onRenderProgress?.(null);
-      },
-      (reason: unknown) => {
+        onRenderProgressRef.current?.(null);
+      } catch (reason: unknown) {
         if (stale) return;
         const message = reason instanceof Error ? reason.message : "Size check failed";
         setFullMeasurement(null);
         setMeasuringFull(false);
         setError(message);
-        onRenderError?.(message);
-        onRenderProgress?.(null);
-      },
-    );
+        onRenderErrorRef.current?.(message);
+        onRenderProgressRef.current?.(null);
+      }
+    })();
     return () => {
       stale = true;
     };
-  }, [doc, limitTo4k, tiledPreviewOptions, onRenderProgress, onRenderError]);
+  }, [doc, limitTo4k, tiledPreviewOptions, assetOrigin]);
   const handleViewportSizeChange = useCallback((size: { width: number; height: number }) => {
     const next = adaptivePreviewSize(size);
     setPreviewMaxOutput((current) =>
@@ -511,14 +542,11 @@ export const PreviewPane = ({
   const handleTiledViewportChange = useCallback((viewport: TiledPreviewViewport | null) => {
     setTiledViewport(viewport);
   }, []);
-  const handleTiledPreviewError = useCallback(
-    (reason: Error) => {
-      if (reason.name === "AbortError") return;
-      setError(reason.message);
-      onRenderError?.(reason.message);
-    },
-    [onRenderError],
-  );
+  const handleTiledPreviewError = useCallback((reason: Error) => {
+    if (reason.name === "AbortError") return;
+    setError(reason.message);
+    onRenderErrorRef.current?.(reason.message);
+  }, []);
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!showCoords || !lastResult) {
       setHoverTile(null);
@@ -627,6 +655,38 @@ export const PreviewPane = ({
         <div className="flex items-center gap-2">
           <Switch
             size="sm"
+            id="cdn-assets"
+            checked={useCdnAssets}
+            disabled={loading || measuringFull || exportPending}
+            onCheckedChange={(checked) => {
+              setLoading(true);
+              setUseCdnAssets(checked);
+            }}
+          />
+          <Label htmlFor="cdn-assets" className="gap-1.5">
+            CDN
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    aria-label="About CDN assets"
+                  />
+                }
+              >
+                <InfoIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm text-pretty">
+                When enabled, atlases and the render database load from the BunnyCDN pull zone. When
+                disabled, they load from the local Vite `/assets` server (`assets-out`).
+              </TooltipContent>
+            </Tooltip>
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            size="sm"
             id="alt-mode"
             checked={altMode}
             disabled={controlsDisabled}
@@ -722,13 +782,13 @@ export const PreviewPane = ({
       </div>
 
       {assetsMissing && (
-        <Alert className="shrink-0 mx-4">
+        <Alert className="mx-4 w-fit shrink-0 self-start">
           <AlertTitle>Assets missing</AlertTitle>
           <AlertDescription className="font-mono text-xs">{ASSETS_MISSING_HINT}</AlertDescription>
         </Alert>
       )}
       {error && !assetsMissing && (
-        <Alert className="shrink-0 mx-4" variant="destructive">
+        <Alert className="mx-4 w-fit max-w-full shrink-0 self-start" variant="destructive">
           <AlertTitle>Render error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -742,6 +802,7 @@ export const PreviewPane = ({
         viewportLayer={
           !limitTo4k && fullMeasurement && tiledViewport ? (
             <TiledPreviewLayer
+              key={assetOrigin}
               doc={doc}
               options={tiledPreviewOptions}
               measurement={fullMeasurement}

@@ -1,17 +1,17 @@
+import type { PlanDiagnostics } from "@/process/plan-diagnostics";
 import type {
   AssetEvent,
   Blueprint,
   BlueprintDocument,
   DrawList,
   RenderImageOptions,
-  RenderOptions,
   RenderMeasurement,
+  RenderOptions,
   RenderProfile,
   RenderProgressEvent,
   TileFrame,
 } from "fpsr";
 import type { PlanOptions } from "fpsr/planner";
-import type { PlanDiagnostics } from "@/process/plan-diagnostics";
 import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
 export type WorkerTiledPreviewOptions = Omit<
@@ -122,6 +122,11 @@ export type RenderWorkerRequest =
   | {
       type: "cancelTask";
       requestId: number;
+    }
+  | {
+      type: "setAssetOrigin";
+      requestId: number;
+      origin: "local" | "cdn";
     };
 export type RenderWorkerResponse =
   | {
@@ -185,4 +190,10 @@ export type RenderWorkerResponse =
       requestId: number;
       name: string;
       message: string;
+    }
+  | {
+      type: "assetOriginSet";
+      requestId: number;
+      origin: "local" | "cdn";
+      baseUrl: string;
     };

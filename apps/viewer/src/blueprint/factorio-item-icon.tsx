@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
+import { viewerAssets as assets } from "@/shell/viewer-assets";
 import { resolveIconFrameId, type FrameMeta, type RenderDb } from "fpsr";
 import { bakeEntityInfoSilhouette, entityInfoSilhouettePadPx } from "fpsr/canvas";
 import { useEffect, useState, type CSSProperties } from "react";
-import { viewerAssets as assets } from "@/shell/viewer-assets";
 /** Alt-mode entity-info silhouette defaults (see `icon-silhouette.ts`). */
 const ALT_MODE_SILHOUETTE_DILATE_RADIUS = 12;
 const ALT_MODE_SILHOUETTE_BLUR_RADIUS = 16;
@@ -28,6 +28,9 @@ interface LoadedIcon {
   pad: number;
 }
 const urlCache = new Map<string, Promise<LoadedIcon | null>>();
+export const clearFactorioItemIconCache = (): void => {
+  urlCache.clear();
+};
 const createCanvas = (width: number, height: number): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
   canvas.width = width;

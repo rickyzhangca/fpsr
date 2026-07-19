@@ -1,10 +1,17 @@
+import { addCustom, clearCustoms, listCustoms } from "@/blueprint/custom-blueprints-db";
+import { GitHubLogo } from "@/components/github-logo";
+import { Logo } from "@/components/logo";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BlueprintDecodeError, type DecodeStats, decodeWithStats, resolveActivePath } from "fpsr";
-import { useAtom } from "jotai";
-import { InfoIcon } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { PerfReport } from "@/performance/perf-report";
+import { PreviewPane } from "@/preview/preview-pane";
+import {
+  type ActiveRenderProgress,
+  sameRenderPath,
+  updateActiveRenderProgress,
+} from "@/preview/render-progress-state";
+import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
 import { trackEvent } from "@/shell/analytics";
 import {
   BUILT_IN_DECODE_STATS,
@@ -24,22 +31,15 @@ import { PaneMessage } from "@/shell/pane-message";
 import { activeTabAtom, isViewerTab } from "@/shell/viewer-preferences";
 import { BlueprintSummary } from "@/sidebar/blueprint-summary";
 import { BookSummary } from "@/sidebar/book-summary";
-import { GitHubLogo } from "@/components/github-logo";
-import { Logo } from "@/components/logo";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { addCustom, clearCustoms, listCustoms } from "@/blueprint/custom-blueprints-db";
-import type { PerfReport } from "@/performance/perf-report";
-import { PreviewPane } from "@/preview/preview-pane";
-import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
-import {
-  type ActiveRenderProgress,
-  sameRenderPath,
-  updateActiveRenderProgress,
-} from "@/preview/render-progress-state";
 import { SidebarPanels } from "@/sidebar/sidebar-panels";
 import { resolveSidebarSelection } from "@/sidebar/sidebar-selection";
 import { SidebarSelectionTrigger } from "@/sidebar/sidebar-selection-trigger";
 import { type SidebarSelectableKind, type SidebarSource } from "@/sidebar/sidebar-tree";
+import { BlueprintDecodeError, type DecodeStats, decodeWithStats, resolveActivePath } from "fpsr";
+import { useAtom } from "jotai";
+import { InfoIcon } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 const PerformancePane = lazy(() =>
   import("@/performance/performance-pane").then(({ PerformancePane }) => ({
@@ -265,7 +265,7 @@ export const App = () => {
   };
   return (
     <div className="grid h-svh overflow-hidden grid-rows-[auto_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="flex min-h-0 flex-col overflow-hidden">
+      <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between gap-3 pl-4 pr-6 pt-4">
           <h1 className="text-lg font-semibold tracking-tight">
             <Logo />
@@ -301,7 +301,11 @@ export const App = () => {
           )}
         </div>
 
-        <ScrollArea className="hidden min-h-0 flex-1 md:flex" viewportClassName="scroll-fade">
+        <ScrollArea
+          className="hidden min-h-0 min-w-0 flex-1 md:flex"
+          viewportClassName="scroll-fade overflow-x-hidden"
+          contentClassName="min-w-0! w-full max-w-full"
+        >
           <SidebarPanels {...sidebarPanelProps} />
         </ScrollArea>
       </aside>

@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   measurePreview: vi.fn(),
   exportFullResolutionPng: vi.fn(),
   clearPreview: vi.fn(),
+  setPreviewAssetOrigin: vi.fn(async (origin: "local" | "cdn") => ({
+    origin,
+    baseUrl: origin === "cdn" ? "https://fprints-data.b-cdn.net/2.1.11" : "/assets/2.1.11",
+  })),
   clipboardWrite: vi.fn(),
   createObjectURL: vi.fn(() => "blob:test-export"),
   revokeObjectURL: vi.fn(),
@@ -28,6 +32,7 @@ const mocks = vi.hoisted(() => ({
       aquilo: { patchSize: 4, frames: [0], color: [0.85, 0.9, 0.95, 1] },
     },
   })),
+  setViewerAssetOrigin: vi.fn(),
 }));
 class ClipboardItemMock {
   static supports = vi.fn(() => true);
@@ -41,18 +46,21 @@ vi.mock("./preview-renderer", async (importOriginal) => {
     measurePreview: mocks.measurePreview,
     exportFullResolutionPng: mocks.exportFullResolutionPng,
     clearPreview: mocks.clearPreview,
+    setPreviewAssetOrigin: mocks.setPreviewAssetOrigin,
   };
 });
 vi.mock("@/shell/viewer-assets", () => ({
   viewerAssets: {
     loadRenderDb: mocks.loadRenderDb,
   },
+  setViewerAssetOrigin: mocks.setViewerAssetOrigin,
 }));
 vi.mock("@/blueprint/factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
     return <span data-testid="entity-icon" data-icon-key={key} data-quality={quality ?? ""} />;
   },
+  clearFactorioItemIconCache: vi.fn(),
 }));
 vi.mock("./preview-canvas-frame", () => ({
   PreviewCanvasFrame: ({
@@ -104,6 +112,12 @@ describe("PreviewPane alt-mode toggle", () => {
     mocks.measurePreview.mockReset();
     mocks.exportFullResolutionPng.mockReset();
     mocks.clearPreview.mockReset();
+    mocks.setPreviewAssetOrigin.mockClear();
+    mocks.setPreviewAssetOrigin.mockImplementation(async (origin: "local" | "cdn") => ({
+      origin,
+      baseUrl: origin === "cdn" ? "https://fprints-data.b-cdn.net/2.1.11" : "/assets/2.1.11",
+    }));
+    mocks.setViewerAssetOrigin.mockClear();
     mocks.clipboardWrite.mockReset();
     mocks.createObjectURL.mockClear();
     mocks.revokeObjectURL.mockClear();
@@ -154,6 +168,54 @@ describe("PreviewPane alt-mode toggle", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     host.remove();
+  });
+  it("reports a CDN/render failure once without retrying on parent re-render", async () => {
+    mocks.renderPreview.mockRejectedValue(new Error("Failed to fetch CDN manifest"));
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "CDN fail",
+      entities: [{ entity_number: 1, name: "transport-belt", position: { x: 0.5, y: 0.5 } }],
+    };
+    const doc: BlueprintDocument = { blueprint };
+    const root = createRoot(host);
+    const onRenderError = vi.fn<(error: string | null) => void>();
+    act(() => {
+      root.render(
+        <PreviewPane
+          doc={doc}
+          blueprint={blueprint}
+          blueprintPath={null}
+          onRenderError={onRenderError}
+          onRenderProgress={() => undefined}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+    expect(onRenderError).toHaveBeenCalledWith("Failed to fetch CDN manifest");
+    expect(host.textContent).toContain("Assets missing");
+    // New callback identities used to re-trigger the render effect forever.
+    act(() => {
+      root.render(
+        <PreviewPane
+          doc={doc}
+          blueprint={blueprint}
+          blueprintPath={null}
+          onRenderError={() => undefined}
+          onRenderProgress={() => undefined}
+          onPerfReport={() => undefined}
+          onTileSizeChange={() => undefined}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+    await act(async () => root.unmount());
   });
   it("rerenders when alt mode is toggled and exposes the latest result", async () => {
     const blueprint: Blueprint = {

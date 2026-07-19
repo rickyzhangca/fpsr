@@ -1,20 +1,20 @@
+import { iconDrawSpec, iconLayout, insertPlanSignals } from "./alt-mode-request-pin.js";
+import {
+  altSignalFrame,
+  entitySignals,
+  filterSignals,
+  isSplitterType,
+  resolveAltSignals,
+  splitterLaneFilter,
+  type ResolvedAltSignal,
+} from "./alt-mode-signals.js";
 import { cardinalDirection } from "./resolve.js";
 import type { BlueprintEntity } from "./types/blueprint.js";
 import { RENDER_LAYERS, type IconCmd } from "./types/draw-list.js";
 import type { EntityRenderDef, RenderDb } from "./types/render-db.js";
-import {
-  type ResolvedAltSignal,
-  altSignalFrame,
-  entitySignals,
-  filterSignals,
-  resolveAltSignals,
-  splitterLaneFilter,
-  isSplitterType,
-} from "./alt-mode-signals.js";
-import { iconDrawSpec, iconLayout, insertPlanSignals } from "./alt-mode-request-pin.js";
 
-export { altSignalFrame, signalIconKeys } from "./alt-mode-signals.js";
 export { planRequestPinCommands } from "./alt-mode-request-pin.js";
+export { altSignalFrame, signalIconKeys } from "./alt-mode-signals.js";
 
 /**
  * Entity corner quality badge size in tiles when `quality_indicator_scale` is 1

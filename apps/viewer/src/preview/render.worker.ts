@@ -1,4 +1,9 @@
-import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "@/shell/asset-config";
+import {
+  assetsBaseFor,
+  LOCAL_ASSETS_BASE,
+  MAX_CONCURRENT_ASSET_DECODES,
+  type AssetOrigin,
+} from "@/shell/asset-config";
 import {
   cdnAssets,
   computeTileFrame,
@@ -6,15 +11,16 @@ import {
   measureTileFrame,
   selectBlueprint,
   type AssetEvent,
+  type AssetSource,
   type AssetTier,
   type CanvasLike,
   type Renderer,
   type RenderResult,
   type TileFrame,
 } from "fpsr";
+import { renderPreparedViewport } from "fpsr-internal/prepared-viewport";
 import { nowMs } from "fpsr/canvas";
 import { analyzePlan, drawListForTile, planDrawList } from "fpsr/planner";
-import { renderPreparedViewport } from "fpsr-internal/prepared-viewport";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,
@@ -23,13 +29,16 @@ import {
 import { createTiledPreviewTierPlanCache, type TiledPreviewTierPlan } from "./tiled-preview-plan";
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
-const assets = cdnAssets(ASSETS_BASE, {
-  maxConcurrentDecodes: MAX_CONCURRENT_ASSET_DECODES,
-  onAssetEvent(event) {
-    assetEvents.push(event);
-    if (!event.cached && event.bytes != null) sessionBlobBytes += event.bytes;
-  },
-});
+const createAssets = (baseUrl: string): AssetSource =>
+  cdnAssets(baseUrl, {
+    maxConcurrentDecodes: MAX_CONCURRENT_ASSET_DECODES,
+    onAssetEvent(event) {
+      assetEvents.push(event);
+      if (!event.cached && event.bytes != null) sessionBlobBytes += event.bytes;
+    },
+  });
+let assetsBase = LOCAL_ASSETS_BASE;
+let assets = createAssets(assetsBase);
 const rendererPromises = new Map<AssetTier, Promise<Renderer>>();
 const getRenderer = (tier: AssetTier): Promise<Renderer> => {
   let pending = rendererPromises.get(tier);
@@ -41,6 +50,22 @@ const getRenderer = (tier: AssetTier): Promise<Renderer> => {
     rendererPromises.set(tier, pending);
   }
   return pending;
+};
+const setAssetOrigin = (origin: AssetOrigin): string => {
+  const nextBase = assetsBaseFor(origin);
+  if (nextBase === assetsBase) return assetsBase;
+  for (const controller of activeTasks.values()) controller.abort();
+  activeTasks.clear();
+  activeTaskSessions.clear();
+  tiledPreviewSessions.clear();
+  for (const pending of rendererPromises.values()) {
+    void pending.then((renderer) => renderer.dispose()).catch(() => undefined);
+  }
+  rendererPromises.clear();
+  assets.dispose?.();
+  assetsBase = nextBase;
+  assets = createAssets(assetsBase);
+  return assetsBase;
 };
 interface SurfaceState {
   canvas: OffscreenCanvas;
@@ -399,6 +424,16 @@ workerScope.onmessage = (event) => {
       activeTasks.delete(request.requestId);
       activeTaskSessions.delete(request.requestId);
       break;
+    case "setAssetOrigin": {
+      const baseUrl = setAssetOrigin(request.origin);
+      workerScope.postMessage({
+        type: "assetOriginSet",
+        requestId: request.requestId,
+        origin: request.origin,
+        baseUrl,
+      });
+      break;
+    }
   }
 };
 // Signal only after the module has initialized its asset store and message handler.

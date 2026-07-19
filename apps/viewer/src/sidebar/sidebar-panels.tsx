@@ -6,14 +6,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClipboardIcon, EllipsisVerticalIcon } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ActiveRenderProgress } from "@/preview/render-progress-state";
+import { ClipboardIcon, EllipsisVerticalIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   type SidebarSelectableKind,
   type SidebarSource,
   type SidebarSourceId,
   SidebarTree,
 } from "./sidebar-tree";
+
+const SidebarTreeScroll = ({ children }: { children: ReactNode }) => {
+  return (
+    <ScrollArea className="min-w-0 w-full" viewportClassName="scroll-fade">
+      {children}
+    </ScrollArea>
+  );
+};
+
 export const SidebarPanels = ({
   sampleSources,
   testSources,
@@ -40,34 +51,38 @@ export const SidebarPanels = ({
   onClearAllCustoms: () => void;
 }) => {
   return (
-    <div className="flex flex-col gap-4 py-4 pl-4 pr-3">
-      <section className="flex flex-col gap-2">
+    <div className="flex min-w-0 w-full flex-col gap-4 py-4 pl-4 pr-3">
+      <section className="flex min-w-0 flex-col gap-2">
         <p className="text-muted-foreground text-sm">Demos</p>
-        <SidebarTree
-          sectionId="demos"
-          sources={sampleSources}
-          selectedSourceId={selectedSourceId}
-          selectedPath={selectedPath}
-          selectedKind={selectedKind}
-          renderProgress={renderProgress}
-          onSelect={onSelect}
-        />
+        <SidebarTreeScroll>
+          <SidebarTree
+            sectionId="demos"
+            sources={sampleSources}
+            selectedSourceId={selectedSourceId}
+            selectedPath={selectedPath}
+            selectedKind={selectedKind}
+            renderProgress={renderProgress}
+            onSelect={onSelect}
+          />
+        </SidebarTreeScroll>
       </section>
 
-      <section className="flex flex-col gap-2">
+      <section className="flex min-w-0 flex-col gap-2">
         <p className="text-muted-foreground text-sm">Tests</p>
-        <SidebarTree
-          sectionId="tests"
-          sources={testSources}
-          selectedSourceId={selectedSourceId}
-          selectedPath={selectedPath}
-          selectedKind={selectedKind}
-          renderProgress={renderProgress}
-          onSelect={onSelect}
-        />
+        <SidebarTreeScroll>
+          <SidebarTree
+            sectionId="tests"
+            sources={testSources}
+            selectedSourceId={selectedSourceId}
+            selectedPath={selectedPath}
+            selectedKind={selectedKind}
+            renderProgress={renderProgress}
+            onSelect={onSelect}
+          />
+        </SidebarTreeScroll>
       </section>
 
-      <section className="flex flex-col gap-2">
+      <section className="flex min-w-0 flex-col gap-2">
         <div className="flex items-center gap-1">
           <p className="min-w-0 flex-1 text-muted-foreground text-sm">Custom</p>
           <Button
@@ -98,15 +113,17 @@ export const SidebarPanels = ({
           </DropdownMenu>
         </div>
 
-        <SidebarTree
-          sectionId="custom"
-          sources={customSources}
-          selectedSourceId={selectedSourceId}
-          selectedPath={selectedPath}
-          selectedKind={selectedKind}
-          renderProgress={renderProgress}
-          onSelect={onSelect}
-        />
+        <SidebarTreeScroll>
+          <SidebarTree
+            sectionId="custom"
+            sources={customSources}
+            selectedSourceId={selectedSourceId}
+            selectedPath={selectedPath}
+            selectedKind={selectedKind}
+            renderProgress={renderProgress}
+            onSelect={onSelect}
+          />
+        </SidebarTreeScroll>
       </section>
     </div>
   );

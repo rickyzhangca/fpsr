@@ -1,14 +1,16 @@
+import type { PlanDiagnostics } from "@/process/plan-diagnostics";
 import {
   type AssetEvent,
   type Blueprint,
   type BlueprintDocument,
   type DrawList,
   type RenderImageOptions,
-  type RenderOptions,
   type RenderMeasurement,
+  type RenderOptions,
   type RenderProfile,
   type TileFrame,
 } from "fpsr";
+import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 import {
   type PreviewRenderProgress,
   type RenderWorkerRequest,
@@ -17,8 +19,6 @@ import {
   type WorkerRenderOptions,
   type WorkerTiledPreviewOptions,
 } from "./render-worker-protocol";
-import type { PreviewTilePixelsPerTile } from "./preview-tiles";
-import type { PlanDiagnostics } from "@/process/plan-diagnostics";
 export interface PreviewRenderResult {
   width: number;
   height: number;
@@ -80,6 +80,11 @@ interface PendingPlan {
   resolve(result: PreviewPlanResult): void;
   reject(error: Error): void;
 }
+interface PendingAssetOrigin {
+  kind: "asset-origin";
+  resolve(result: { origin: "local" | "cdn"; baseUrl: string }): void;
+  reject(error: Error): void;
+}
 type PendingRequest =
   | PendingRender
   | PendingExport
@@ -87,7 +92,8 @@ type PendingRequest =
   | PendingTiledPreview
   | PendingPreviewTile
   | PendingMeasure
-  | PendingPlan;
+  | PendingPlan
+  | PendingAssetOrigin;
 
 export interface FullResolutionPngResult {
   blob: Blob;
@@ -283,6 +289,17 @@ export class PreviewRenderWorkerClient {
     this.worker.postMessage(request);
     return true;
   }
+  async setAssetOrigin(
+    origin: "local" | "cdn",
+  ): Promise<{ origin: "local" | "cdn"; baseUrl: string }> {
+    await this.waitUntilReady();
+    const requestId = this.nextRequestId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(requestId, { kind: "asset-origin", resolve, reject });
+      const request: RenderWorkerRequest = { type: "setAssetOrigin", requestId, origin };
+      this.worker.postMessage(request);
+    });
+  }
   private renderPreviewTile(
     sessionId: string,
     tileFrame: TileFrame,
@@ -406,6 +423,12 @@ export class PreviewRenderWorkerClient {
     }
     if (response.type === "measured") {
       if (pending.kind === "measure") pending.resolve(response.measurement);
+      return;
+    }
+    if (response.type === "assetOriginSet") {
+      if (pending.kind === "asset-origin") {
+        pending.resolve({ origin: response.origin, baseUrl: response.baseUrl });
+      }
       return;
     }
     if (response.type === "planned") {
@@ -541,4 +564,12 @@ export const clearPreview = (canvas: HTMLCanvasElement): void => {
   if (workerClient?.clear(canvas)) return;
   canvas.width = 0;
   canvas.height = 0;
+};
+export const setPreviewAssetOrigin = async (
+  origin: "local" | "cdn",
+): Promise<{ origin: "local" | "cdn"; baseUrl: string }> => {
+  if (typeof Worker === "undefined") {
+    throw new Error("Asset origin switching requires a browser with Web Workers support.");
+  }
+  return getWorkerClient().setAssetOrigin(origin);
 };

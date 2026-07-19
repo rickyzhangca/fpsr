@@ -18,6 +18,8 @@ export interface PreviewPreferences {
   altMode: boolean;
   showCoords: boolean;
   showBackground: boolean;
+  /** When true, fetch render assets from the CDN instead of local `/assets`. */
+  useCdnAssets: boolean;
   backgroundMode: PreviewBackgroundMode;
   /** Factorio planet prototype name used when `backgroundMode` is `"orbit"`. */
   orbitPlanet: string;
@@ -106,6 +108,8 @@ export const normalizePreviewPreferences = (value: unknown): PreviewPreferences 
     altMode: value.altMode,
     showCoords: value.showCoords,
     showBackground,
+    // Missing field (older prefs) defaults to local assets.
+    useCdnAssets: isBoolean(value.useCdnAssets) ? value.useCdnAssets : false,
     backgroundMode,
     orbitPlanet,
   };
@@ -155,6 +159,7 @@ export const DEFAULT_PREVIEW_PREFERENCES: PreviewPreferences = {
   altMode: true,
   showCoords: false,
   showBackground: true,
+  useCdnAssets: false,
   backgroundMode: "auto",
   orbitPlanet: "nauvis",
 };

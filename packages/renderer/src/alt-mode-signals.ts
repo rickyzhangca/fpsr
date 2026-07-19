@@ -130,7 +130,7 @@ export function entitySignals(entity: BlueprintEntity, def: EntityRenderDef): Al
     if (directFilter) signals.push(directFilter);
     signals.push(...filterSignals(entity.filters));
   }
-  signals.push(...filterSignals(entity["priority-list"]));
+  // Turret target `priority-list` is not shown as Factorio entity-info icons.
   signals.push(...filterSignals(entity["chunk-filter"], "asteroid-chunk"));
   if (entity.fluid_filter) signals.push({ name: entity.fluid_filter, type: "fluid" });
 
