@@ -1,15 +1,19 @@
 import { cdnAssets, type AssetSource } from "fpsr";
 import {
   assetsBaseFor,
+  cdnDebugFetchFor,
   LOCAL_ASSETS_BASE,
   MAX_CONCURRENT_ASSET_DECODES,
   type AssetOrigin,
 } from "./asset-config";
 
-const createSource = (baseUrl: string): AssetSource =>
-  cdnAssets(baseUrl, {
+const createSource = (baseUrl: string): AssetSource => {
+  const fetchImpl = cdnDebugFetchFor(baseUrl);
+  return cdnAssets(baseUrl, {
+    ...(fetchImpl ? { fetchImpl } : {}),
     maxConcurrentDecodes: MAX_CONCURRENT_ASSET_DECODES,
   });
+};
 
 let origin: AssetOrigin = "local";
 let source = createSource(LOCAL_ASSETS_BASE);

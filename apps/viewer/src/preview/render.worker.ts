@@ -1,5 +1,6 @@
 import {
   assetsBaseFor,
+  cdnDebugFetchFor,
   LOCAL_ASSETS_BASE,
   MAX_CONCURRENT_ASSET_DECODES,
   type AssetOrigin,
@@ -29,14 +30,17 @@ import {
 import { createTiledPreviewTierPlanCache, type TiledPreviewTierPlan } from "./tiled-preview-plan";
 const assetEvents: AssetEvent[] = [];
 let sessionBlobBytes = 0;
-const createAssets = (baseUrl: string): AssetSource =>
-  cdnAssets(baseUrl, {
+const createAssets = (baseUrl: string): AssetSource => {
+  const fetchImpl = cdnDebugFetchFor(baseUrl);
+  return cdnAssets(baseUrl, {
+    ...(fetchImpl ? { fetchImpl } : {}),
     maxConcurrentDecodes: MAX_CONCURRENT_ASSET_DECODES,
     onAssetEvent(event) {
       assetEvents.push(event);
       if (!event.cached && event.bytes != null) sessionBlobBytes += event.bytes;
     },
   });
+};
 let assetsBase = LOCAL_ASSETS_BASE;
 let assets = createAssets(assetsBase);
 const rendererPromises = new Map<AssetTier, Promise<Renderer>>();
