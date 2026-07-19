@@ -86,19 +86,32 @@ export function drawSprite(
         w: packedWidth(frame),
         h: packedHeight(frame),
       };
-  const trimmedDx = cmd.src ? dx : dx + frame.ox * scaleX;
-  const trimmedDy = cmd.src ? dy : dy + frame.oy * scaleY;
-  const trimmedDw = cmd.src ? dw : frame.w * scaleX;
-  const trimmedDh = cmd.src ? dh : frame.h * scaleY;
+  let trimmedDx = cmd.src ? dx : dx + frame.ox * scaleX;
+  let trimmedDy = cmd.src ? dy : dy + frame.oy * scaleY;
+  let trimmedDw = cmd.src ? dw : frame.w * scaleX;
+  let trimmedDh = cmd.src ? dh : frame.h * scaleY;
+
+  const flipX = cmd.flipX === true;
+  const flipY = cmd.flipY === true;
+  const rotation = cmd.rotation ?? 0;
+
+  // Atlases pack frames with no gutters. Fractional destinations make Canvas2D
+  // sample one texel past the packed rect into a neighboring sprite, which
+  // shows up as a 1px colorful strip (inserter platforms on half-pixel anchors).
+  if (rotation === 0 && !flipX && !flipY) {
+    const right = Math.round(trimmedDx + trimmedDw);
+    const bottom = Math.round(trimmedDy + trimmedDh);
+    trimmedDx = Math.round(trimmedDx);
+    trimmedDy = Math.round(trimmedDy);
+    trimmedDw = right - trimmedDx;
+    trimmedDh = bottom - trimmedDy;
+  }
 
   const prevAlpha = ctx.globalAlpha;
   if (cmd.shadow) {
     ctx.globalAlpha = prevAlpha * 0.5;
   }
 
-  const flipX = cmd.flipX === true;
-  const flipY = cmd.flipY === true;
-  const rotation = cmd.rotation ?? 0;
   const hasClip = cmd.clip != null;
   const tint = cmd.tint;
 
