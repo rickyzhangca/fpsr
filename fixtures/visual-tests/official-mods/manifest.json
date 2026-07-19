@@ -44,7 +44,7 @@
         "mod": "space-age",
         "specId": "space-age-2.1.11",
         "entityCount": 27,
-        "tileCount": 7,
+        "tileCount": 15,
         "emitted": true
       },
       {
@@ -99,8 +99,8 @@
   "coverage": {
     "entityPrototypeCount": 34,
     "entityPlacementCaseCount": 140,
-    "tilePrototypeCount": 7,
-    "tileCaseCount": 7,
+    "tilePrototypeCount": 15,
+    "tileCaseCount": 15,
     "pageCount": 6
   },
   "pages": [
@@ -145,13 +145,21 @@
         "tile/space-age/artificial-jellynut-soil",
         "tile/space-age/artificial-yumako-soil",
         "tile/space-age/foundation",
+        "tile/space-age/frozen-concrete",
+        "tile/space-age/frozen-foundation",
+        "tile/space-age/frozen-hazard-concrete-left",
+        "tile/space-age/frozen-hazard-concrete-right",
+        "tile/space-age/frozen-refined-concrete",
+        "tile/space-age/frozen-refined-hazard-concrete-left",
+        "tile/space-age/frozen-refined-hazard-concrete-right",
+        "tile/space-age/frozen-stone-path",
         "tile/space-age/ice-platform",
         "tile/space-age/overgrowth-jellynut-soil",
         "tile/space-age/overgrowth-yumako-soil",
         "tile/space-age/space-platform-foundation"
       ],
       "entityCount": 28,
-      "tileCount": 343
+      "tileCount": 735
     },
     {
       "id": "official-mods/space-age/production",
@@ -1058,7 +1066,7 @@
       }
     },
     {
-      "id": "tile/space-age/ice-platform",
+      "id": "tile/space-age/frozen-concrete",
       "caseKind": "tile-patch",
       "pageId": "official-mods/space-age/logistics",
       "pagePath": [
@@ -1069,6 +1077,166 @@
         "top": 23.5,
         "right": 31.5,
         "bottom": 31.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-concrete",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-foundation",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.5,
+        "top": 31.5,
+        "right": 7.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-foundation",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-hazard-concrete-left",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 7.5,
+        "top": 31.5,
+        "right": 15.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-hazard-concrete-left",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-hazard-concrete-right",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 15.5,
+        "top": 31.5,
+        "right": 23.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-hazard-concrete-right",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-refined-concrete",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 23.5,
+        "top": 31.5,
+        "right": 31.5,
+        "bottom": 39.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-refined-concrete",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-refined-hazard-concrete-left",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": -0.5,
+        "top": 39.5,
+        "right": 7.5,
+        "bottom": 47.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-refined-hazard-concrete-left",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-refined-hazard-concrete-right",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 7.5,
+        "top": 39.5,
+        "right": 15.5,
+        "bottom": 47.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-refined-hazard-concrete-right",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/frozen-stone-path",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 15.5,
+        "top": 39.5,
+        "right": 23.5,
+        "bottom": 47.5
+      },
+      "focusEntityNumbers": [],
+      "tileName": "frozen-stone-path",
+      "tilePatch": {
+        "width": 7,
+        "height": 7
+      }
+    },
+    {
+      "id": "tile/space-age/ice-platform",
+      "caseKind": "tile-patch",
+      "pageId": "official-mods/space-age/logistics",
+      "pagePath": [
+        0
+      ],
+      "cropTiles": {
+        "left": 23.5,
+        "top": 39.5,
+        "right": 31.5,
+        "bottom": 47.5
       },
       "focusEntityNumbers": [],
       "tileName": "ice-platform",
@@ -1086,9 +1254,9 @@
       ],
       "cropTiles": {
         "left": -0.5,
-        "top": 31.5,
+        "top": 47.5,
         "right": 7.5,
-        "bottom": 39.5
+        "bottom": 55.5
       },
       "focusEntityNumbers": [],
       "tileName": "overgrowth-jellynut-soil",
@@ -1106,9 +1274,9 @@
       ],
       "cropTiles": {
         "left": 7.5,
-        "top": 31.5,
+        "top": 47.5,
         "right": 15.5,
-        "bottom": 39.5
+        "bottom": 55.5
       },
       "focusEntityNumbers": [],
       "tileName": "overgrowth-yumako-soil",
@@ -1126,9 +1294,9 @@
       ],
       "cropTiles": {
         "left": 15.5,
-        "top": 31.5,
+        "top": 47.5,
         "right": 23.5,
-        "bottom": 39.5
+        "bottom": 55.5
       },
       "focusEntityNumbers": [],
       "tileName": "space-platform-foundation",

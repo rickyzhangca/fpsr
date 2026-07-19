@@ -34,7 +34,7 @@ describe("official-mod visual suite foundation", () => {
     expect(entityNamesInBook(QUALITY_BOOK_SPEC)).toHaveLength(0);
     expect(entityNamesInBook(RECYCLER_BOOK_SPEC)).toEqual(["recycler"]);
     expect(entityNamesInBook(SPACE_AGE_BOOK_SPEC)).toHaveLength(27);
-    expect(tileNamesInBook(SPACE_AGE_BOOK_SPEC)).toHaveLength(7);
+    expect(tileNamesInBook(SPACE_AGE_BOOK_SPEC)).toHaveLength(15);
     expect(pagesInBook(QUALITY_BOOK_SPEC)).toHaveLength(0);
   });
 
@@ -65,8 +65,8 @@ describe("official-mod visual suite foundation", () => {
     expect(suite.manifest.coverage).toEqual({
       entityPrototypeCount: 34,
       entityPlacementCaseCount: 140,
-      tilePrototypeCount: 7,
-      tileCaseCount: 7,
+      tilePrototypeCount: 15,
+      tileCaseCount: 15,
       pageCount: 6,
     });
     expect(suite.books).toHaveLength(4);
@@ -88,7 +88,7 @@ describe("official-mod visual suite foundation", () => {
     );
     expect(entityCells.filter((cell) => cell.entityName === "stack-inserter")).toHaveLength(4);
     expect(new Set(entityCells.map((cell) => cell.entityName)).size).toBe(34);
-    expect(new Set(tileCells.map((cell) => cell.tileName)).size).toBe(7);
+    expect(new Set(tileCells.map((cell) => cell.tileName)).size).toBe(15);
 
     for (const page of suite.manifest.pages) {
       const book = suite.books.find((entry) => entry.specId === page.bookSpecId);
