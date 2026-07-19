@@ -6,6 +6,7 @@ import type {
   BlueprintRef,
   Icon,
 } from "./types/blueprint.js";
+import { upgradePlannerIcons } from "./upgrade-planner.js";
 
 export type BlueprintSelectReason = "not-found" | "planner" | "empty-book";
 
@@ -166,6 +167,66 @@ export function selectBook(doc: BlueprintDocument, path?: number[]): BlueprintBo
   return selectBookFromBook(doc.blueprint_book, path ?? []);
 }
 
+function selectUpgradePlannerFromBook(
+  book: BlueprintBook,
+  path: number[],
+): Record<string, unknown> {
+  if (path.length === 0) {
+    throw new BlueprintSelectError("not-found", "Path required to select an upgrade planner");
+  }
+  const head = path[0];
+  if (head === undefined) {
+    throw new BlueprintSelectError("not-found", "Empty path");
+  }
+  const rest = path.slice(1);
+  const entry = findEntryByIndex(book, head);
+  if (!entry) {
+    throw new BlueprintSelectError("not-found", `No book entry at index ${head}`);
+  }
+  if (rest.length === 0) {
+    if (entry.upgrade_planner) {
+      return entry.upgrade_planner;
+    }
+    throw new BlueprintSelectError(
+      entry.deconstruction_planner ? "planner" : "not-found",
+      `Entry at index ${head} is not an upgrade planner`,
+    );
+  }
+  if (entry.blueprint_book) {
+    return selectUpgradePlannerFromBook(entry.blueprint_book, rest);
+  }
+  throw new BlueprintSelectError("not-found", `Entry at index ${head} has no nested book`);
+}
+
+/**
+ * Select an upgrade planner from a document.
+ * Bare upgrade-planner documents ignore path (or require `[]`).
+ * Book documents require a path ending on an `upgrade_planner` entry.
+ */
+export function selectUpgradePlanner(
+  doc: BlueprintDocument,
+  path?: number[],
+): Record<string, unknown> {
+  if (doc.upgrade_planner) {
+    if (path !== undefined && path.length > 0) {
+      throw new BlueprintSelectError(
+        "not-found",
+        "Cannot use path on a bare upgrade planner document",
+      );
+    }
+    return doc.upgrade_planner;
+  }
+
+  if (doc.blueprint_book) {
+    if (path === undefined || path.length === 0) {
+      throw new BlueprintSelectError("not-found", "Path required to select an upgrade planner");
+    }
+    return selectUpgradePlannerFromBook(doc.blueprint_book, path);
+  }
+
+  throw new BlueprintSelectError("not-found", "Document has no upgrade planner");
+}
+
 export type BookTreeItemKind = "book" | "blueprint" | "upgrade_planner" | "deconstruction_planner";
 
 /** Hierarchical book entry for tree UIs (e.g. Headless Tree sync data loader). */
@@ -197,16 +258,32 @@ function entryKind(entry: BlueprintBookEntry): BookTreeItemKind | null {
   return null;
 }
 
+function plannerField(planner: Record<string, unknown> | undefined, key: string): unknown {
+  return planner?.[key];
+}
+
 function entryLabel(entry: BlueprintBookEntry, kind: BookTreeItemKind): string {
   if (kind === "book") return entry.blueprint_book?.label ?? "(untitled)";
   if (kind === "blueprint") return entry.blueprint?.label ?? "(untitled)";
-  if (kind === "upgrade_planner") return "Upgrade planner";
-  return "Deconstruction planner";
+  if (kind === "upgrade_planner") {
+    const label = plannerField(entry.upgrade_planner, "label");
+    return typeof label === "string" && label.length > 0 ? label : "Upgrade planner";
+  }
+  const label = plannerField(entry.deconstruction_planner, "label");
+  return typeof label === "string" && label.length > 0 ? label : "Deconstruction planner";
 }
 
 function entryIcons(entry: BlueprintBookEntry, kind: BookTreeItemKind): Icon[] | undefined {
   if (kind === "book") return entry.blueprint_book?.icons;
   if (kind === "blueprint") return entry.blueprint?.icons;
+  if (kind === "upgrade_planner" && entry.upgrade_planner) {
+    const icons = upgradePlannerIcons(entry.upgrade_planner);
+    return icons.length > 0 ? icons : undefined;
+  }
+  if (kind === "deconstruction_planner") {
+    const icons = plannerField(entry.deconstruction_planner, "icons");
+    return Array.isArray(icons) ? (icons as Icon[]) : undefined;
+  }
   return undefined;
 }
 
@@ -277,10 +354,13 @@ function resolveActivePathFromBook(book: BlueprintBook, pathPrefix: number[]): n
   if (!entry) {
     throw new BlueprintSelectError("not-found", `No book entry at active_index ${active}`);
   }
-  if (isPlannerEntry(entry)) {
+  const entryPath = [...pathPrefix, entry.index];
+  if (entry.upgrade_planner) {
+    return entryPath;
+  }
+  if (entry.deconstruction_planner) {
     throw new BlueprintSelectError("planner", "Active entry is a planner");
   }
-  const entryPath = [...pathPrefix, entry.index];
   if (entry.blueprint) {
     return entryPath;
   }

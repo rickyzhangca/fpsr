@@ -6,7 +6,7 @@ import {
   UnknownTerrainBackgroundError,
   type RenderBackground,
 } from "./background.js";
-import { selectBlueprint } from "./book.js";
+import { selectBlueprint, selectUpgradePlanner } from "./book.js";
 import type { Canvas2DContextLike, ExecuteDrawListStats } from "./canvas2d.js";
 import * as canvas2d from "./canvas2d.js";
 import { computeTileFrame, type TileFrame } from "./frame.js";
@@ -19,7 +19,8 @@ import {
   type ImageDataContext,
   type SilhouetteCanvasLike,
 } from "./icon-silhouette.js";
-import { planDrawList, planDrawListInternal } from "./plan.js";
+import { planDrawListInternal } from "./plan.js";
+import { planUpgradePlannerDrawList } from "./plan/upgrade-planner.js";
 import { createStreamingPngEncoder } from "./png-stream.js";
 import {
   nowMs,
@@ -36,8 +37,8 @@ import type { Blueprint, BlueprintDocument } from "./types/blueprint.js";
 import type { DrawList } from "./types/draw-list.js";
 import type { RenderDb, SpaceBackground, TerrainPatchBackground } from "./types/render-db.js";
 
-export type { RenderBackground } from "./background.js";
 export { AssetDensityMismatchError, UnknownTerrainBackgroundError } from "./background.js";
+export type { RenderBackground } from "./background.js";
 
 export interface CanvasLike {
   width: number;
@@ -250,12 +251,66 @@ function isBlueprint(value: BlueprintDocument | Blueprint): value is Blueprint {
   return (value as Blueprint).item === "blueprint";
 }
 
+function trySelectUpgradePlanner(
+  doc: BlueprintDocument,
+  path: number[] | undefined,
+): Record<string, unknown> | null {
+  try {
+    return selectUpgradePlanner(doc, path);
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve Auto background into concrete checkerboard / space flags. */
 function resolveBackgroundOpts(
-  bp: Blueprint,
+  bp: Blueprint | null,
   background: RenderBackground | undefined,
 ): ReturnType<typeof resolveBackground> {
-  return resolveBackground(blueprintPrefersPlatformGraphics(bp), background);
+  return resolveBackground(bp ? blueprintPrefersPlatformGraphics(bp) : false, background);
+}
+
+function planDocumentDrawList(
+  docOrBlueprint: BlueprintDocument | Blueprint,
+  db: RenderDb,
+  opts: {
+    blueprintPath?: number[];
+    altMode?: boolean;
+    beltEndings?: boolean;
+    profileOut?: PlanProfile;
+  },
+): {
+  drawList: DrawList;
+  blueprint: Blueprint | null;
+} {
+  if (isBlueprint(docOrBlueprint)) {
+    return {
+      blueprint: docOrBlueprint,
+      drawList: planDrawListInternal(docOrBlueprint, db, {
+        altMode: opts.altMode,
+        beltEndings: opts.beltEndings,
+        profileOut: opts.profileOut,
+      }).drawList,
+    };
+  }
+
+  const planner = trySelectUpgradePlanner(docOrBlueprint, opts.blueprintPath);
+  if (planner) {
+    return {
+      blueprint: null,
+      drawList: planUpgradePlannerDrawList(planner, db),
+    };
+  }
+
+  const blueprint = selectBlueprint(docOrBlueprint, opts.blueprintPath);
+  return {
+    blueprint,
+    drawList: planDrawListInternal(blueprint, db, {
+      altMode: opts.altMode,
+      beltEndings: opts.beltEndings,
+      profileOut: opts.profileOut,
+    }).drawList,
+  };
 }
 
 function defaultCreateCanvas(width: number, height: number): CanvasLike {
@@ -505,25 +560,39 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
     if (wantProfile) perfMark("fpsr-render-start");
 
     let t = wantProfile ? nowMs() : 0;
-    const bp = isBlueprint(docOrBlueprint)
-      ? docOrBlueprint
-      : selectBlueprint(docOrBlueprint, opts.blueprintPath);
+    const planProfile = wantProfile ? emptyPlanProfile() : undefined;
+    reportProgress(opts, { stage: "planning" });
+    if (wantProfile) perfMark("fpsr-plan-start");
+
+    let bp: Blueprint | null;
+    let drawList: DrawList;
+    if (opts.preparedDrawList !== undefined) {
+      drawList = opts.preparedDrawList;
+      if (isBlueprint(docOrBlueprint)) {
+        bp = docOrBlueprint;
+      } else {
+        try {
+          bp = selectBlueprint(docOrBlueprint, opts.blueprintPath);
+        } catch {
+          bp = null;
+        }
+      }
+    } else {
+      const planned = planDocumentDrawList(docOrBlueprint, db, {
+        blueprintPath: opts.blueprintPath,
+        altMode: opts.altMode,
+        beltEndings: opts.beltEndings,
+        profileOut: planProfile,
+      });
+      bp = planned.blueprint;
+      drawList = planned.drawList;
+    }
     const selectMs = wantProfile ? nowMs() - t : 0;
     const bg = resolveBackgroundOpts(bp, opts.background);
 
     const requestedPixelsPerTile = opts.pixelsPerTile ?? 64;
     const padTiles = opts.padTiles ?? 0;
 
-    const planProfile = wantProfile ? emptyPlanProfile() : undefined;
-    reportProgress(opts, { stage: "planning" });
-    if (wantProfile) perfMark("fpsr-plan-start");
-    const drawList =
-      opts.preparedDrawList ??
-      planDrawListInternal(bp, db, {
-        altMode: opts.altMode,
-        beltEndings: opts.beltEndings,
-        profileOut: planProfile,
-      }).drawList;
     throwIfAborted(opts.signal);
     if (wantProfile) {
       perfMark("fpsr-plan-end");
@@ -826,10 +895,8 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
   const renderer: Renderer = {
     measure(docOrBlueprint, opts = {}): RenderMeasurement {
       throwIfAborted(opts.signal);
-      const bp = isBlueprint(docOrBlueprint)
-        ? docOrBlueprint
-        : selectBlueprint(docOrBlueprint, opts.blueprintPath);
-      const drawList = planDrawList(bp, db, {
+      const { drawList } = planDocumentDrawList(docOrBlueprint, db, {
+        blueprintPath: opts.blueprintPath,
         altMode: opts.altMode,
         beltEndings: opts.beltEndings,
       });
@@ -848,11 +915,9 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       if (!Number.isInteger(pixelsPerTile) || pixelsPerTile <= 0) {
         throw new Error("Tiled PNG export requires an integer pixelsPerTile greater than zero");
       }
-      const bp = isBlueprint(docOrBlueprint)
-        ? docOrBlueprint
-        : selectBlueprint(docOrBlueprint, opts.blueprintPath);
       reportProgress(opts, { stage: "planning" });
-      const preparedDrawList = planDrawList(bp, db, {
+      const { drawList: preparedDrawList } = planDocumentDrawList(docOrBlueprint, db, {
+        blueprintPath: opts.blueprintPath,
         altMode: opts.altMode,
         beltEndings: opts.beltEndings,
       });

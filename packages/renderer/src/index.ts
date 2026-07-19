@@ -15,8 +15,24 @@ export {
   resolveActivePath,
   selectBlueprint,
   selectBook,
+  selectUpgradePlanner,
 } from "./book.js";
 export type { BlueprintSelectReason, BookTree, BookTreeItem, BookTreeItemKind } from "./book.js";
+
+export {
+  asUpgradePlanner,
+  UPGRADE_PLANNER_SLOT_COUNT,
+  upgradePlannerIcons,
+  upgradePlannerMappers,
+} from "./upgrade-planner.js";
+export type {
+  UpgradeMapper,
+  UpgradeMapperDestination,
+  UpgradeMapperSource,
+  UpgradePlanner,
+} from "./upgrade-planner.js";
+
+export { planUpgradePlannerDrawList, UPGRADE_PLANNER_COLUMNS } from "./plan/upgrade-planner.js";
 
 export { BlueprintDecodeError, decode, decodeWithStats } from "./decode.js";
 export type { BlueprintDecodeReason } from "./decode.js";
@@ -80,6 +96,8 @@ export type {
 export { computeTileFrame } from "./frame.js";
 export type { TileFrame } from "./frame.js";
 
+export { createStreamingPngEncoder } from "./png-stream.js";
+export type { StreamingPngEncoder } from "./png-stream.js";
 export {
   AssetDensityMismatchError,
   createRenderer,
@@ -87,15 +105,13 @@ export {
   resolveSpacePlanetFrameId,
   UnknownTerrainBackgroundError,
 } from "./renderer.js";
-export type { RenderBackground } from "./renderer.js";
-export { createStreamingPngEncoder } from "./png-stream.js";
-export type { StreamingPngEncoder } from "./png-stream.js";
 export type {
   CanvasLike,
   CreateCanvasFn,
   CreateRendererOptions,
   MaxOutputSize,
   MeasureOptions,
+  RenderBackground,
   Renderer,
   RenderImageMimeType,
   RenderImageOptions,

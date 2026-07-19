@@ -8,6 +8,7 @@ import {
   resolveActivePath,
   selectBlueprint,
   selectBook,
+  selectUpgradePlanner,
 } from "../src/book.js";
 import { decode } from "../src/decode.js";
 import type { BlueprintDocument } from "../src/types/blueprint.js";
@@ -199,5 +200,119 @@ describe("resolveActivePath", () => {
   it("returns [] for bare blueprint", () => {
     const doc = decode(readFileSync(join(FIXTURES_DIR, "01-minimal-chest.txt"), "utf8"));
     expect(resolveActivePath(doc)).toEqual([]);
+  });
+
+  it("resolves an active upgrade planner path", () => {
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        active_index: 2,
+        blueprints: [
+          { index: 0, upgrade_planner: { item: "upgrade-planner", version: 0, settings: {} } },
+          { index: 1, upgrade_planner: { item: "upgrade-planner", version: 0, settings: {} } },
+          { index: 2, upgrade_planner: { item: "upgrade-planner", version: 0, settings: {} } },
+        ],
+      },
+    };
+    expect(resolveActivePath(doc)).toEqual([2]);
+  });
+});
+
+describe("selectUpgradePlanner", () => {
+  it("returns the bare upgrade planner document payload", () => {
+    const doc: BlueprintDocument = {
+      upgrade_planner: {
+        item: "upgrade-planner",
+        version: 1,
+        settings: { mappers: [{ index: 0, from: { name: "a" }, to: { name: "b" } }] },
+      },
+    };
+    expect(selectUpgradePlanner(doc)).toBe(doc.upgrade_planner);
+    expect(selectUpgradePlanner(doc, [])).toBe(doc.upgrade_planner);
+  });
+
+  it("selects an upgrade planner book entry by path", () => {
+    const doc = decode(readFileSync(join(FIXTURES_DIR, "06-book-with-planner.txt"), "utf8"));
+    const planner = selectUpgradePlanner(doc, [1]);
+    expect(planner.item).toBe("upgrade-planner");
+  });
+
+  it("reads label and icons on upgrade planner tree items", () => {
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [
+          {
+            index: 0,
+            upgrade_planner: {
+              item: "upgrade-planner",
+              version: 0,
+              label: "Belt upgrades",
+              icons: [{ index: 1, signal: { type: "item", name: "transport-belt" } }],
+              settings: {},
+            },
+          },
+        ],
+      },
+    };
+    const tree = buildBookTree(doc);
+    expect(tree!.items["0"]).toMatchObject({
+      kind: "upgrade_planner",
+      label: "Belt upgrades",
+      icons: [{ index: 1, signal: { type: "item", name: "transport-belt" } }],
+    });
+  });
+
+  it("derives upgrade planner tree icons from the first mapper to targets", () => {
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [
+          {
+            index: 0,
+            upgrade_planner: {
+              item: "upgrade-planner",
+              version: 0,
+              settings: {
+                mappers: [
+                  {
+                    index: 0,
+                    from: { type: "entity", name: "transport-belt" },
+                    to: { type: "entity", name: "fast-transport-belt" },
+                  },
+                  {
+                    index: 1,
+                    from: { type: "entity", name: "inserter" },
+                    to: { type: "entity", name: "fast-inserter" },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    };
+    const tree = buildBookTree(doc);
+    expect(tree!.items["0"]!.icons).toEqual([
+      { index: 1, signal: { name: "fast-transport-belt", type: "entity" } },
+      { index: 2, signal: { name: "fast-inserter", type: "entity" } },
+    ]);
+  });
+
+  it("throws for non-planner documents and invalid paths", () => {
+    const bare = decode(readFileSync(join(FIXTURES_DIR, "01-minimal-chest.txt"), "utf8"));
+    expect(() => selectUpgradePlanner(bare)).toThrow(BlueprintSelectError);
+
+    const book = decode(readFileSync(join(FIXTURES_DIR, "06-book-with-planner.txt"), "utf8"));
+    const missingPath = captureError(() => selectUpgradePlanner(book));
+    expect(missingPath).toBeInstanceOf(BlueprintSelectError);
+    expect((missingPath as BlueprintSelectError).reason).toBe("not-found");
+
+    const blueprintPath = captureError(() => selectUpgradePlanner(book, [0]));
+    expect(blueprintPath).toBeInstanceOf(BlueprintSelectError);
+    expect((blueprintPath as BlueprintSelectError).reason).toBe("not-found");
   });
 });
