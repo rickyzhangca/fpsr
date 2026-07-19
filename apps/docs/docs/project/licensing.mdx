@@ -1,0 +1,18 @@
+---
+title: Licensing
+description: MIT source code vs Factorio game assets owned by Wube Software.
+---
+
+**Source code** in this repository is released under the MIT License.
+
+**Factorio game assets** — all sprites, icons, and atlases are the property of **Wube Software Ltd.** They are:
+
+- never committed to this repository (`assets-out/` is gitignored),
+- never bundled in the `@rickyzhangca/fpsr` npm package, and
+- never intended for public redistribution.
+
+**Test fixtures** — a distilled **metadata-only** render database is committed for test reproducibility (entity definitions, frame coordinates, icon keys — no pixel data). Golden PNGs are **not** committed; generate them locally after running the pipeline on a licensed Factorio install.
+
+Any CDN hosting must remain **private and non-redistributive**.
+
+_Factorio is a trademark of Wube Software Ltd. This project is not affiliated with or endorsed by Wube Software._

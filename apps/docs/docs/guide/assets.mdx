@@ -1,0 +1,30 @@
+---
+title: Assets
+description: Host the render database and sprite atlases separately from the npm package.
+---
+
+Rendering requires a content-addressed **render database** and packed **sprite atlases** in deterministic `1x` and `2x` tiers, described by a schema-2 `manifest.json`.
+
+These are generated from **your own game files** using the offline pipeline in this repository (`@fpsr/pipeline`). They are **never** redistributed with the npm package or committed to git.
+
+## Loading assets
+
+| Helper               | Import                    | Use                                                                  |
+| -------------------- | ------------------------- | -------------------------------------------------------------------- |
+| `cdnAssets(baseUrl)` | `@rickyzhangca/fpsr`      | HTTP(S) base that serves `manifest.json` and content-addressed files |
+| `localAssets(dir)`   | `@rickyzhangca/fpsr/node` | Filesystem directory from the pipeline (`assets-out/<version>/`)     |
+
+Asset sources default to the `2x` tier. Pass `assetTier` when creating a renderer to select `1x`. The render DB's `assetDensity` must match or `createRenderer` throws `AssetDensityMismatchError`.
+
+## What the pipeline produces
+
+- Stable `manifest.json` (schema 2)
+- Deterministic `1x` and `2x` tier descriptors
+- One content-addressed `render-db.<sha256>.json` per tier
+- Content-addressed lossless WebP atlas pages for both tiers
+
+Host the bundle on private infrastructure (`cdnAssets`) or load from disk (`localAssets`). Any CDN must remain **private and non-redistributive**.
+
+:::note
+To build assets yourself, see [Pipeline](/project/pipeline) in the Project section. Library consumers only need a URL or directory that already contains a valid bundle.
+:::

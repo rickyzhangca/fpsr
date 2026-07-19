@@ -86,8 +86,7 @@ export interface ExecuteDrawListOptions {
   /** Padded, dilated black silhouettes keyed by icon frame index. */
   silhouetteImages?: ReadonlyMap<number, ImageSource>;
   /**
-   * Frame table from the RenderDb that produced `list`. Required for trim math;
-   * not in the CONTRACTS.md sketch — see M1 report.
+   * Frame table from the RenderDb that produced `list`. Required for trim math.
    */
   frames: FrameMeta[];
   /** Optional canvas factory for offscreen tint compositing (Node/skia). */

@@ -4,22 +4,23 @@ Factorio **2.1.11** blueprint-string renderer — a TypeScript monorepo that dec
 compressed blueprint strings, plans connectivity-aware draw lists, and renders
 them to canvas in the browser or Node.js.
 
+**Docs:** [https://fpsr-docs.fprints.xyz](https://fpsr-docs.fprints.xyz) · **Viewer:** [https://fpsr.fprints.xyz](https://fpsr.fprints.xyz) · **npm:** [`@rickyzhangca/fpsr`](https://www.npmjs.com/package/@rickyzhangca/fpsr)
+
 ## Monorepo map
 
-| Path                 | Package                     | Purpose                                                                           |
-| -------------------- | --------------------------- | --------------------------------------------------------------------------------- |
+| Path                 | Package                                   | Purpose                                                                           |
+| -------------------- | ----------------------------------------- | --------------------------------------------------------------------------------- |
 | `packages/renderer`  | [`@rickyzhangca/fpsr`](packages/renderer) | Core library (npm) — decode/encode, resolver, draw-list planner, Canvas2D backend |
-| `apps/viewer`        | `@fpsr/viewer`              | GUI for pasting, inspecting, previewing, and exporting blueprint strings          |
-| `tools/pipeline`     | `@fpsr/pipeline`            | Offline asset extraction from a local Factorio install → `assets-out/<version>/`  |
-| `tools/cdn-upload`   | `@fpsr/cdn-upload`          | Upload pipeline assets to private BunnyCDN Storage                                |
-| `tools/render-cli`   | `@fpsr/render-cli`          | CLI to render a blueprint string to PNG (Node + skia-canvas)                      |
-| `tools/corpus`       | `@fpsr/corpus`              | Blueprint corpus generation for fixtures and regression inputs                    |
-| `tools/golden-tests` | `@fpsr/golden-tests`        | Curated golden PNG regression suite (pixel-diff)                                  |
-| `tools/ground-truth` | `@fpsr/ground-truth`        | Capture reference screenshots from the real game (dev only)                       |
-| `fixtures/`          | —                           | Committed decode/draw-list fixtures and local visual-test artifacts               |
+| `apps/viewer`        | `@fpsr/viewer`                            | GUI for pasting, inspecting, previewing, and exporting blueprint strings          |
+| `tools/pipeline`     | `@fpsr/pipeline`                          | Offline asset extraction from a local Factorio install → `assets-out/<version>/`  |
+| `tools/cdn-upload`   | `@fpsr/cdn-upload`                        | Upload pipeline assets to private BunnyCDN Storage                                |
+| `tools/render-cli`   | `@fpsr/render-cli`                        | CLI to render a blueprint string to PNG (Node + skia-canvas)                      |
+| `tools/corpus`       | `@fpsr/corpus`                            | Blueprint corpus generation for fixtures and regression inputs                    |
+| `tools/golden-tests` | `@fpsr/golden-tests`                      | Curated golden PNG regression suite (pixel-diff)                                  |
+| `tools/ground-truth` | `@fpsr/ground-truth`                      | Capture reference screenshots from the real game (dev only)                       |
+| `fixtures/`          | —                                         | Committed decode/draw-list fixtures and local visual-test artifacts               |
 
-See [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for cross-package interfaces and
-[`docs/STRUCTURE.md`](docs/STRUCTURE.md) for internal folder layout.
+See [Project docs](https://fpsr-docs.fprints.xyz/project) for architecture, structure, and render-layer contracts.
 
 ## End-to-end workflow
 

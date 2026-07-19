@@ -1,0 +1,31 @@
+---
+title: Project
+description: Monorepo, pipeline, viewer, and contributor documentation.
+---
+
+:::note
+**Project** docs are for maintainers and anyone diving deeper into the monorepo. You do **not** need this section to install and use `@rickyzhangca/fpsr` from npm — start with the [Guide](/guide) instead.
+:::
+
+fpsr is a TypeScript monorepo. The published library is one package; the rest supports assets, demos, and regression.
+
+| Path                 | Package              | Purpose                                                 |
+| -------------------- | -------------------- | ------------------------------------------------------- |
+| `packages/renderer`  | `@rickyzhangca/fpsr` | Core library (npm)                                      |
+| `apps/viewer`        | `@fpsr/viewer`       | GUI demo — [fpsr.fprints.xyz](https://fpsr.fprints.xyz) |
+| `apps/docs`          | `@fpsr/docs`         | This documentation site                                 |
+| `tools/pipeline`     | `@fpsr/pipeline`     | Offline asset extraction from Factorio                  |
+| `tools/cdn-upload`   | `@fpsr/cdn-upload`   | Upload assets to private CDN                            |
+| `tools/render-cli`   | `@fpsr/render-cli`   | Headless PNG export                                     |
+| `tools/golden-tests` | `@fpsr/golden-tests` | Golden PNG pixel-diff suite                             |
+| `tools/ground-truth` | `@fpsr/ground-truth` | Real-game screenshot capture (dev)                      |
+
+## In this section
+
+- [Architecture](/project/architecture) — dataflow and cross-package contracts
+- [Render layers](/project/render-layers) — official vs guessed paint order
+- [Structure](/project/structure) — internal folder layout
+- [Pipeline](/project/pipeline) — building asset bundles
+- [Viewer](/project/viewer) — the demo app
+- [Testing](/project/testing) — fixture and visual tiers
+- [Licensing](/project/licensing) — MIT source vs Wube assets

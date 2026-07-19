@@ -251,7 +251,7 @@ const renameLegacyEntities: BlueprintAdapter = {
 
 /**
  * Ordered adapter registry. Add new 1.x→2.x transforms here; document ids in
- * docs/CONTRACTS.md.
+ * https://fpsr-docs.fprints.xyz/project/architecture
  */
 export const BLUEPRINT_ADAPTERS: readonly BlueprintAdapter[] = [
   scaleLegacyDirections,

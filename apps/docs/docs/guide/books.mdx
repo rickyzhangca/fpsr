@@ -1,0 +1,19 @@
+---
+title: Blueprint books
+description: List and select nested blueprints from a book string.
+---
+
+```ts
+import { decode, listBlueprints, selectBlueprint } from "@rickyzhangca/fpsr";
+
+const doc = decode(bookString);
+const refs = listBlueprints(doc); // flattened tree with paths
+
+const bp = selectBlueprint(doc, [0, 2]); // third child of first entry
+```
+
+`selectBlueprint(doc)` without a path follows the book's `active_index` chain.
+
+When calling `createRenderer(...).render(doc)`, pass `blueprintPath` to render a nested book entry instead of the active chain.
+
+See also the [books API](/api/books).

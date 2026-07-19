@@ -1,0 +1,52 @@
+---
+title: Rendering
+description: Backgrounds, tiled PNG export, AbortSignal, and dispose semantics.
+---
+
+## Backgrounds
+
+`RenderOptions.background` is a discriminated union:
+
+```ts
+await renderer.render(doc, { background: { type: "auto" } });
+await renderer.render(doc, { background: { type: "checkerboard" } });
+await renderer.render(doc, {
+  background: { type: "space", planet: true, planetName: "nauvis" },
+});
+await renderer.render(doc, { background: { type: "terrain", name: "dirt" } });
+await renderer.render(doc, { background: { type: "none" } });
+```
+
+Unknown terrain names throw `UnknownTerrainBackgroundError` (they do not render as transparent).
+
+## Large PNG export
+
+For full-resolution images that may exceed browser canvas limits, use the tiled PNG exporter. It renders bounded temporary canvases and feeds their rows into an incremental PNG encoder, so it never creates one canvas at the final dimensions:
+
+```ts
+const { blob, width, height } = await renderer.renderTiledPng(doc, {
+  pixelsPerTile: 64,
+  tileSize: 2048,
+  onProgress(event) {
+    console.log(event);
+  },
+});
+
+const link = document.createElement("a");
+link.href = URL.createObjectURL(blob);
+link.download = `blueprint-${width}x${height}.png`;
+link.click();
+URL.revokeObjectURL(link.href);
+```
+
+The exporter always produces lossless PNG. Canvas-based WebP export remains available through `render(...).toImageBlob({ type: "image/webp" })` for outputs that fit safely in one canvas.
+
+## AbortSignal
+
+`renderer.render` / `measure` / `renderTiledPng` honor `signal`. Asset loads via `cdnAssets` / `localAssets` accept `loadAtlasImage(i, tier, { signal })`.
+
+**Semantics:** aborting rejects only the waiting caller with `AbortError`. Shared in-flight fetches/decodes continue for other concurrent consumers of the same cache key. Aborted waits never poison a successful cache entry; genuine load failures clear the shared promise so a later call can retry.
+
+## Dispose
+
+`Renderer.dispose()` clears renderer-owned icon/silhouette caches only. It does **not** call `AssetSource.dispose()` or close atlas images owned by the asset source — those remain the caller's responsibility.

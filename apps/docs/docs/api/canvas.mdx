@@ -1,0 +1,16 @@
+---
+title: Canvas
+description: Low-level Canvas2D execution helpers (@rickyzhangca/fpsr/canvas).
+---
+
+From `@rickyzhangca/fpsr/canvas`:
+
+| Export                  | Kind     | Description                       |
+| ----------------------- | -------- | --------------------------------- |
+| `executeDrawList`       | function | Paint a `DrawList` onto a context |
+| `Canvas2DContextLike`   | type     | Minimal Canvas2D context          |
+| `drawTileCheckerboard`  | function | Tile-aligned checkerboard fill    |
+| `drawSpaceBackground`   | function | Procedural starfield              |
+| `drawTerrainBackground` | function | Named terrain patches             |
+
+Most apps use `createRenderer` instead of calling these directly. They are useful for custom backends or tests that already have a `DrawList`.

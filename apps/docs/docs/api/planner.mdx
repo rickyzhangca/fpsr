@@ -1,0 +1,17 @@
+---
+title: Planner
+description: Resolve connectivity and plan draw lists (@rickyzhangca/fpsr/planner).
+---
+
+From `@rickyzhangca/fpsr/planner`:
+
+| Export                    | Kind     | Description                                                                |
+| ------------------------- | -------- | -------------------------------------------------------------------------- |
+| `resolve`                 | function | `(bp, renderDb, opts?)` → `{ entities, warnings }`                         |
+| `planDrawList`            | function | `(bp, renderDb, opts?)` → `DrawList`                                       |
+| `planDrawListWithOptions` | function | Same as plan; returns `{ drawList, profile? }` when `profile: true`        |
+| `analyzePlan`             | function | `(bp, drawList, renderDb)` → resolve coverage + draw-list integrity checks |
+| `PlanOptions`             | type     | `altMode`, `beltEndings`, optional `profile`                               |
+| `serializeDrawList`       | function | Stable JSON serialization for fixtures                                     |
+
+See [Pure planning](/guide/planning) for a worked example.

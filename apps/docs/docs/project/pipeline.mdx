@@ -1,0 +1,46 @@
+---
+title: Pipeline
+description: Extract sprite atlases and render-db from a licensed Factorio install.
+---
+
+:::note
+Advanced / monorepo topic. Library consumers only need a finished asset bundle URL or directory — see [Assets](/guide/assets).
+:::
+
+`@fpsr/pipeline` extracts from a licensed Factorio installation into a deterministic schema-2 bundle under `assets-out/<detected-game-version>/`.
+
+```bash
+# From the repository root
+pnpm assets:build
+pnpm assets:verify
+pnpm assets:bench -- temp.txt
+```
+
+`assets:build` runs dump → distill → usage-aware pack → hash → verify. It builds in a temporary sibling directory and replaces the version directory only after validation succeeds.
+
+## Outputs
+
+Written to `assets-out/<game-version>/` (gitignored):
+
+- `manifest.json` — schema-2 entry point with game/mod set and `1x` / `2x` descriptors
+- `render-db.<sha256>.json` — one per density tier
+- Content-addressed atlas pages (WebP / PNG)
+
+The same layout is what CDN upload mirrors under `/<game-version>/…`, so `cdnAssets(base + "/<version>")` and `localAssets("assets-out/<version>")` are interchangeable.
+
+Layer assignment during distill: prefer dump fields via `officialLayer`; otherwise `guessedLayer` / `fpsrLayer` — see [Render layers](/project/render-layers).
+
+## Factorio discovery
+
+1. `--factorio <app-root-or-executable>`
+2. `FPSR_FACTORIO_PATH`
+3. Standard OS locations (macOS app / Steam, Linux, Windows)
+
+```bash
+pnpm assets:build -- --factorio /path/to/Factorio
+FPSR_FACTORIO_PATH=/path/to/Factorio pnpm assets:build
+```
+
+The game version is read from `data/base/info.json`. Default profile enables all official mods; `--mods base` writes a separate Base-only profile under `assets-out/<version>-base/`.
+
+Optional CDN upload: `@fpsr/cdn-upload` — keep hosting **private and non-redistributive**.

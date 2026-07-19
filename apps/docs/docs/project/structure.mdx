@@ -1,0 +1,53 @@
+---
+title: Structure
+description: Internal folder layout for viewer, renderer, and pipeline.
+---
+
+:::note
+Advanced / monorepo topic. Package boundaries are unchanged; this is internal layout only.
+:::
+
+## `apps/viewer/src`
+
+Shell entrypoints stay at the root (`main.tsx`, `app.tsx`, `styles.css`).
+
+| Folder         | Responsibility                                  |
+| -------------- | ----------------------------------------------- |
+| `components/`  | Brand and shadcn `ui/*`                         |
+| `lib/`         | Shared utilities                                |
+| `preview/`     | Canvas preview, render worker, export controls  |
+| `process/`     | Process tab, pipeline receipt, plan diagnostics |
+| `sidebar/`     | Source tree, summaries, selection               |
+| `blueprint/`   | Metadata, icons, rich text, custom blueprints   |
+| `json/`        | JSON viewer + highlight worker                  |
+| `performance/` | Perf tab and report types                       |
+| `shell/`       | Analytics, assets config, preferences           |
+
+Workers are colocated with their feature.
+
+## `packages/renderer/src`
+
+Public API exports from `index.ts`. Large modules sit behind thin facades (`resolve.ts`, `plan.ts`, `canvas2d.ts`).
+
+| Folder      | Responsibility                          |
+| ----------- | --------------------------------------- |
+| `resolve/`  | Connectivity resolution                 |
+| `plan/`     | Draw-list planning                      |
+| `canvas2d/` | Canvas2D backend                        |
+| `types/`    | Blueprint, draw-list, render-db barrels |
+
+## `tools/pipeline/src/distill`
+
+| Path                                                            | Responsibility                          |
+| --------------------------------------------------------------- | --------------------------------------- |
+| `distill/index.ts`                                              | Orchestration and pack entry            |
+| `distill/domains/`                                              | Entity-kind routing                     |
+| `distill/shared/`                                               | Box/layer merge, wire/pipe helpers      |
+| `distill/logistics/`                                            | Belts, inserters, fluids, rails, trains |
+| `distill/production.ts` / `combat.ts` / `space.ts` / `other.ts` | Kind-specific distill                   |
+
+## Conventions
+
+- **Filenames:** kebab-case (`scripts/check-filenames.mjs`)
+- **Size budget:** production modules under ~400 LOC; over 600 LOC warns in `pnpm check`
+- **Splits:** prefer thin facades at old import paths so dependents stay stable

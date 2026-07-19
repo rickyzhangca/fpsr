@@ -1,0 +1,20 @@
+---
+title: Decode and migrate
+description: Parse blueprint strings and migrate Factorio 1.x documents to 2.x.
+---
+
+From `@rickyzhangca/fpsr`:
+
+| Export                  | Kind     | Description                                                       |
+| ----------------------- | -------- | ----------------------------------------------------------------- |
+| `decode`                | function | Parse a blueprint string or raw JSON string → `BlueprintDocument` |
+| `encode`                | function | Serialize a `BlueprintDocument` back to a blueprint string        |
+| `migrateTo2x`           | function | Migrate a 1.x `Blueprint` to 2.x shape (idempotent)               |
+| `migrateDocumentTo2x`   | function | Migrate every nested blueprint in a document / book               |
+| `BLUEPRINT_ADAPTERS`    | const    | Ordered 1.x→2.x adapter registry                                  |
+| `BlueprintAdapter`      | type     | `{ id, apply }` adapter entry                                     |
+| `BlueprintDecodeError`  | class    | Thrown when `decode` fails                                        |
+| `BlueprintDecodeReason` | type     | Error reason codes for decode failures                            |
+| `decodeVersion`         | function | Split encoded `version` into major/minor/patch                    |
+
+`decode` is a faithful inflate/parse (encode round-trips unchanged). `resolve` and `planDrawList` call `migrateTo2x` at entry so every library path is safe with 1.x strings.

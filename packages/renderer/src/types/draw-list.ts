@@ -3,7 +3,7 @@
  * planner emits and the canvas backend executes. JSON-serializable; this is
  * the Tier-2 snapshot surface.
  *
- * All geometry is in tile units (see docs/CONTRACTS.md, "Coordinate system").
+ * All geometry is in tile units (see https://fpsr-docs.fprints.xyz/project/architecture).
  */
 
 import type { FrameId, RenderLayerName } from "./render-db.js";

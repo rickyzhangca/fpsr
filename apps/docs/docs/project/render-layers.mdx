@@ -1,0 +1,52 @@
+---
+title: Render layers
+description: Official Factorio layers vs fpsr guesses and paint order.
+---
+
+:::note
+Advanced / monorepo topic for pipeline distill and planner work.
+:::
+
+## Sources
+
+1. **Enum order** — Factorio `RenderLayer` (lowest → highest), mirrored as `FACTORIO_RENDER_LAYERS` in `packages/renderer/src/types/draw-list.ts`.
+2. **Dump fields** when prototypes expose them (e.g. rail `pictures.render_layers`, beacon `animation_list[].render_layer`, loader `structure_render_layer`). Distill routes these through `officialLayer(...)` in `tools/pipeline/src/render-layers.ts`.
+
+Most placeable bodies have **no** `render_layer` in the dump. Distill marks those with `guessedLayer(name, reason)`.
+
+## Helpers
+
+| Helper                       | Meaning                                              |
+| ---------------------------- | ---------------------------------------------------- |
+| `officialLayer(dumpString)`  | Value came from Factorio dump/API                    |
+| `guessedLayer(name, reason)` | fpsr heuristic; reason required                      |
+| `fpsrLayer(name, reason)`    | Invented / aliased name (`shadow`, `ground-tile`, …) |
+
+## Common guesses
+
+| Kind                 | Guess                           | Why                                     |
+| -------------------- | ------------------------------- | --------------------------------------- |
+| Default entity body  | `object`                        | Typical Factorio default                |
+| Inserter platform    | `floor`                         | Under belt sheet                        |
+| Inserter hands       | `higher-object-under`           | Above belts and machine bodies          |
+| Belt animation sheet | `transport-belt`                | Dump only labels `belt_reader` overlays |
+| UG back patch        | `object-under`                  | Under the hood                          |
+| Tiles                | `ground-tile` (≈ `under-tiles`) | fpsr name                               |
+
+## Paint order (bottom → top)
+
+Inserters are **split**: platform under the belt sheet; hands above belts and `object` bodies.
+
+| Paint order                       | Layer                              | Index |
+| --------------------------------- | ---------------------------------- | ----- |
+| Inserter platform                 | `floor`                            | 26    |
+| Standalone / UG belt underlays    | `transport-belt`                   | 27    |
+| Belt circuit connector + LEDs     | `transport-belt-circuit-connector` | 35    |
+| Shadows                           | `shadow`                           | 37    |
+| Machines, chests, poles, UG hoods | `object`                           | 39    |
+| Inserter hands                    | `higher-object-under`              | 41    |
+| Inserter CCM mains                | `higher-object-above`              | 42    |
+| Wires, elevated, …                | official                           | ≥46   |
+| Snap-to-grid rectangle            | `selection-box`                    | 66    |
+
+Belts stay at Factorio `transport-belt` — not raised above `object`. Whole-belt-reader skirts and circuit LED gating live in the planner (`emitBeltReaders` / `emitBeltCircuitConnectors`).

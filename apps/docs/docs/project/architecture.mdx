@@ -1,0 +1,82 @@
+---
+title: Architecture
+description: Rendering dataflow, coordinates, migration, and cross-package contracts.
+---
+
+:::note
+Advanced / monorepo topic. Library consumers can stay on the [Guide](/guide).
+:::
+
+Normative TypeScript lives in the renderer package:
+
+- `types/blueprint.ts` — decoded blueprint model
+- `types/render-db.ts` — render database IR from the pipeline
+- `types/draw-list.ts` — serializable planner output
+
+Breaking outer shapes requires a semver bump. Additive, backward-compatible render-db payload extensions are fine.
+
+## Dataflow
+
+```
+blueprint string
+  → decode()           faithful inflate / parse
+  → BlueprintDocument
+  → migrateTo2x()      1.x → 2.x (idempotent)
+  → resolve()          connectivity → { entities, warnings }
+  → planDrawList()     pure → DrawList
+  → Canvas2D backend   executes DrawList against AssetSource atlases
+```
+
+`decode`, `migrateTo2x`, `resolve`, `planDrawList`, `analyzePlan`, and `countBlueprintComponents` are pure and synchronous. Only asset loading and canvas execution are async. Nothing above the backend may touch the DOM, `fetch`, or Node APIs.
+
+`resolve` skips unknown entities and reports them in `warnings` (never throws). `executeDrawList` requires `opts.frames: FrameMeta[]` for trim math — the draw list carries frame ids only.
+
+## Coordinates
+
+- Draw-list geometry is in **tile units** (floats), blueprint map coordinates (entity `position` is the entity center; y grows south).
+- The backend converts tiles to pixels via `pixelsPerTile` (default 64). Game-native scale is 32 px/tile at zoom 1; on-map sprite size in tiles is `srcPx * protoScale / 32`.
+- `DrawList.bounds` is the tight tile-space box of all commands; the backend sizes the canvas from it plus `padTiles`.
+
+## Directions and migration
+
+The renderer assumes Factorio **2.x** 16-way directions (0 = north, 4 = east, 8 = south, 12 = west). Do not re-implement version forks in resolve/plan — add adapters to `BLUEPRINT_ADAPTERS` instead.
+
+| Adapter id                        | What it fixes                                               |
+| --------------------------------- | ----------------------------------------------------------- |
+| `scale-legacy-directions`         | Entity `direction` 0/2/4/6 → 0/4/8/12                       |
+| `items-object-to-array`           | 1.x module/request map → 2.x insert-plan array              |
+| `connections-neighbours-to-wires` | 1.x `connections` / `neighbours` → top-level `wires` tuples |
+| `rename-legacy-entities`          | 1.x entity/icon names → 2.x prototypes                      |
+
+## Draw order
+
+Stable sort by `(layer, sortY, sortX, entityNumber, sub)`:
+
+- `layer` — numeric value from `RENDER_LAYERS` in `draw-list.ts` (see [Render layers](/project/render-layers))
+- `sortY` — collision-box bottom edge for object layers; rolling stock uses `position.y`; else 0
+- `sortX` — `position.x` for object layers; else 0
+- `sub` — intra-entity layer index
+
+Shadows are ordinary commands on the fpsr `shadow` layer with `drawAsShadow: true`. The Canvas2D backend flattens overlapping shadows in reusable scratch tiles, then composites at 50% opacity.
+
+`PlanOptions.altMode` emits only blueprint-derived entity info (recipes, filters/requests, display-panel icons, splitter priorities, quality badges) — not live inventories or fluids. Background is a renderer concern, not a plan option.
+
+## AssetSource
+
+```ts
+interface AssetSource {
+  loadRenderDb(tier?: AssetTier, options?: { signal?: AbortSignal }): Promise<RenderDb>;
+  loadAtlasImage(
+    index: number,
+    tier?: AssetTier,
+    options?: { signal?: AbortSignal },
+  ): Promise<ImageSource>;
+  dispose?(): void; // owner-only; Renderer.dispose never calls this
+}
+```
+
+`cdnAssets(baseUrl, options?)` accepts `{ decodeImage, fetchImpl }` for environments without `createImageBitmap`. Abort and dispose semantics are covered in [Rendering](/guide/rendering).
+
+## Target
+
+Factorio **2.1.11** exactly — vanilla + Space Age + Elevated Rails + Quality + Recycler.

@@ -1,0 +1,22 @@
+---
+title: Renderer
+description: High-level createRenderer, asset sources, and render options.
+---
+
+From `@rickyzhangca/fpsr` (and `@rickyzhangca/fpsr/node` for `localAssets`):
+
+| Export                          | Kind     | Description                                                          |
+| ------------------------------- | -------- | -------------------------------------------------------------------- |
+| `createRenderer`                | function | High-level async renderer (plan + load + paint)                      |
+| `cdnAssets` / `localAssets`     | function | HTTP / filesystem `AssetSource`                                      |
+| `MeasureOptions`                | type     | Layout-only options for `measure`                                    |
+| `RenderOptions`                 | type     | Public paint options (`background`, `altMode`, `showCoordinates`, …) |
+| `TiledPngOptions`               | type     | Full-resolution PNG options (no `profile` / canvas / maxOutputSize)  |
+| `RenderBackground`              | type     | Discriminated background mode                                        |
+| `AssetDensityMismatchError`     | class    | Thrown when render-db density does not match `assetTier`             |
+| `UnknownTerrainBackgroundError` | class    | Thrown for unknown `background: { type: "terrain", name }`           |
+| `Renderer`                      | type     | `{ measure, render, renderTiledPng, dispose }`                       |
+
+`Renderer.dispose()` clears renderer-owned icon/silhouette caches only. It does **not** call `AssetSource.dispose()` or close atlas images owned by the asset source.
+
+See [Quick start](/guide/quickstart), [Assets](/guide/assets), and [Rendering](/guide/rendering).

@@ -1,5 +1,5 @@
 /**
- * Layer assignment policy (see docs/RENDER_LAYERS.md):
+ * Layer assignment policy (see https://fpsr-docs.fprints.xyz/project/render-layers):
  * - Prefer `officialLayer(...)` / dump fields when Factorio exposes them.
  * - Use `guessedLayer(...)` for engine-hardcoded bodies (not in dump).
  * - Use `fpsrLayer(...)` only for fpsr-invented names (shadow, ground-tile, …).

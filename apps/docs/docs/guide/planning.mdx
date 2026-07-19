@@ -1,0 +1,23 @@
+---
+title: Pure planning
+description: Resolve and plan draw lists without painting or loading atlases.
+---
+
+For tests, diff tooling, or custom backends, call the pure pipeline stages directly — no images or network required beyond loading the render DB named by `manifest.json`:
+
+```ts
+import { decode, migrateTo2x, selectBlueprint } from "@rickyzhangca/fpsr";
+import { planDrawList, resolve, serializeDrawList } from "@rickyzhangca/fpsr/planner";
+import renderDb from "./render-db.json" with { type: "json" };
+
+const bp = migrateTo2x(selectBlueprint(decode(source))); // optional; plan/resolve also migrate
+const { entities, warnings } = resolve(bp, renderDb);
+const list = planDrawList(bp, renderDb, { altMode: true });
+const snapshot = serializeDrawList(list); // stable JSON for fixtures
+```
+
+`serializeDrawList` rounds coordinates to four decimal places with stable key order for reviewable text diffs.
+
+`decode`, `migrateTo2x`, `resolve`, and `planDrawList` are pure and synchronous. Only asset loading and canvas execution are async.
+
+See the [planner API](/api/planner) for the full export list.

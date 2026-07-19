@@ -1,0 +1,15 @@
+---
+title: Types
+description: Core blueprint, draw-list, and render-db types.
+---
+
+| Export                 | Kind | Description                                            |
+| ---------------------- | ---- | ------------------------------------------------------ |
+| `BlueprintDocument`    | type | Exactly-one top-level wrapper (`blueprint`, …)         |
+| `BlueprintBookEntry`   | type | Exactly-one book-slot content key                      |
+| `RenderDb`             | type | Pipeline-produced sprite/layer database                |
+| `FrameId`              | type | Numeric frame index into `RenderDb.frames`             |
+| `FrameMeta`            | type | Atlas frame trim and scale metadata                    |
+| `DrawList` / `DrawCmd` | type | Serializable planner output (also from planner / core) |
+
+Full `RenderDb` / entity / terrain surfaces are available from `@rickyzhangca/fpsr/render-db`.
