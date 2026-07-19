@@ -213,12 +213,14 @@ describe("drawlist snapshots (committed render-db)", () => {
       (g) =>
         g.layer === "object" && g.variants.default?.[0] != null && g.variants.default?.[1] != null,
     );
-    const patch = graphics.find(
+    // Patch may still be object-under in legacy fixtures; plan promotes to object.
+    const patchIdx = graphics.findIndex(
       (g) =>
-        g.layer === "object-under" &&
+        (g.layer === "object-under" || g.layer === "object") &&
         g.variants.default?.[0] == null &&
         g.variants.default?.[1] != null,
     );
+    const patch = patchIdx >= 0 ? graphics[patchIdx] : undefined;
 
     const list = planDrawList(bp(entities), db);
     const objectCmds = (entity: number) =>
@@ -228,7 +230,10 @@ describe("drawlist snapshots (committed render-db)", () => {
     const patchCmds = (entity: number) =>
       list.commands.filter(
         (c) =>
-          c.kind === "sprite" && c.entity === entity && c.layer === RENDER_LAYERS["object-under"],
+          c.kind === "sprite" &&
+          c.entity === entity &&
+          c.layer === RENDER_LAYERS.object &&
+          c.sub === patchIdx,
       );
 
     expect(structure?.variants.default?.[0]?.frame).toBeDefined();
@@ -236,14 +241,49 @@ describe("drawlist snapshots (committed render-db)", () => {
       const cmd = cmds[0];
       return cmd?.kind === "sprite" ? cmd.frame : undefined;
     };
-    expect(spriteFrame(objectCmds(1))).toBe(structure?.variants.default?.[0]?.frame);
-    expect(spriteFrame(objectCmds(2))).toBe(structure?.variants.default?.[1]?.frame);
+    expect(spriteFrame(objectCmds(1).filter((c) => c.sub !== patchIdx))).toBe(
+      structure?.variants.default?.[0]?.frame,
+    );
+    expect(spriteFrame(objectCmds(2).filter((c) => c.sub !== patchIdx))).toBe(
+      structure?.variants.default?.[1]?.frame,
+    );
     expect(spriteFrame(patchCmds(2))).toBe(patch?.variants.default?.[1]?.frame);
-    expect(spriteFrame(objectCmds(3))).toBe(structure?.variants.default?.[2]?.frame);
-    expect(spriteFrame(objectCmds(4))).toBe(structure?.variants.default?.[3]?.frame);
+    expect(spriteFrame(objectCmds(3).filter((c) => c.sub !== patchIdx))).toBe(
+      structure?.variants.default?.[2]?.frame,
+    );
+    expect(spriteFrame(objectCmds(4).filter((c) => c.sub !== patchIdx))).toBe(
+      structure?.variants.default?.[3]?.frame,
+    );
     expect(spriteFrame(patchCmds(4))).toBe(patch?.variants.default?.[3]?.frame);
 
     assertSnapshot("splitter-directions", list);
+  });
+
+  it("E/W splitter top patch paints above a UG hood to the north", () => {
+    const entities: BlueprintEntity[] = [
+      {
+        entity_number: 1,
+        name: "underground-belt",
+        position: { x: -1, y: -1 },
+        direction: 4,
+        type: "input",
+      },
+      { entity_number: 2, name: "splitter", position: { x: -1, y: 0.5 }, direction: 4 },
+    ];
+    const list = planDrawList(bp(entities), db, { beltEndings: false });
+    const objects = list.commands.filter(
+      (c) => c.kind === "sprite" && c.layer === RENDER_LAYERS.object,
+    );
+    const ugHoods = objects.filter((c) => c.entity === 1);
+    const splitterSprites = objects.filter((c) => c.entity === 2);
+    expect(ugHoods.length).toBeGreaterThan(0);
+    expect(splitterSprites.length).toBeGreaterThan(0);
+    const lastUg = ugHoods[ugHoods.length - 1]!;
+    const firstSplitter = splitterSprites[0]!;
+    const ugIdx = objects.indexOf(lastUg);
+    const splitterIdx = objects.indexOf(firstSplitter);
+    expect(splitterIdx).toBeGreaterThan(ugIdx);
+    expect(firstSplitter.sortY).toBeGreaterThan(lastUg.sortY);
   });
 
   it("pipe-plant: boiler + pipe cross + tank + pump respect fluidConnections", () => {

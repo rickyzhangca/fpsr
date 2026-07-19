@@ -1,5 +1,5 @@
-import { dirs4, isSprite4Way, type FrameBank } from "../../sprite.js";
 import { guessedLayer, officialLayer } from "../../render-layers.js";
+import { dirs4, isSprite4Way, type FrameBank } from "../../sprite.js";
 import type { EntityRenderDef, LayerGroup, RawSprite, SpriteVariant } from "../../types.js";
 import { baseEntity, layersFromSprite } from "../shared/layers.js";
 
@@ -168,10 +168,13 @@ export async function distillSplitter(
   });
   const graphics: LayerGroup[] = [];
 
+  // E/W top patches must share `object` with UG hoods so Y-sort can keep the
+  // splitter above a hood to the north. Same-entity `sub` (group index) still
+  // paints the patch under the main structure.
   const patch = p.structure_patch as RawSprite | undefined;
   if (patch && isSprite4Way(patch)) {
     const patchGroup: LayerGroup = {
-      layer: guessedLayer("object-under", "splitter structure_patch; FBE order, not in dump"),
+      layer: guessedLayer("object", "splitter structure_patch; Y-sort with UG hoods"),
       indexing: "direction4",
       variants: { default: [null, null, null, null] },
     };

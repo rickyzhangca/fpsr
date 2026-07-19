@@ -363,7 +363,12 @@ export function planDrawListInternal(
       if (!frame) continue;
 
       const dest = spriteDest(entity.position.x, entity.position.y, frame, variant, sel.shift);
-      const layerName = group.layer;
+      // Legacy render-dbs distilled splitter structure_patch as object-under.
+      // That always paints under UG hoods on `object`, so a hood north of an
+      // E/W splitter covers its top patch. Promote to `object` (sub keeps patch
+      // under the same entity's structure).
+      const layerName: RenderLayerName =
+        def.kind === "splitter" && group.layer === "object-under" ? "object" : group.layer;
       const isObjectLayer = OBJECT_SORT_LAYERS.has(layerName);
       const cmd: SpriteCmd = {
         kind: "sprite",
