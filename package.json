@@ -25,6 +25,7 @@
     "assets:build:base": "pnpm -F @fpsr/pipeline run pipeline all --mods base",
     "assets:verify": "pnpm -F @fpsr/pipeline run pipeline verify",
     "assets:bench": "pnpm -F @fpsr/pipeline run pipeline bench",
+    "cdn:debug-token": "pnpm -F @fpsr/cdn-upload run debug-token",
     "renderer:bench-thread": "pnpm -F @fpsr/render-cli run bench:thread"
   },
   "devDependencies": {

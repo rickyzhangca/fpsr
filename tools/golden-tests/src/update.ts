@@ -8,7 +8,7 @@ import { renderCase } from "./render-case.js";
 
 async function main(): Promise<void> {
   if (!(await assetsAvailable(ASSETS_DIR))) {
-    throw new Error(`Assets not found in ${ASSETS_DIR}\nRun: pnpm assets:build`);
+    throw new Error(`Assets not found in ${ASSETS_DIR}`);
   }
 
   const cases = loadCases();

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "upload": "tsx src/cli.ts",
+    "debug-token": "tsx src/debug-token.ts",
     "build": "echo 'no build step'",
     "test": "vp test run",
     "lint": "vp lint",

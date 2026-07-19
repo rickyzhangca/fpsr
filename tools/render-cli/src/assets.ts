@@ -16,7 +16,7 @@ export async function assertAssetsDir(dir: string): Promise<void> {
     await access(path.join(dir, renderDbFile));
   } catch {
     throw new Error(
-      `Assets not found in ${dir}\nExpected a schema-2 manifest and content-addressed render DB.\nRun: pnpm assets:build`,
+      `Assets not found in ${dir}\nExpected a schema-2 manifest and content-addressed render DB.`,
     );
   }
 }

@@ -1,9 +1,6 @@
 #!/usr/bin/env tsx
 
-import {
-  type AssetManifestV2,
-  verifyAssetBundle,
-} from "@fpsr/pipeline";
+import { type AssetManifestV2, verifyAssetBundle } from "@fpsr/pipeline";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -115,8 +112,7 @@ export function contentTypeFor(filename: string): string {
 function readBunnyConfig(dryRun: boolean): BunnyConfig | null {
   const zone = process.env.BUNNY_STORAGE_ZONE?.trim() || DEFAULT_STORAGE_ZONE;
   const host = process.env.BUNNY_STORAGE_HOST?.trim() || "storage.bunnycdn.com";
-  const apiKey =
-    process.env.BUNNY_STORAGE_PASSWORD?.trim() || process.env.BUNNY_API_KEY?.trim();
+  const apiKey = process.env.BUNNY_STORAGE_PASSWORD?.trim() || process.env.BUNNY_API_KEY?.trim();
 
   if (!apiKey) {
     if (dryRun) return null;
@@ -160,10 +156,7 @@ function assertSafeFilename(filename: string): void {
   }
 }
 
-export async function collectFiles(
-  dir: string,
-  manifest?: AssetManifestV2,
-): Promise<UploadFile[]> {
+export async function collectFiles(dir: string, manifest?: AssetManifestV2): Promise<UploadFile[]> {
   const resolvedManifest = manifest ?? (await readManifest(dir));
   const referenced = new Set<string>();
   for (const tier of ["1x", "2x"] as const) {
@@ -213,7 +206,8 @@ export async function uploadFile(
   const url = remoteUrl(config.host, config.zone, version, file.relativePath);
   const body = await readFile(file.absolutePath);
   const fetchImpl = runtime.fetchImpl ?? fetch;
-  const wait = runtime.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const wait =
+    runtime.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const maxAttempts = runtime.maxAttempts ?? MAX_UPLOAD_ATTEMPTS;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
