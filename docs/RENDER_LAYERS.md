@@ -27,7 +27,8 @@ Common guesses today:
 | Inserter platform                   | `floor`                              | Under belt sheet (in-game look)              |
 | Inserter hands                      | `higher-object-under`                | Above belts and assembling-machine bodies    |
 | Belt animation sheet (in render-db) | `transport-belt`                     | FBE; dump only labels `belt_reader` overlays |
-| UG back patch / splitter patch      | `object-under`                       | FBE paint order                              |
+| UG back patch                       | `object-under`                       | Under the hood                               |
+| Splitter structure_patch (E/W tops) | `object`                             | Y-sort with UG hoods; sub under structure    |
 | Tiles                               | `ground-tile` (fpsr ≈ `under-tiles`) | fpsr name                                    |
 
 ## Paint order (Factorio-aligned)
@@ -44,12 +45,13 @@ Inserters are **split**: platform under the belt sheet; hands above belts **and*
 | Inserter hands                               | `higher-object-under`              | 41    |
 | Inserter CCM mains                           | `higher-object-above`              | 42    |
 | Wires, elevated, …                           | official                           | ≥46   |
+| Blueprint snap-to-grid rectangle             | `selection-box`                    | 66    |
 
 Whole-belt-reader skirts (`belt_animation_set.belt_reader`) draw when `circuit_read_hand_contents` + `circuit_contents_read_mode === 2` (`entire_belt_hold`); the skirt propagates along the transport line including underground belts (official layers under the hood so rails appear to run through). Sheet layout is band×NESW (`StraightSolidBand` / `StraightOpenBand` / `CurvedSolidBand` / `Ending` × N/E/S/W edge frames). Straights paint both long-side edges; open line ends also get `Ending` short-edge caps (rail “grabs” the tip). Ending cells are inward hooks flush to the tip edge — a mirrored copy is also painted one tile past the tip so the outer half of the fancy cap appears. Curves use `CurvedSolidBand`.
 
 Belt cage LEDs are gated by `control_behavior`: `circuit_enabled` (or legacy `circuit_enable_disable`) → `led_red`/`led_green`; `circuit_read_hand_contents` → `led_blue`. The connector sheet's four frames are the behavior-state bitmask (none/output/input/both), not compass directions. Factorio bakes H/V décor into each `frame_main` state; fpsr splits it at distill time and recomposites the plates present in the selected state at plan time.
 
-See `emitBeltCircuitConnectors` / `emitBeltReaders` in `packages/renderer/src/plan.ts`.
+See `emitBeltCircuitConnectors` / `emitBeltReaders` in `packages/renderer/src/plan.ts`. Snap-grid overlay: `emitSnapGrid` draws a dashed green perimeter when `"snap-to-grid"` is set.
 
 ## fpsr-only names
 

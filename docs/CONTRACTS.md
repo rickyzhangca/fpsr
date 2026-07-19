@@ -65,13 +65,12 @@ forks in resolve/plan.
 Registry: `BLUEPRINT_ADAPTERS` in `packages/renderer/src/migrate.ts`. Add new 1.x→2.x
 transforms there and document them below.
 
-| Adapter id                | What it fixes                                     | Note                                                                               |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `scale-legacy-directions` | Entity `direction` 0/2/4/6 → 0/4/8/12             | [Wiki](https://wiki.factorio.com/Blueprint_string_format): 2.x dirs are double 1.x |
-| `items-object-to-array`   | Entity `items` `{ "mod": n }` → insert-plan array | 1.x module/request map → 2.x `[{ id, items.grid_count }]`                          |
-
-**Future (not implemented):** `connections-neighbours-to-wires`, `rename-logistic-chests`
-— add when a real 1.x corpus needs them.
+| Adapter id                        | What it fixes                                                  | Note                                                                                                                                             |
+| --------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scale-legacy-directions`         | Entity `direction` 0/2/4/6 → 0/4/8/12                          | [Wiki](https://wiki.factorio.com/Blueprint_string_format): 2.x dirs are double 1.x                                                               |
+| `items-object-to-array`           | Entity `items` `{ "mod": n }` → insert-plan array              | 1.x module/request map → 2.x `[{ id, items.grid_count }]`                                                                                        |
+| `connections-neighbours-to-wires` | Entity `connections` / `neighbours` → top-level `wires` tuples | 1.x circuit + copper links → 2.x `[src, src_conn, dst, dst_conn]` (`defines.wire_connector_id`)                                                  |
+| `rename-legacy-entities`          | 1.x entity/icon names → 2.x prototypes                         | Rails→`legacy-*`, logistic chests, filter/stack inserters ([base migrations](https://github.com/wube/factorio-data/tree/master/base/migrations)) |
 
 ## Layering
 
@@ -91,6 +90,11 @@ The Canvas2D backend flattens overlapping shadows at full opacity in reusable 10
 scratch tiles, then composites each occupied tile at 50% opacity. Peak shadow scratch
 memory is therefore bounded independently of final output dimensions.
 
+When a blueprint has `"snap-to-grid"`, the planner emits a `snap-grid` command on the
+`selection-box` layer: a dashed green perimeter along the snap cell edges, anchored at
+the blueprint origin `(0,0)` with size `snap-to-grid`. `position-relative-to-grid`
+affects world absolute placement only (see `snapGridRect` / `emitSnapGrid`).
+
 ## Public API (packages/renderer)
 
 ```ts
@@ -106,7 +110,7 @@ selectBlueprint(doc: BlueprintDocument, path?: number[]): Blueprint; // default:
 planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList; // from "fpsr/planner"
 resolve(bp, db, opts?): { entities: ResolvedEntity[]; warnings: string[] }; // from "fpsr/planner"
 analyzePlan(bp: Blueprint, drawList: DrawList, db: RenderDb): PlanDiagnostics;
-countBlueprintComponents(bp: Blueprint, db: RenderDb): BlueprintComponentCount[];
+countBlueprintComponents(bp: Blueprint, db: RenderDb): BlueprintComponentCount[]; // migrates 1.x names first
 
 // rendering — async, needs assets
 const r = await createRenderer({ assets: AssetSource, renderDb?: RenderDb, assetTier?: "1x"|"2x" });
