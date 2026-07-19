@@ -1,24 +1,67 @@
+import {
+  asSignal,
+  entitySignals,
+  resolveAltSignals,
+  signalKey,
+  type AltSignal,
+} from "./alt-mode-signals.js";
 import type { BlueprintEntity } from "./types/blueprint.js";
 import { RENDER_LAYERS, type IconCmd } from "./types/draw-list.js";
 import type { EntityRenderDef, RenderDb } from "./types/render-db.js";
-import { type AltSignal, asSignal, entitySignals, resolveAltSignals } from "./alt-mode-signals.js";
 
 const MAX_INSERT_PLAN_ICONS = 16;
+
+/**
+ * Factorio `defines.inventory` values used by insert plans.
+ * Several names share the same numeric id across entity types — always
+ * disambiguate with `protoType` (e.g. fuel / beacon_modules / cargo_wagon = 1).
+ */
+const INVENTORY_FUEL_OR_SHARED_1 = 1;
+const INVENTORY_MINING_DRILL_MODULES = 2;
+const INVENTORY_LAB_MODULES = 3;
+const INVENTORY_CRAFTER_MODULES = 4;
+
+function isModuleInventory(protoType: string, inventory: number): boolean {
+  if (inventory === INVENTORY_CRAFTER_MODULES) return true;
+  if (inventory === INVENTORY_LAB_MODULES && protoType === "lab") return true;
+  if (inventory === INVENTORY_MINING_DRILL_MODULES && protoType.includes("mining-drill")) {
+    return true;
+  }
+  if (inventory === INVENTORY_FUEL_OR_SHARED_1 && protoType === "beacon") return true;
+  return false;
+}
+
+/** Fuel inventory (`defines.inventory.fuel` = 1), excluding other uses of id 1. */
+function isFuelInventory(protoType: string, inventory: number): boolean {
+  if (inventory !== INVENTORY_FUEL_OR_SHARED_1) return false;
+  if (isModuleInventory(protoType, inventory)) return false;
+  if (protoType === "cargo-wagon") return false;
+  return true;
+}
 
 export function positiveInteger(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   return Math.max(0, Math.floor(value));
 }
 
-/** Expand insert plans into their actual inventory-slot order and multiplicity. */
-export function insertPlanSignals(items: BlueprintEntity["items"]): AltSignal[] {
+/**
+ * Expand insert plans into their actual inventory-slot order and multiplicity.
+ * Fuel inventories emit one pin per item kind (name/type/quality); module and
+ * other inventories keep per-slot / count expansion.
+ */
+export function insertPlanSignals(
+  items: BlueprintEntity["items"],
+  def?: Pick<EntityRenderDef, "protoType">,
+): AltSignal[] {
   if (!Array.isArray(items)) return [];
+  const protoType = def?.protoType ?? "";
   const slotted: {
     signal: AltSignal;
     inventory: number;
     stack: number;
     order: number;
   }[] = [];
+  const fuelByKind = new Map<string, { signal: AltSignal; order: number }>();
   const fallback: { signal: AltSignal; order: number }[] = [];
   let order = 0;
 
@@ -28,14 +71,25 @@ export function insertPlanSignals(items: BlueprintEntity["items"]): AltSignal[] 
     const positions = Array.isArray(item.items?.in_inventory) ? item.items.in_inventory : [];
     if (positions.length > 0) {
       for (const position of positions) {
+        const inventory = Number.isFinite(position.inventory)
+          ? position.inventory
+          : Number.MAX_SAFE_INTEGER;
+        const stack = Number.isFinite(position.stack) ? position.stack : Number.MAX_SAFE_INTEGER;
+
+        if (isFuelInventory(protoType, inventory)) {
+          const key = signalKey(signal);
+          if (!fuelByKind.has(key)) {
+            fuelByKind.set(key, { signal: { ...signal }, order: order++ });
+          }
+          continue;
+        }
+
         const count = Math.min(positiveInteger(position.count, 1), MAX_INSERT_PLAN_ICONS);
         for (let i = 0; i < count; i++) {
           slotted.push({
             signal: { ...signal },
-            inventory: Number.isFinite(position.inventory)
-              ? position.inventory
-              : Number.MAX_SAFE_INTEGER,
-            stack: Number.isFinite(position.stack) ? position.stack : Number.MAX_SAFE_INTEGER,
+            inventory,
+            stack,
             order: order++,
           });
         }
@@ -51,10 +105,16 @@ export function insertPlanSignals(items: BlueprintEntity["items"]): AltSignal[] 
   }
 
   slotted.sort((a, b) => a.inventory - b.inventory || a.stack - b.stack || a.order - b.order);
-  return [...slotted.map((entry) => entry.signal), ...fallback.map((entry) => entry.signal)].slice(
-    0,
-    MAX_INSERT_PLAN_ICONS,
-  );
+  const fuelSignals = [...fuelByKind.values()]
+    .sort((a, b) => a.order - b.order)
+    .map((entry) => entry.signal);
+  // Fuel pins keep first-seen order; merge after sorted non-fuel slots so mixed
+  // entities still prefer inventory/stack ordering for modules.
+  return [
+    ...slotted.map((entry) => entry.signal),
+    ...fuelSignals,
+    ...fallback.map((entry) => entry.signal),
+  ].slice(0, MAX_INSERT_PLAN_ICONS);
 }
 
 /** Extra gap between recipe and module rows on assemblers (tiles). */
@@ -133,7 +193,7 @@ export function planRequestPinCommands(
   def: EntityRenderDef,
   db: RenderDb,
 ): IconCmd[] {
-  const insertPlans = resolveAltSignals(db, insertPlanSignals(entity.items));
+  const insertPlans = resolveAltSignals(db, insertPlanSignals(entity.items, def));
   if (insertPlans.length === 0) return [];
 
   const spec = iconDrawSpec(def);

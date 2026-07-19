@@ -285,7 +285,7 @@ export function planAltModeCommands(
   const insertCommands = opts?.insertCommands ?? [];
   const insertPlans =
     insertCommands.length > 0
-      ? resolveAltSignals(db, insertPlanSignals(entity.items)).slice(0, insertCommands.length)
+      ? resolveAltSignals(db, insertPlanSignals(entity.items, def)).slice(0, insertCommands.length)
       : [];
 
   const commands: IconCmd[] = [

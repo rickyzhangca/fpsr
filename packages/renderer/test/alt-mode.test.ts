@@ -324,6 +324,42 @@ describe("alt-mode planner", () => {
     expect(wagonPins[0]!.y).toBeCloseTo(expectedY);
   });
 
+  it("dedupes fuel request pins to one pin per kind, ignoring stack count", () => {
+    const { db } = fixture();
+    Object.assign(db.icons, { "item/coal": 5, "item/nuclear-fuel": 6 });
+    const locoDef: EntityRenderDef = {
+      ...db.entities["assembling-machine-1"]!,
+      protoType: "locomotive",
+      kind: "train",
+      iconDrawSpecification: undefined,
+    };
+    const pins = planRequestPinCommands(
+      {
+        entity_number: 8,
+        name: "locomotive",
+        position: { x: 0, y: 0 },
+        items: [
+          {
+            id: { name: "coal" },
+            items: { in_inventory: [{ inventory: 1, stack: 0, count: 50 }] },
+          },
+          {
+            id: { name: "nuclear-fuel" },
+            items: { in_inventory: [{ inventory: 1, stack: 1, count: 5 }] },
+          },
+          {
+            id: { name: "coal" },
+            items: { in_inventory: [{ inventory: 1, stack: 2, count: 10 }] },
+          },
+        ],
+      },
+      locoDef,
+      db,
+    );
+    expect(pins).toHaveLength(2);
+    expect(pins.map((command) => command.frame)).toEqual([5, 6]);
+  });
+
   it("preserves mixed slot order, per-position counts, qualities, and grid-count fallback", () => {
     const { db } = fixture();
     const def = db.entities["assembling-machine-1"]!;
