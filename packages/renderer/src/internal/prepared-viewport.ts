@@ -1,9 +1,9 @@
 /**
  * In-repo prepared-viewport painting hook.
  *
- * This module is **not** part of the published package exports. The viewer and
- * other monorepo hosts import it via a source alias; external consumers should
- * use `render` / `renderTiledPng` only.
+ * Prefer importing via `@rickyzhangca/fpsr/unstable-prepared-viewport` (experimental).
+ * External consumers that only need full-frame or tiled PNG output should use
+ * `render` / `renderTiledPng` instead.
  */
 
 import {

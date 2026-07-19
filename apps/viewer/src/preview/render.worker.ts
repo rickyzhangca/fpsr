@@ -18,9 +18,9 @@ import {
   type RenderResult,
   type TileFrame,
 } from "@rickyzhangca/fpsr";
-import { renderPreparedViewport } from "fpsr-internal/prepared-viewport";
 import { nowMs } from "@rickyzhangca/fpsr/canvas";
 import { analyzePlan, drawListForTile, planDrawList } from "@rickyzhangca/fpsr/planner";
+import { renderPreparedViewport } from "@rickyzhangca/fpsr/unstable-prepared-viewport";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,

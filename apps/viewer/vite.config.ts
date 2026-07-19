@@ -63,6 +63,8 @@ export default defineConfig({
     setupFiles: ["./src/test-setup.ts"],
   },
   resolve: {
+    // Src aliases are deliberate DX for HMR into renderer source. Production
+    // contract coverage comes from tools (exports → dist) + typecheck:node-decls.
     alias: [
       {
         find: /^@rickyzhangca\/fpsr\/planner$/,
@@ -81,10 +83,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "../../packages/renderer/src/node.ts"),
       },
       {
-        find: /^fpsr-internal\/prepared-viewport$/,
+        find: /^@rickyzhangca\/fpsr\/unstable-prepared-viewport$/,
         replacement: path.resolve(
           __dirname,
-          "../../packages/renderer/src/internal/prepared-viewport.ts",
+          "../../packages/renderer/src/unstable-prepared-viewport.ts",
         ),
       },
       {

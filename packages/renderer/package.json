@@ -47,7 +47,12 @@
     },
     "./node": {
       "types": "./dist/node.d.ts",
+      "browser": "./dist/node-browser.js",
       "import": "./dist/node.js"
+    },
+    "./unstable-prepared-viewport": {
+      "types": "./dist/unstable-prepared-viewport.d.ts",
+      "import": "./dist/unstable-prepared-viewport.js"
     }
   },
   "publishConfig": {
