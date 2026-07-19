@@ -1,8 +1,49 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vite-plus/test";
-import { discoverPlaceableEntities, discoverTilePlacingItems } from "../src/discover.js";
+import {
+  discoverPlaceableEntities,
+  discoverPlaceableTiles,
+  discoverTilePlacingItems,
+} from "../src/discover.js";
 import { getPipelinePaths } from "../src/paths.js";
 import type { DataRaw } from "../src/types.js";
+
+describe("discoverPlaceableTiles", () => {
+  it("includes hazard right siblings and frozen_variant tiles", () => {
+    const raw: DataRaw = {
+      item: {
+        "stone-brick": { place_as_tile: { result: "stone-path" } },
+        "hazard-concrete": { place_as_tile: { result: "hazard-concrete-left" } },
+        concrete: { place_as_tile: { result: "concrete" } },
+      },
+      tile: {
+        "stone-path": { frozen_variant: "frozen-stone-path" },
+        "frozen-stone-path": {},
+        "hazard-concrete-left": {},
+        "hazard-concrete-right": {},
+        concrete: { frozen_variant: "frozen-concrete" },
+        "frozen-concrete": {},
+      },
+    };
+
+    expect(discoverPlaceableTiles(raw)).toEqual([
+      "concrete",
+      "frozen-concrete",
+      "frozen-stone-path",
+      "hazard-concrete-left",
+      "hazard-concrete-right",
+      "stone-path",
+    ]);
+  });
+
+  it("includes frozen-concrete from the data dump", async () => {
+    const raw = JSON.parse(await readFile(getPipelinePaths().dumpPath, "utf8")) as DataRaw;
+    const names = new Set(discoverPlaceableTiles(raw));
+    expect(names.has("concrete")).toBe(true);
+    expect(names.has("frozen-concrete")).toBe(true);
+    expect(names.has("hazard-concrete-right")).toBe(true);
+  });
+});
 
 describe("discoverTilePlacingItems", () => {
   it("maps tile prototypes to placing items, including hazard right siblings", () => {

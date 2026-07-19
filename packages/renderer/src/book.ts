@@ -1,3 +1,5 @@
+import { filledBlueprintIcons } from "./blueprint-icons.js";
+import { deconstructionPlannerIcons } from "./deconstruction-planner.js";
 import type {
   Blueprint,
   BlueprintBook,
@@ -227,6 +229,69 @@ export function selectUpgradePlanner(
   throw new BlueprintSelectError("not-found", "Document has no upgrade planner");
 }
 
+function selectDeconstructionPlannerFromBook(
+  book: BlueprintBook,
+  path: number[],
+): Record<string, unknown> {
+  if (path.length === 0) {
+    throw new BlueprintSelectError("not-found", "Path required to select a deconstruction planner");
+  }
+  const head = path[0];
+  if (head === undefined) {
+    throw new BlueprintSelectError("not-found", "Empty path");
+  }
+  const rest = path.slice(1);
+  const entry = findEntryByIndex(book, head);
+  if (!entry) {
+    throw new BlueprintSelectError("not-found", `No book entry at index ${head}`);
+  }
+  if (rest.length === 0) {
+    if (entry.deconstruction_planner) {
+      return entry.deconstruction_planner;
+    }
+    throw new BlueprintSelectError(
+      entry.upgrade_planner ? "planner" : "not-found",
+      `Entry at index ${head} is not a deconstruction planner`,
+    );
+  }
+  if (entry.blueprint_book) {
+    return selectDeconstructionPlannerFromBook(entry.blueprint_book, rest);
+  }
+  throw new BlueprintSelectError("not-found", `Entry at index ${head} has no nested book`);
+}
+
+/**
+ * Select a deconstruction planner from a document.
+ * Bare deconstruction-planner documents ignore path (or require `[]`).
+ * Book documents require a path ending on a `deconstruction_planner` entry.
+ */
+export function selectDeconstructionPlanner(
+  doc: BlueprintDocument,
+  path?: number[],
+): Record<string, unknown> {
+  if (doc.deconstruction_planner) {
+    if (path !== undefined && path.length > 0) {
+      throw new BlueprintSelectError(
+        "not-found",
+        "Cannot use path on a bare deconstruction planner document",
+      );
+    }
+    return doc.deconstruction_planner;
+  }
+
+  if (doc.blueprint_book) {
+    if (path === undefined || path.length === 0) {
+      throw new BlueprintSelectError(
+        "not-found",
+        "Path required to select a deconstruction planner",
+      );
+    }
+    return selectDeconstructionPlannerFromBook(doc.blueprint_book, path);
+  }
+
+  throw new BlueprintSelectError("not-found", "Document has no deconstruction planner");
+}
+
 export type BookTreeItemKind = "book" | "blueprint" | "upgrade_planner" | "deconstruction_planner";
 
 /** Hierarchical book entry for tree UIs (e.g. Headless Tree sync data loader). */
@@ -236,6 +301,11 @@ export interface BookTreeItem {
   label: string;
   kind: BookTreeItemKind;
   icons?: Icon[];
+  /**
+   * When set on a book node, nest a planner composite (this paper + `icons`) as
+   * the single icon on the book cover — does not replace the book paper.
+   */
+  iconBackgroundKey?: string;
   children: string[];
 }
 
@@ -274,17 +344,103 @@ function entryLabel(entry: BlueprintBookEntry, kind: BookTreeItemKind): string {
 }
 
 function entryIcons(entry: BlueprintBookEntry, kind: BookTreeItemKind): Icon[] | undefined {
-  if (kind === "book") return entry.blueprint_book?.icons;
+  if (kind === "book" && entry.blueprint_book) {
+    const icons = blueprintBookCover(entry.blueprint_book).icons;
+    return icons.length > 0 ? icons : undefined;
+  }
   if (kind === "blueprint") return entry.blueprint?.icons;
   if (kind === "upgrade_planner" && entry.upgrade_planner) {
     const icons = upgradePlannerIcons(entry.upgrade_planner);
     return icons.length > 0 ? icons : undefined;
   }
-  if (kind === "deconstruction_planner") {
-    const icons = plannerField(entry.deconstruction_planner, "icons");
-    return Array.isArray(icons) ? (icons as Icon[]) : undefined;
+  if (kind === "deconstruction_planner" && entry.deconstruction_planner) {
+    const icons = deconstructionPlannerIcons(entry.deconstruction_planner);
+    return icons.length > 0 ? icons : undefined;
   }
   return undefined;
+}
+
+const BOOK_COVER_BACKGROUND = "item/blueprint-book";
+
+/** Nested planner thumbnail drawn as the single icon on a book cover. */
+export interface BlueprintBookCoverNested {
+  backgroundKey: string;
+  icons: Icon[];
+}
+
+/** Inventory thumbnail for a blueprint book: book paper plus cover contents. */
+export interface BlueprintBookCover {
+  /** Always the book paper; planner composites nest inside via `nested`. */
+  backgroundKey: string;
+  /** Flat signal icons when the first leaf is a blueprint (or empty). */
+  icons: Icon[];
+  /**
+   * When the first leaf is a planner, its full composite (planner paper + icons)
+   * is drawn as the single icon on the book cover.
+   */
+  nested?: BlueprintBookCoverNested;
+}
+
+/**
+ * Inventory thumbnail for a blueprint book: always the composite of the first
+ * child entry (lowest `index`), including nested books and planners.
+ * Ignores any explicit `book.icons` so the cover tracks book contents.
+ *
+ * The outer paper is always the book. Planner leaves nest their composite as
+ * the cover icon; blueprint leaves place signal icons directly on the book.
+ */
+export function blueprintBookCover(book: BlueprintBook): BlueprintBookCover {
+  const entries = [...(book.blueprints ?? [])].sort((a, b) => a.index - b.index);
+  const first = entries[0];
+  if (!first) return { icons: [], backgroundKey: BOOK_COVER_BACKGROUND };
+
+  if (first.blueprint) {
+    return {
+      icons: filledBlueprintIcons(first.blueprint.icons),
+      backgroundKey: BOOK_COVER_BACKGROUND,
+    };
+  }
+  if (first.upgrade_planner) {
+    return {
+      icons: [],
+      backgroundKey: BOOK_COVER_BACKGROUND,
+      nested: {
+        backgroundKey: "item/upgrade-planner",
+        icons: upgradePlannerIcons(first.upgrade_planner),
+      },
+    };
+  }
+  if (first.deconstruction_planner) {
+    return {
+      icons: [],
+      backgroundKey: BOOK_COVER_BACKGROUND,
+      nested: {
+        backgroundKey: "item/deconstruction-planner",
+        icons: deconstructionPlannerIcons(first.deconstruction_planner),
+      },
+    };
+  }
+  if (first.blueprint_book) return blueprintBookCover(first.blueprint_book);
+  return { icons: [], backgroundKey: BOOK_COVER_BACKGROUND };
+}
+
+/** Signal icons for a book cover (nested planner icons when applicable). */
+export function blueprintBookCoverIcons(book: BlueprintBook): Icon[] {
+  const cover = blueprintBookCover(book);
+  return cover.nested?.icons ?? cover.icons;
+}
+
+function bookCoverFields(book: BlueprintBook): Pick<BookTreeItem, "icons" | "iconBackgroundKey"> {
+  const cover = blueprintBookCover(book);
+  if (cover.nested) {
+    return {
+      ...(cover.nested.icons.length > 0 ? { icons: cover.nested.icons } : {}),
+      iconBackgroundKey: cover.nested.backgroundKey,
+    };
+  }
+  return {
+    ...(cover.icons.length > 0 ? { icons: cover.icons } : {}),
+  };
 }
 
 function addBookEntries(
@@ -310,7 +466,7 @@ function addBookEntries(
         path: entryPath,
         label: entryLabel(entry, kind),
         kind,
-        icons,
+        ...bookCoverFields(entry.blueprint_book),
         children: nestedChildren,
       };
     } else {
@@ -341,7 +497,7 @@ export function buildBookTree(doc: BlueprintDocument): BookTree | null {
     path: [],
     label: doc.blueprint_book.label ?? "(untitled)",
     kind: "book",
-    icons: doc.blueprint_book.icons,
+    ...bookCoverFields(doc.blueprint_book),
     children,
   };
 
@@ -359,7 +515,7 @@ function resolveActivePathFromBook(book: BlueprintBook, pathPrefix: number[]): n
     return entryPath;
   }
   if (entry.deconstruction_planner) {
-    throw new BlueprintSelectError("planner", "Active entry is a planner");
+    return entryPath;
   }
   if (entry.blueprint) {
     return entryPath;

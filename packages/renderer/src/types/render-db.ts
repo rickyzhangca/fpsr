@@ -453,8 +453,13 @@ export interface TileMaterialAtlas {
 
 export interface TileRenderDef {
   layer: RenderLayerName;
-  /** Item that places this tile (`place_as_tile.result`); used for UI icons. */
+  /** Item that places this tile (`place_as_tile.result`); used for item-icon fallback. */
   item?: string;
+  /**
+   * 1×1 map-texture swatch for planner/UI (`icons["tile/{name}"]`). Prefer this
+   * over the placing-item icon when showing tile filters.
+   */
+  icon?: FrameId;
   /**
    * Plain color fallback (RGBA 0-1). When atlases are unavailable, tiles draw as
    * solid rects using this color.

@@ -229,7 +229,27 @@ export interface SnapGridCmd extends DrawCmdBase {
   h: number;
 }
 
-export type DrawCmd = RectCmd | SpriteCmd | WireCmd | TrainChainCmd | IconCmd | SnapGridCmd;
+/** Canvas text label in tile space (e.g. deconstruction planner section headers). */
+export interface TextCmd extends DrawCmdBase {
+  kind: "text";
+  text: string;
+  x: number;
+  y: number;
+  /** Font size in tiles (scaled by pixels-per-tile at execute time). */
+  size: number;
+  color: [number, number, number, number];
+  align?: "left" | "center" | "right";
+  baseline?: "top" | "middle" | "alphabetic";
+}
+
+export type DrawCmd =
+  | RectCmd
+  | SpriteCmd
+  | WireCmd
+  | TrainChainCmd
+  | IconCmd
+  | SnapGridCmd
+  | TextCmd;
 
 export interface DrawListBounds {
   minX: number;

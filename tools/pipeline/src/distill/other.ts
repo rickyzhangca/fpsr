@@ -662,10 +662,13 @@ export async function distillTile(
     const sheetPxH = sheetRows * patchPxH;
     const sheetCrop = await cropFileRect(abs, sheetX, sheetY, sheetPxW, sheetPxH);
     const sheet = await bank.add(sheetCrop);
+    // 1×1 swatch at variant-0 origin (matches planMaterialTileSprite at 0,0).
+    const swatch = await bank.add(await cropFileRect(abs, sheetX, sheetY, tilePx, tilePx));
 
     return {
       layer,
       color: mapColorRgba(tile, color),
+      icon: swatch,
       material: {
         sheet,
         count,
@@ -702,6 +705,7 @@ export async function distillTile(
   return {
     layer,
     color: mapColorRgba(tile, color),
+    icon: frames[0],
     frames,
   };
 }

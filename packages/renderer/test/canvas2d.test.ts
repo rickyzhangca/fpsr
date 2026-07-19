@@ -856,6 +856,40 @@ describe("executeDrawList", () => {
     expect(ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "3,3")).toBe(false);
   });
 
+  it("draws TextCmd with scaled fillText", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 4, maxY: 2 },
+      commands: [
+        {
+          kind: "text",
+          layer: RENDER_LAYERS.icons,
+          sortY: 0,
+          sortX: 0,
+          entity: 0,
+          sub: 0,
+          text: "Entities / Whitelist",
+          x: 1,
+          y: 0.5,
+          size: 0.35,
+          color: [1, 1, 1, 1],
+          align: "left",
+          baseline: "top",
+        },
+      ],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      frames: db.frames,
+    });
+    expect(
+      ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "Entities / Whitelist"),
+    ).toBe(true);
+    expect(ctx.calls.some((c) => c.method === "set font")).toBe(true);
+  });
+
   it("draws the 1×1 snap-grid as a dashed perimeter", () => {
     const list: DrawList = {
       schema: 1,

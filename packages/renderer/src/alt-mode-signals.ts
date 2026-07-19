@@ -11,6 +11,7 @@ const SIGNAL_PREFIX: Record<string, string> = {
   entity: "entity",
   recipe: "recipe",
   quality: "quality",
+  tile: "tile",
   "space-location": "space-location",
   "asteroid-chunk": "asteroid-chunk",
 };
@@ -87,6 +88,8 @@ export function signalIconKeys(signal: SignalId): string[] {
       return [primary, `item/${signal.name}`];
     case "recipe":
       return [primary, `item/${signal.name}`];
+    case "tile":
+      return [primary];
     default:
       return [primary];
   }

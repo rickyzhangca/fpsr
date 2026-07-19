@@ -2,12 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import {
+  blueprintBookCover,
+  blueprintBookCoverIcons,
   BlueprintSelectError,
   buildBookTree,
   listBlueprints,
   resolveActivePath,
   selectBlueprint,
   selectBook,
+  selectDeconstructionPlanner,
   selectUpgradePlanner,
 } from "../src/book.js";
 import { decode } from "../src/decode.js";
@@ -179,15 +182,15 @@ describe("buildBookTree", () => {
     };
     const tree = buildBookTree(doc);
     expect(tree).not.toBeNull();
+    // Book covers always use the first child composite, not explicit book.icons.
     expect(tree!.items.root!.icons).toEqual([
-      { index: 1, signal: { type: "item", name: "iron-plate" } },
+      { index: 1, signal: { type: "item", name: "copper-plate" } },
     ]);
     expect(tree!.items["0"]!.icons).toEqual([
       { index: 1, signal: { type: "item", name: "copper-plate" } },
     ]);
-    expect(tree!.items["1"]!.icons).toEqual([
-      { index: 1, signal: { type: "item", name: "steel-plate" } },
-    ]);
+    // Nested book with no children has no cover composite.
+    expect(tree!.items["1"]!.icons).toBeUndefined();
   });
 });
 
@@ -314,5 +317,239 @@ describe("selectUpgradePlanner", () => {
     const blueprintPath = captureError(() => selectUpgradePlanner(book, [0]));
     expect(blueprintPath).toBeInstanceOf(BlueprintSelectError);
     expect((blueprintPath as BlueprintSelectError).reason).toBe("not-found");
+  });
+});
+
+describe("selectDeconstructionPlanner", () => {
+  it("returns the bare deconstruction planner document payload", () => {
+    const doc: BlueprintDocument = {
+      deconstruction_planner: {
+        item: "deconstruction-planner",
+        version: 1,
+        settings: { entity_filter_mode: 1 },
+      },
+    };
+    expect(selectDeconstructionPlanner(doc)).toBe(doc.deconstruction_planner);
+    expect(selectDeconstructionPlanner(doc, [])).toBe(doc.deconstruction_planner);
+  });
+
+  it("selects a deconstruction planner book entry by path and derives icons", () => {
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [
+          {
+            index: 0,
+            deconstruction_planner: {
+              item: "deconstruction-planner",
+              version: 0,
+              label: "Clear tanks",
+              settings: {
+                entity_filters: [{ index: 0, name: "storage-tank", type: "entity" }],
+              },
+            },
+          },
+        ],
+      },
+    };
+    expect(selectDeconstructionPlanner(doc, [0]).item).toBe("deconstruction-planner");
+    const tree = buildBookTree(doc);
+    expect(tree!.items["0"]).toMatchObject({
+      kind: "deconstruction_planner",
+      label: "Clear tanks",
+      icons: [{ index: 1, signal: { name: "storage-tank", type: "entity" } }],
+    });
+  });
+
+  it("resolves active_index to a deconstruction planner path", () => {
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        active_index: 0,
+        blueprints: [
+          {
+            index: 0,
+            deconstruction_planner: { item: "deconstruction-planner", version: 0, settings: {} },
+          },
+        ],
+      },
+    };
+    expect(resolveActivePath(doc)).toEqual([0]);
+  });
+});
+
+describe("blueprintBookCover", () => {
+  it("uses the first entry composite and ignores explicit book.icons", () => {
+    const book = {
+      item: "blueprint-book" as const,
+      version: 0,
+      icons: [{ index: 1, signal: { type: "item" as const, name: "iron-plate" } }],
+      blueprints: [
+        {
+          index: 1,
+          blueprint: {
+            item: "blueprint" as const,
+            version: 0,
+            icons: [{ index: 1, signal: { type: "item" as const, name: "steel-chest" } }],
+            entities: [],
+          },
+        },
+        {
+          index: 0,
+          upgrade_planner: {
+            item: "upgrade-planner",
+            version: 0,
+            settings: {
+              mappers: [
+                {
+                  index: 0,
+                  from: { type: "entity", name: "transport-belt" },
+                  to: { type: "entity", name: "fast-transport-belt" },
+                },
+              ],
+            },
+          },
+        },
+      ],
+    };
+    expect(blueprintBookCover(book)).toEqual({
+      icons: [],
+      backgroundKey: "item/blueprint-book",
+      nested: {
+        backgroundKey: "item/upgrade-planner",
+        icons: [{ index: 1, signal: { name: "fast-transport-belt", type: "entity" } }],
+      },
+    });
+    expect(blueprintBookCoverIcons(book)).toEqual([
+      { index: 1, signal: { name: "fast-transport-belt", type: "entity" } },
+    ]);
+  });
+
+  it("keeps book paper when the first entry is a blueprint", () => {
+    expect(
+      blueprintBookCover({
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [
+          {
+            index: 0,
+            blueprint: {
+              item: "blueprint",
+              version: 0,
+              icons: [{ index: 1, signal: { type: "item", name: "steel-chest" } }],
+              entities: [],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      icons: [{ index: 1, signal: { type: "item", name: "steel-chest" } }],
+      backgroundKey: "item/blueprint-book",
+    });
+  });
+
+  it("uses book paper when the book is empty", () => {
+    expect(blueprintBookCover({ item: "blueprint-book", version: 0, blueprints: [] })).toEqual({
+      icons: [],
+      backgroundKey: "item/blueprint-book",
+    });
+  });
+
+  it("nests a deconstruction planner composite on the book cover", () => {
+    expect(
+      blueprintBookCover({
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [
+          {
+            index: 0,
+            deconstruction_planner: {
+              item: "deconstruction-planner",
+              version: 0,
+              settings: { trees_and_rocks_only: true },
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      icons: [],
+      backgroundKey: "item/blueprint-book",
+      nested: {
+        backgroundKey: "item/deconstruction-planner",
+        icons: [{ index: 1, signal: { name: "tree-01", type: "entity" } }],
+      },
+    });
+  });
+
+  it("propagates a nested planner leaf through nested books", () => {
+    expect(
+      blueprintBookCover({
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [
+          {
+            index: 0,
+            blueprint_book: {
+              item: "blueprint-book",
+              version: 0,
+              blueprints: [
+                {
+                  index: 0,
+                  upgrade_planner: {
+                    item: "upgrade-planner",
+                    version: 0,
+                    settings: {
+                      mappers: [
+                        {
+                          index: 0,
+                          from: { type: "entity", name: "transport-belt" },
+                          to: { type: "entity", name: "express-transport-belt" },
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      icons: [],
+      backgroundKey: "item/blueprint-book",
+      nested: {
+        backgroundKey: "item/upgrade-planner",
+        icons: [{ index: 1, signal: { name: "express-transport-belt", type: "entity" } }],
+      },
+    });
+  });
+
+  it("propagates nested planner cover fields onto the book tree root", () => {
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        icons: [{ index: 1, signal: { type: "item", name: "iron-plate" } }],
+        blueprints: [
+          {
+            index: 0,
+            deconstruction_planner: {
+              item: "deconstruction-planner",
+              version: 0,
+              settings: {
+                entity_filters: [{ index: 0, name: "storage-tank", type: "entity" }],
+              },
+            },
+          },
+        ],
+      },
+    };
+    const tree = buildBookTree(doc);
+    expect(tree!.items.root!.icons).toEqual([
+      { index: 1, signal: { name: "storage-tank", type: "entity" } },
+    ]);
+    expect(tree!.items.root!.iconBackgroundKey).toBe("item/deconstruction-planner");
   });
 });

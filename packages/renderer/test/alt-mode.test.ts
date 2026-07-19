@@ -69,6 +69,9 @@ describe("signalIconKeys", () => {
       "entity/assembling-machine-2",
       "item/assembling-machine-2",
     ]);
+    expect(signalIconKeys({ type: "tile", name: "frozen-concrete" })).toEqual([
+      "tile/frozen-concrete",
+    ]);
   });
 });
 

@@ -142,7 +142,8 @@ export function discoverPlaceableEntities(raw: DataRaw): PlaceableEntity[] {
 
 /**
  * Tiles placeable via an item's place_as_tile.result, plus hazard-concrete-right
- * variants that exist as sibling tiles of the left (item-placed) forms.
+ * variants that exist as sibling tiles of the left (item-placed) forms, plus
+ * each tile's Aquilo `frozen_variant` when present (deconstruction filter UI).
  */
 export function discoverPlaceableTiles(raw: DataRaw): string[] {
   const names = new Set<string>();
@@ -155,11 +156,16 @@ export function discoverPlaceableTiles(raw: DataRaw): string[] {
     }
   }
   // Sibling right-hazard tiles (placed by rotating the left item in-game).
-  for (const n of names) {
+  for (const n of [...names]) {
     if (n.endsWith("-left")) {
       const right = `${n.slice(0, -5)}-right`;
       if (raw.tile?.[right]) names.add(right);
     }
+  }
+  // Frozen surface variants (e.g. concrete → frozen-concrete); one hop only.
+  for (const n of [...names]) {
+    const frozen = (raw.tile?.[n] as { frozen_variant?: unknown } | undefined)?.frozen_variant;
+    if (typeof frozen === "string" && raw.tile?.[frozen]) names.add(frozen);
   }
   return [...names].filter((n) => !!raw.tile?.[n]).sort();
 }

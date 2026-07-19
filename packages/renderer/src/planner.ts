@@ -84,6 +84,10 @@ export type { WireColor } from "./wire-connectors.js";
 
 export { drawListForTile } from "./tiled-draw-list.js";
 
+export {
+  DECONSTRUCTION_PLANNER_COLUMNS,
+  planDeconstructionPlannerDrawList,
+} from "./plan/deconstruction-planner.js";
 export { planUpgradePlannerDrawList, UPGRADE_PLANNER_COLUMNS } from "./plan/upgrade-planner.js";
 
 export {
@@ -100,6 +104,7 @@ export type {
   RectCmd,
   SnapGridCmd,
   SpriteCmd,
+  TextCmd,
   TrainChainCmd,
   WireCmd,
 } from "./types/draw-list.js";

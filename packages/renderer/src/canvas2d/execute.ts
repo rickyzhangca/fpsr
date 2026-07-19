@@ -7,6 +7,7 @@ import type { DrawList, SpriteCmd } from "../types/draw-list.js";
 import { drawIcon } from "./draw-icon.js";
 import { drawSnapGrid } from "./draw-snap-grid.js";
 import { drawRect, drawSprite, shadowSpriteBounds } from "./draw-sprite.js";
+import { drawText } from "./draw-text.js";
 import { drawTrainChain, drawWire } from "./draw-wire.js";
 import type { Canvas2DContextLike, ExecuteDrawListOptions } from "./types.js";
 import { rgba } from "./util.js";
@@ -228,6 +229,9 @@ export function executeDrawList(
         break;
       case "snap-grid":
         drawSnapGrid(ctx, cmd, ox, oy, ppt);
+        break;
+      case "text":
+        drawText(ctx, cmd, ox, oy, ppt);
         break;
       case "icon": {
         const frame = frames[cmd.frame];

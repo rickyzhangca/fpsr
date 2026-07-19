@@ -6,7 +6,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { packAtlases } from "../atlas.js";
 import {
@@ -403,6 +403,7 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
   const tileNames = discoverPlaceableTiles(raw);
   const tilePlacingItems = discoverTilePlacingItems(raw);
   const tiles: Record<string, TileRenderDef> = {};
+  const icons: Record<string, number> = {};
   for (const name of tileNames) {
     process.stdout.write(`  tile ${name}…`);
     try {
@@ -410,6 +411,7 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
       const placingItem = tilePlacingItems[name];
       if (placingItem) def.item = placingItem;
       tiles[name] = def;
+      if (def.icon != null) icons[`tile/${name}`] = def.icon;
       console.log(" ok");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -438,7 +440,6 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
       : " SKIP (no starmap planets)",
   );
 
-  const icons: Record<string, number> = {};
   const iconScales: Record<string, number> = {};
   const iconJobs: {
     key: string;
@@ -459,6 +460,8 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
     iconJobs.push({ key: `entity/${name}`, cat: "entity", name, type });
     iconJobs.push({ key: `item/${name}`, cat: "item", name });
   }
+  // Deconstruction planner trees/rocks-only thumbnail (trees are not placeable).
+  iconJobs.push({ key: "entity/tree-01", cat: "entity", name: "tree-01", type: "tree" });
   for (const name of Object.keys(raw.recipe ?? {}).sort()) {
     iconJobs.push({ key: `recipe/${name}`, cat: "recipe", name });
   }
@@ -651,11 +654,31 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
 
   const oneX = await persistTier(1, packed1x, oneXDefinitions);
   const twoX = await persistTier(2, packed2x, twoXDefinitions);
+
+  const fontsDir = path.join(staging, "fonts");
+  await mkdir(fontsDir, { recursive: true });
+  const dejavuSrc = path.join(paths.install.data, "core/fonts/DejaVuSans.ttf");
+  const dejavuLicenseSrc = path.join(paths.install.data, "core/fonts/license - DejaVuSans.txt");
+  const dejavuFile = "fonts/DejaVuSans.ttf";
+  const dejavuLicenseFile = "fonts/license-DejaVuSans.txt";
+  await copyFile(dejavuSrc, path.join(staging, dejavuFile));
+  await copyFile(dejavuLicenseSrc, path.join(staging, dejavuLicenseFile));
+  const dejavuBytes = await readFile(path.join(staging, dejavuFile));
+  const dejavuSha = createHash("sha256").update(dejavuBytes).digest("hex");
+
   const manifest = {
     schema: 2,
     gameVersion: paths.install.version,
     mods: [...paths.mods],
     tiers: { "1x": oneX.manifest, "2x": twoX.manifest },
+    fonts: [
+      {
+        file: dejavuFile,
+        family: "fpsr-dejavu",
+        sha256: dejavuSha,
+        bytes: dejavuBytes.byteLength,
+      },
+    ],
   };
   await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 

@@ -41,6 +41,7 @@ export function localAssets(dir: string): AssetSource {
   const dbPromises = new Map<AssetTier, Promise<RenderDb>>();
   let manifestPromise: Promise<AssetManifest> | undefined;
   const atlasCache = new Map<string, Promise<ImageSource>>();
+  let fontsPromise: Promise<void> | undefined;
 
   const readJson = async <T>(file: string): Promise<T> => {
     const text = await readFile(path.join(root, file), "utf8");
@@ -108,10 +109,33 @@ export function localAssets(dir: string): AssetSource {
       return raceWithAbort(pending, options?.signal);
     },
 
+    ensureFonts(options?: AssetLoadOptions): Promise<void> {
+      throwIfAborted(options?.signal);
+      if (!fontsPromise) {
+        fontsPromise = (async () => {
+          try {
+            const manifest = await loadManifest();
+            const fonts = manifest.fonts ?? [];
+            if (fonts.length === 0) return;
+            const skia = (await import("skia-canvas")) as unknown as {
+              FontLibrary: { use: (alias: string, paths: string | string[]) => unknown };
+            };
+            for (const font of fonts) {
+              skia.FontLibrary.use(font.family, path.join(root, font.file));
+            }
+          } catch {
+            // Font registration is best-effort; canvas falls back to system fonts.
+          }
+        })();
+      }
+      return raceWithAbort(fontsPromise, options?.signal);
+    },
+
     dispose(): void {
       atlasCache.clear();
       dbPromises.clear();
       manifestPromise = undefined;
+      fontsPromise = undefined;
     },
   };
 }

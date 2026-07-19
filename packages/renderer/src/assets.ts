@@ -20,6 +20,11 @@ export interface AssetSource {
   loadRenderDb(tier?: AssetTier, options?: AssetLoadOptions): Promise<RenderDb>;
   loadAtlasImage(index: number, tier?: AssetTier, options?: AssetLoadOptions): Promise<ImageSource>;
   /**
+   * Optional: register canvas text fonts listed in the asset manifest (e.g. DejaVu).
+   * Missing fonts are ignored so renders still work with CSS fallbacks.
+   */
+  ensureFonts?(options?: AssetLoadOptions): Promise<void>;
+  /**
    * Optional: release retained decoded images / clear caches.
    * Ownership stays with the AssetSource caller — Renderer.dispose never invokes this.
    */
@@ -35,11 +40,20 @@ export interface ManifestAtlas {
   sha256?: string;
 }
 
+export interface ManifestFont {
+  file: string;
+  family: string;
+  sha256?: string;
+  bytes?: number;
+}
+
 export interface AssetManifest {
   schema: 2;
   gameVersion: string;
   mods: string[];
   tiers: Record<AssetTier, AssetTierManifest>;
+  /** Optional bundled TTFs for canvas text (e.g. DejaVu Sans). */
+  fonts?: ManifestFont[];
 }
 
 export interface AssetTierManifest {
@@ -159,6 +173,7 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
   const dbReady = new Set<AssetTier>();
   const atlasCache = new Map<string, Promise<ImageSource>>();
   const atlasReady = new Set<string>();
+  let fontsPromise: Promise<void> | undefined;
 
   /**
    * Shared loads intentionally omit AbortSignal so one cancelled waiter does
@@ -306,6 +321,32 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
       return raceWithAbort(pending, loadOptions?.signal);
     },
 
+    ensureFonts(loadOptions?: AssetLoadOptions): Promise<void> {
+      throwIfAborted(loadOptions?.signal);
+      if (!fontsPromise) {
+        fontsPromise = (async () => {
+          try {
+            const manifest = await loadManifest();
+            const fonts = manifest.fonts ?? [];
+            if (fonts.length === 0) return;
+            if (typeof FontFace === "undefined" || typeof document === "undefined") return;
+            await Promise.all(
+              fonts.map(async (font) => {
+                const url = `${root}/${font.file}`;
+                const face = new FontFace(font.family, `url(${url})`);
+                const loaded = await face.load();
+                // FontFaceSet typings omit `add` in some DOM lib versions.
+                (document.fonts as FontFaceSet & { add(face: FontFace): void }).add(loaded);
+              }),
+            );
+          } catch {
+            // Font registration is best-effort; canvas falls back to system fonts.
+          }
+        })();
+      }
+      return raceWithAbort(fontsPromise, loadOptions?.signal);
+    },
+
     dispose(): void {
       for (const pending of atlasCache.values()) {
         void pending.then((image) => {
@@ -319,6 +360,7 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
       dbReady.clear();
       manifestPromise = undefined;
       manifestReady = false;
+      fontsPromise = undefined;
     },
   };
 

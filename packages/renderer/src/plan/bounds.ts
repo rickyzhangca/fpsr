@@ -188,5 +188,20 @@ export function includeCmdBounds(
     case "snap-grid": {
       return expandBounds(bounds, cmd.x, cmd.y, cmd.w, cmd.h);
     }
+    case "text": {
+      // Approximate glyph box: width unknown without measureText; use size × chars.
+      const width = Math.max(cmd.size, cmd.text.length * cmd.size * 0.55);
+      const height = cmd.size;
+      const align = cmd.align ?? "left";
+      const baseline = cmd.baseline ?? "top";
+      const x = align === "center" ? cmd.x - width / 2 : align === "right" ? cmd.x - width : cmd.x;
+      const y =
+        baseline === "middle"
+          ? cmd.y - height / 2
+          : baseline === "alphabetic"
+            ? cmd.y - height
+            : cmd.y;
+      return expandBounds(bounds, x, y, width, height);
+    }
   }
 }

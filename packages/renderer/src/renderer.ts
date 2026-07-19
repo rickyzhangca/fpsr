@@ -6,7 +6,7 @@ import {
   UnknownTerrainBackgroundError,
   type RenderBackground,
 } from "./background.js";
-import { selectBlueprint, selectUpgradePlanner } from "./book.js";
+import { selectBlueprint, selectDeconstructionPlanner, selectUpgradePlanner } from "./book.js";
 import type { Canvas2DContextLike, ExecuteDrawListStats } from "./canvas2d.js";
 import * as canvas2d from "./canvas2d.js";
 import { computeTileFrame, type TileFrame } from "./frame.js";
@@ -20,6 +20,7 @@ import {
   type SilhouetteCanvasLike,
 } from "./icon-silhouette.js";
 import { planDrawListInternal } from "./plan.js";
+import { planDeconstructionPlannerDrawList } from "./plan/deconstruction-planner.js";
 import { planUpgradePlannerDrawList } from "./plan/upgrade-planner.js";
 import { createStreamingPngEncoder } from "./png-stream.js";
 import {
@@ -262,6 +263,17 @@ function trySelectUpgradePlanner(
   }
 }
 
+function trySelectDeconstructionPlanner(
+  doc: BlueprintDocument,
+  path: number[] | undefined,
+): Record<string, unknown> | null {
+  try {
+    return selectDeconstructionPlanner(doc, path);
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve Auto background into concrete checkerboard / space flags. */
 function resolveBackgroundOpts(
   bp: Blueprint | null,
@@ -299,6 +311,14 @@ function planDocumentDrawList(
     return {
       blueprint: null,
       drawList: planUpgradePlannerDrawList(planner, db),
+    };
+  }
+
+  const deconstruction = trySelectDeconstructionPlanner(docOrBlueprint, opts.blueprintPath);
+  if (deconstruction) {
+    return {
+      blueprint: null,
+      drawList: planDeconstructionPlannerDrawList(deconstruction, db),
     };
   }
 
@@ -529,6 +549,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
   if (db.assetDensity != null && db.assetDensity !== expectedDensity) {
     throw new AssetDensityMismatchError(assetTier, expectedDensity, db.assetDensity);
   }
+  await assets.ensureFonts?.();
   const atlasCache = new Map<number, Promise<ImageSource>>();
   const iconImageCache = new Map<string, ImageSource>();
   const silhouetteImageCache = new Map<string, ImageSource>();

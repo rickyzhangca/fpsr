@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
 import { planUpgradePlannerDrawList } from "../src/plan/upgrade-planner.js";
 import { RENDER_LAYERS } from "../src/types/draw-list.js";
-import type { RenderDb } from "../types/render-db.js";
+import type { RenderDb } from "../src/types/render-db.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const db = JSON.parse(

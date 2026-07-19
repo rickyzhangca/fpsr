@@ -9,6 +9,7 @@ export interface AssetManifestV2 {
   gameVersion: string;
   mods: string[];
   tiers: Record<AssetTier, AssetTierDescriptor>;
+  fonts?: { file: string; family: string; sha256?: string; bytes?: number }[];
 }
 
 export type AssetTier = "1x" | "2x";

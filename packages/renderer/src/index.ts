@@ -9,15 +9,25 @@
  */
 
 export {
+  blueprintBookCover,
+  blueprintBookCoverIcons,
   BlueprintSelectError,
   buildBookTree,
   listBlueprints,
   resolveActivePath,
   selectBlueprint,
   selectBook,
+  selectDeconstructionPlanner,
   selectUpgradePlanner,
 } from "./book.js";
-export type { BlueprintSelectReason, BookTree, BookTreeItem, BookTreeItemKind } from "./book.js";
+export type {
+  BlueprintBookCover,
+  BlueprintBookCoverNested,
+  BlueprintSelectReason,
+  BookTree,
+  BookTreeItem,
+  BookTreeItemKind,
+} from "./book.js";
 
 export {
   asUpgradePlanner,
@@ -32,7 +42,36 @@ export type {
   UpgradePlanner,
 } from "./upgrade-planner.js";
 
+export {
+  asDeconstructionPlanner,
+  DECONSTRUCTION_ENTITY_FILTER_SLOT_COUNT,
+  DECONSTRUCTION_TILE_FILTER_SLOT_COUNT,
+  deconstructionEntityFilterMode,
+  deconstructionEntityFilters,
+  deconstructionPlannerIcons,
+  deconstructionTileFilterMode,
+  deconstructionTileFilters,
+  deconstructionTileSelectionMode,
+  deconstructionTreesAndRocksOnly,
+  formatDeconstructionFilterMode,
+  formatDeconstructionTileSelectionMode,
+} from "./deconstruction-planner.js";
+export type {
+  DeconstructionEntityFilter,
+  DeconstructionFilterMode,
+  DeconstructionPlanner,
+  DeconstructionPlannerSettings,
+  DeconstructionTileFilter,
+  DeconstructionTileSelectionMode,
+} from "./deconstruction-planner.js";
+
+export {
+  DECONSTRUCTION_PLANNER_COLUMNS,
+  planDeconstructionPlannerDrawList,
+} from "./plan/deconstruction-planner.js";
 export { planUpgradePlannerDrawList, UPGRADE_PLANNER_COLUMNS } from "./plan/upgrade-planner.js";
+
+export { FPSR_TEXT_FONT_FALLBACK, FPSR_TEXT_FONT_FAMILY, fpsrTextFontCss } from "./text-font.js";
 
 export { BlueprintDecodeError, decode, decodeWithStats } from "./decode.js";
 export type { BlueprintDecodeReason } from "./decode.js";
@@ -91,6 +130,7 @@ export type {
   AssetTier,
   AssetTierManifest,
   CdnAssetsOptions,
+  ManifestFont,
 } from "./assets.js";
 
 export { computeTileFrame } from "./frame.js";
