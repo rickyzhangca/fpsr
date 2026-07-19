@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "seed": "tsx scripts/seed-blueprints.ts",
     "update": "tsx src/update.ts",
     "test": "echo 'golden regression tests are opt-in: pnpm goldens:test'",
     "test:golden": "vp test run",

@@ -2,7 +2,7 @@ import { type CanvasLike, createRenderer, decode, type RenderOptions } from "fps
 import { localAssets } from "fpsr/node";
 import { readFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
-import { type GoldenCase, bpPath } from "./cases.js";
+import { bpPath, type GoldenCase } from "./cases.js";
 
 type SeamRenderOptions = Pick<RenderOptions, "background" | "showCoordinates">;
 
@@ -20,7 +20,8 @@ export async function renderCase(
 
   const result = await renderer.render(doc, {
     pixelsPerTile: c.ppt,
-    altMode: c.alt ?? true,
+    altMode: c.alt,
+    blueprintPath: c.blueprintPath,
     background: { type: "none" },
     ...options,
   });
@@ -41,7 +42,8 @@ export async function renderTiledCase(
   });
   const result = await renderer.renderTiledPng(doc, {
     pixelsPerTile: c.ppt,
-    altMode: c.alt ?? true,
+    altMode: c.alt,
+    blueprintPath: c.blueprintPath,
     background: { type: "none" },
     tileSize: 256,
     maxStripeBytes: 256 * 256 * 4,

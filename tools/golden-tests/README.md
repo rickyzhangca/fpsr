@@ -1,7 +1,7 @@
 # Local golden PNG regression tests
 
-Curated blueprint renders are pixel-compared against local PNG baselines in
-`fixtures/golden/`.
+Canary pages from the 2.1.11 visual-test blueprint books are pixel-compared
+against local PNG baselines in `fixtures/golden/`.
 
 ## Commands
 
@@ -32,6 +32,13 @@ same kind of machine you care about matching.
 
 ## Corpus
 
-Case definitions live in `fixtures/golden/cases.json`. Blueprint strings are
-`*.bp.txt` siblings; local goldens are `<name>.png`. Failed comparisons write
-debug images to `fixtures/golden/__diff__/` (gitignored).
+`fixtures/golden/cases.json` is a thin config (`selection` + `ppt`). Cases are
+derived at load time from the visual-test manifests:
+
+- `fixtures/visual-tests/base-game/` (`book.bp.txt`)
+- `fixtures/visual-tests/official-mods/` (per-mod `*.bp.txt`)
+
+Default `selection: "canary"` matches `pnpm visual-tests:canary` /
+`pnpm visual-tests:official:canary` (7 pages). Set `"selection": "all"` to cover
+every manifest page. Local goldens are `<sanitized-page-id>.png`. Failed
+comparisons write debug images to `fixtures/golden/__diff__/` (gitignored).

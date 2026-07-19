@@ -1,11 +1,4 @@
-[
-  { "name": "smoke", "bp": "smoke.bp.txt", "ppt": 64, "alt": false },
-  { "name": "smoke-alt", "bp": "smoke.bp.txt", "ppt": 64, "alt": true },
-  { "name": "alt-mode-off", "bp": "alt-mode.bp.txt", "ppt": 64, "alt": false },
-  { "name": "alt-mode-on", "bp": "alt-mode.bp.txt", "ppt": 64, "alt": true },
-  { "name": "module-slots-off", "bp": "module-slots.bp.txt", "ppt": 64, "alt": false },
-  { "name": "module-slots-on", "bp": "module-slots.bp.txt", "ppt": 64, "alt": true },
-  { "name": "belt-ring", "bp": "belt-ring.bp.txt", "ppt": 64 },
-  { "name": "pipe-plant", "bp": "pipe-plant.bp.txt", "ppt": 64 },
-  { "name": "issue-alt-mode", "bp": "../issue-alt-mode.bp.txt", "ppt": 64, "alt": true }
-]
+{
+  "selection": "canary",
+  "ppt": 64
+}

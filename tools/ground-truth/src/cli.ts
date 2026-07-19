@@ -26,7 +26,7 @@ Camera size/position comes from fpsr planDrawList bounds (same as golden renders
 
 Commands:
   shoot     Capture one blueprint → fixtures/ground-truth/<name>.game.png
-  refresh   Clear *.game.png, then shoot every fixtures/golden/cases.json entry
+  refresh   Clear *.game.png, then shoot every golden case (visual-test canaries)
 
 Quit any running Factorio instance first (user-data lock). Requires assets-out for framing.
 `);
