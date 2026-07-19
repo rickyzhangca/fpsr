@@ -3,13 +3,13 @@ import type { BlueprintDocument } from "fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { SidebarTree, type SidebarSelectableKind } from "./sidebar-tree";
 vi.mock("@/blueprint/blueprint-icons", () => ({
   BlueprintIcons: () => <span data-testid="blueprint-icon" />,
 }));
 vi.mock("@/blueprint/factorio-item-icon", () => ({
   FactorioItemIcon: () => <span data-testid="item-icon" />,
 }));
-import { SidebarTree, type SidebarSelectableKind } from "./sidebar-tree";
 describe("SidebarTree render progress", () => {
   let host: HTMLDivElement;
   beforeEach(() => {
@@ -43,9 +43,9 @@ describe("SidebarTree render progress", () => {
             value: 47,
             label: "Loading assets 2/5",
           }}
-          onSelect={
-            vi.fn<(sourceId: string, path: number[], kind: SidebarSelectableKind) => void>()
-          }
+          onSelect={vi.fn<
+            (sourceId: string, path: number[], kind: SidebarSelectableKind) => void
+          >()}
         />,
       );
     });
@@ -69,9 +69,9 @@ describe("SidebarTree render progress", () => {
             label: "Complete",
             durationMs: 1234,
           }}
-          onSelect={
-            vi.fn<(sourceId: string, path: number[], kind: SidebarSelectableKind) => void>()
-          }
+          onSelect={vi.fn<
+            (sourceId: string, path: number[], kind: SidebarSelectableKind) => void
+          >()}
         />,
       );
     });
@@ -81,7 +81,7 @@ describe("SidebarTree render progress", () => {
     act(() => root.unmount());
   });
 
-  it("selects upgrade planners and leaves deconstruction muted", () => {
+  it("selects upgrade and deconstruction planners", () => {
     const onSelect =
       vi.fn<(sourceId: string, path: number[], kind: SidebarSelectableKind) => void>();
     const upgradeDoc: BlueprintDocument = {
@@ -110,11 +110,15 @@ describe("SidebarTree render progress", () => {
     const upgradeBtn = buttons.find((el) => el.textContent?.includes("Upgrade planner"));
     const deconBtn = buttons.find((el) => el.textContent?.includes("Deconstruction planner"));
     expect(upgradeBtn?.hasAttribute("data-muted")).toBe(false);
-    expect(deconBtn?.hasAttribute("data-muted")).toBe(true);
+    expect(deconBtn?.hasAttribute("data-muted")).toBe(false);
     act(() => {
       upgradeBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(onSelect).toHaveBeenCalledWith("up", [], "upgrade_planner");
+    act(() => {
+      deconBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onSelect).toHaveBeenCalledWith("decon", [], "deconstruction_planner");
     act(() => root.unmount());
   });
 });

@@ -1,5 +1,4 @@
 import { BlueprintIcons } from "@/blueprint/blueprint-icons";
-import { FactorioItemIcon } from "@/blueprint/factorio-item-icon";
 import { FactorioRichText } from "@/blueprint/factorio-rich-text";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -14,6 +13,7 @@ import { hotkeysCoreFeature, selectionFeature, syncDataLoaderFeature } from "@he
 import { useTree } from "@headless-tree/react";
 import {
   buildBookTree,
+  deconstructionPlannerIcons,
   upgradePlannerIcons,
   type BlueprintDocument,
   type BookTreeItemKind,
@@ -40,6 +40,8 @@ export interface SidebarTreeItem {
   label: string;
   kind: BookTreeItemKind;
   icons?: Icon[];
+  /** Override paper for book covers whose first leaf is a planner. */
+  iconBackgroundKey?: string;
   children: string[];
 }
 const EMPTY_ITEM: SidebarTreeItem = {
@@ -89,6 +91,7 @@ export const docToSidebarItems = (source: SidebarSource): Record<string, Sidebar
           label: item.label,
           kind: "book",
           icons: item.icons,
+          iconBackgroundKey: item.iconBackgroundKey,
           children: item.children.map((c) => `${source.id}:${c}`),
         };
       } else {
@@ -99,6 +102,7 @@ export const docToSidebarItems = (source: SidebarSource): Record<string, Sidebar
           label: item.label,
           kind: item.kind,
           icons: item.icons,
+          iconBackgroundKey: item.iconBackgroundKey,
           children: item.children.map((c) => `${source.id}:${c}`),
         };
       }
@@ -135,14 +139,30 @@ export const docToSidebarItems = (source: SidebarSource): Record<string, Sidebar
       },
     };
   }
-  // Deconstruction planner-only docs: muted non-selectable leaf.
+  if (source.doc.deconstruction_planner) {
+    const planner = source.doc.deconstruction_planner;
+    const label =
+      typeof planner.label === "string" && planner.label.length > 0 ? planner.label : source.label;
+    const icons = deconstructionPlannerIcons(planner);
+    return {
+      [source.id]: {
+        id: source.id,
+        sourceId: source.id,
+        path: [],
+        label,
+        kind: "deconstruction_planner",
+        icons: icons.length > 0 ? icons : undefined,
+        children: [],
+      },
+    };
+  }
   return {
     [source.id]: {
       id: source.id,
       sourceId: source.id,
       path: [],
       label: source.label,
-      kind: "deconstruction_planner",
+      kind: "blueprint",
       children: [],
     },
   };
@@ -164,15 +184,23 @@ const buildSidebarItems = (sources: SidebarSource[]): Record<string, SidebarTree
   };
   return items;
 };
-export const TreeItemKindIcon = ({ kind, icons }: { kind: BookTreeItemKind; icons?: Icon[] }) => {
-  if (kind === "blueprint" || kind === "book" || kind === "upgrade_planner") {
-    return <BlueprintIcons icons={icons} size={36} backgroundKey={KIND_ICON_KEY[kind]} />;
-  }
+export const TreeItemKindIcon = ({
+  kind,
+  icons,
+  iconBackgroundKey,
+}: {
+  kind: BookTreeItemKind;
+  icons?: Icon[];
+  iconBackgroundKey?: string;
+}) => {
+  const nestedCover =
+    kind === "book" && iconBackgroundKey ? { backgroundKey: iconBackgroundKey, icons } : undefined;
   return (
-    <FactorioItemIcon
-      iconKey={KIND_ICON_KEY[kind]}
-      className="size-9"
-      title={kind.replaceAll("_", " ")}
+    <BlueprintIcons
+      icons={nestedCover ? undefined : icons}
+      size={36}
+      backgroundKey={KIND_ICON_KEY[kind]}
+      nestedCover={nestedCover}
     />
   );
 };
@@ -184,7 +212,11 @@ const formatRenderDuration = (durationMs: number): string => {
   const seconds = totalSeconds % 60;
   return `${minutes}m ${seconds}s`;
 };
-export type SidebarSelectableKind = "book" | "blueprint" | "upgrade_planner";
+export type SidebarSelectableKind =
+  | "book"
+  | "blueprint"
+  | "upgrade_planner"
+  | "deconstruction_planner";
 export const SidebarTree = ({
   sectionId,
   sources,
@@ -266,7 +298,12 @@ export const SidebarTree = ({
       const id = next[0];
       if (!id) return;
       const data = items[id];
-      if (data?.kind === "book" || data?.kind === "blueprint" || data?.kind === "upgrade_planner") {
+      if (
+        data?.kind === "book" ||
+        data?.kind === "blueprint" ||
+        data?.kind === "upgrade_planner" ||
+        data?.kind === "deconstruction_planner"
+      ) {
         if (data.kind === "book") {
           setExpandedItems((prev) => (prev.includes(id) ? prev : [...prev, id]));
         }
@@ -299,7 +336,6 @@ export const SidebarTree = ({
         const progress = id === progressItemId ? renderProgress : null;
         const renderedDuration =
           progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
-        const isMuted = data.kind === "deconstruction_planner";
         return (
           <TreeItem key={id} className="w-max min-w-full">
             <TreeItemButton
@@ -307,7 +343,6 @@ export const SidebarTree = ({
               indent={item.getItemMeta().level * INDENT_PX}
               data-selected={item.isSelected() || undefined}
               data-focused={item.isFocused() || undefined}
-              data-muted={isMuted || undefined}
               className="w-max min-w-full"
             >
               <TreeItemIconSlot>
@@ -318,7 +353,11 @@ export const SidebarTree = ({
                 )}
               </TreeItemIconSlot>
               <TreeItemIconSlot className="size-9">
-                <TreeItemKindIcon kind={data.kind} icons={data.icons} />
+                <TreeItemKindIcon
+                  kind={data.kind}
+                  icons={data.icons}
+                  iconBackgroundKey={data.iconBackgroundKey}
+                />
               </TreeItemIconSlot>
               <span className="flex shrink-0 flex-col gap-0.5 pl-1.5">
                 <span className="whitespace-nowrap">

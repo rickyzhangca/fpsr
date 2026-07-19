@@ -93,6 +93,7 @@ export const PreviewPane = ({
   doc,
   blueprint,
   upgradePlanner = null,
+  deconstructionPlanner = null,
   blueprintPath,
   decodeStats,
   onTileSizeChange,
@@ -104,6 +105,8 @@ export const PreviewPane = ({
   blueprint: Blueprint | null;
   /** When set, renders the upgrade planner mapper grid instead of a blueprint. */
   upgradePlanner?: Record<string, unknown> | null;
+  /** When set, renders the deconstruction planner filter window instead of a blueprint. */
+  deconstructionPlanner?: Record<string, unknown> | null;
   blueprintPath: number[] | null;
   decodeStats?: DecodeStats | null;
   onTileSizeChange?: (tileSize: string) => void;
@@ -111,7 +114,8 @@ export const PreviewPane = ({
   onRenderProgress?: (progress: PreviewRenderProgress | null) => void;
   onRenderError?: (error: string | null) => void;
 }) => {
-  const hasRenderable = Boolean(blueprint || upgradePlanner);
+  const hasRenderable = Boolean(blueprint || upgradePlanner || deconstructionPlanner);
+  const isPlanner = Boolean(upgradePlanner || deconstructionPlanner);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
   const lastSuccessfulAssetOriginRef = useRef<AssetOrigin | null>(null);
@@ -283,13 +287,13 @@ export const PreviewPane = ({
   const tiledPreviewOptions = useMemo<WorkerTiledPreviewOptions>(
     () => ({
       blueprintPath: blueprintPath ?? undefined,
-      // Upgrade planner draw lists already include 1-tile outer padding.
-      padTiles: upgradePlanner ? 0 : 1,
+      // Planner draw lists already include 1-tile outer padding.
+      padTiles: isPlanner ? 0 : 1,
       altMode,
       background: renderBackground,
       showCoordinates: showCoords,
     }),
-    [blueprintPath, upgradePlanner, altMode, renderBackground, showCoords],
+    [blueprintPath, isPlanner, altMode, renderBackground, showCoords],
   );
   useEffect(() => {
     onTileSizeChangeRef.current?.(formatTileSize(lastResult));
@@ -503,7 +507,11 @@ export const PreviewPane = ({
               durationMs: result.wallMs,
             });
             trackEvent("render_complete", {
-              kind: upgradePlanner ? "upgrade_planner" : "blueprint",
+              kind: upgradePlanner
+                ? "upgrade_planner"
+                : deconstructionPlanner
+                  ? "deconstruction_planner"
+                  : "blueprint",
               wall_ms: Math.round(result.wallMs),
               entities: blueprint?.entities?.length ?? 0,
             });
@@ -540,6 +548,7 @@ export const PreviewPane = ({
     doc,
     blueprint,
     upgradePlanner,
+    deconstructionPlanner,
     hasRenderable,
     tiledPreviewOptions,
     showCoords,
@@ -646,7 +655,6 @@ export const PreviewPane = ({
   if (!doc || !hasRenderable) {
     return null;
   }
-  const isUpgradePlanner = Boolean(upgradePlanner);
   const frameDimensions = !limitTo4k && fullMeasurement ? fullMeasurement : dimensions;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -749,7 +757,7 @@ export const PreviewPane = ({
             </Tooltip>
           </Label>
         </div>
-        {!isUpgradePlanner && (
+        {!isPlanner && (
           <div className="flex items-center gap-2">
             <Switch
               size="sm"

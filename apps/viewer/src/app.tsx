@@ -20,6 +20,7 @@ import {
   initialSelection,
   resolveSelectedBlueprint,
   resolveSelectedBook,
+  resolveSelectedDeconstructionPlanner,
   resolveSelectedUpgradePlanner,
   resolveStoredSelection,
   SAMPLE_SOURCES,
@@ -33,6 +34,7 @@ import { PaneMessage } from "@/shell/pane-message";
 import { activeTabAtom, isViewerTab } from "@/shell/viewer-preferences";
 import { BlueprintSummary } from "@/sidebar/blueprint-summary";
 import { BookSummary } from "@/sidebar/book-summary";
+import { DeconstructionPlannerSummary } from "@/sidebar/deconstruction-planner-summary";
 import { SidebarPanels } from "@/sidebar/sidebar-panels";
 import { resolveSidebarSelection } from "@/sidebar/sidebar-selection";
 import { SidebarSelectionTrigger } from "@/sidebar/sidebar-selection-trigger";
@@ -154,11 +156,16 @@ export const App = () => {
     selectedPath,
     selectedKind,
   );
+  const selectedDeconstructionPlanner = resolveSelectedDeconstructionPlanner(
+    activeDoc,
+    selectedPath,
+    selectedKind,
+  );
   useEffect(() => {
     setTileSize("—");
     setPerfReport(null);
     setRenderError(null);
-  }, [selectedBlueprint]);
+  }, [selectedBlueprint, selectedUpgradePlanner, selectedDeconstructionPlanner]);
   const activeDecodeStats = decodeStatsBySource[selectedSourceId] ?? null;
   const addCustomFromString = async (source: string) => {
     const trimmed = source.trim();
@@ -188,7 +195,9 @@ export const App = () => {
           ? "book"
           : decoded.upgrade_planner
             ? "upgrade_planner"
-            : "blueprint",
+            : decoded.deconstruction_planner
+              ? "deconstruction_planner"
+              : "blueprint",
       });
       toast.success("Blueprint added", { description: label });
       return true;
@@ -228,7 +237,7 @@ export const App = () => {
       !sameRenderPath(normalizedPath, selectedPath) ||
       kind !== selectedKind
     ) {
-      if (kind === "blueprint" || kind === "upgrade_planner") {
+      if (kind === "blueprint" || kind === "upgrade_planner" || kind === "deconstruction_planner") {
         setRenderProgress({
           sourceId,
           path: normalizedPath,
@@ -242,7 +251,7 @@ export const App = () => {
     setSelectedSourceId(sourceId);
     setSelectedPath(normalizedPath);
     setSelectedKind(kind);
-    if (kind === "blueprint" || kind === "upgrade_planner") {
+    if (kind === "blueprint" || kind === "upgrade_planner" || kind === "deconstruction_planner") {
       setSidebarOpen(false);
     }
   };
@@ -370,6 +379,18 @@ export const App = () => {
                       }
                       sourceString={activeDoc?.upgrade_planner ? activeSource?.raw : undefined}
                     />
+                  ) : selectedDeconstructionPlanner ? (
+                    <DeconstructionPlannerSummary
+                      planner={selectedDeconstructionPlanner}
+                      sourceBytes={
+                        activeDoc?.deconstruction_planner
+                          ? activeDecodeStats?.inputChars
+                          : undefined
+                      }
+                      sourceString={
+                        activeDoc?.deconstruction_planner ? activeSource?.raw : undefined
+                      }
+                    />
                   ) : selectedBlueprint ? (
                     <BlueprintSummary
                       blueprint={selectedBlueprint}
@@ -383,7 +404,9 @@ export const App = () => {
                     </PaneMessage>
                   )}
 
-                  {(selectedBlueprint || selectedUpgradePlanner) && (
+                  {(selectedBlueprint ||
+                    selectedUpgradePlanner ||
+                    selectedDeconstructionPlanner) && (
                     <Tabs
                       value={tab}
                       onValueChange={(value) => {
@@ -408,6 +431,7 @@ export const App = () => {
                           doc={activeDoc}
                           blueprint={selectedBlueprint}
                           upgradePlanner={selectedUpgradePlanner}
+                          deconstructionPlanner={selectedDeconstructionPlanner}
                           blueprintPath={selectedPath}
                           decodeStats={activeDecodeStats}
                           onTileSizeChange={setTileSize}

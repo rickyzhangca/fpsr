@@ -5,8 +5,10 @@ import {
   type DrawList,
   type RenderDb,
   type RenderOptions,
+  planDeconstructionPlannerDrawList,
   planUpgradePlannerDrawList,
   selectBlueprint,
+  selectDeconstructionPlanner,
   selectUpgradePlanner,
 } from "fpsr";
 import { planDrawList } from "fpsr/planner";
@@ -29,8 +31,13 @@ function planDocumentForPreview(
     const planner = selectUpgradePlanner(doc, options.blueprintPath);
     return planUpgradePlannerDrawList(planner, db);
   } catch {
-    const blueprint = selectBlueprint(doc, options.blueprintPath);
-    return planDrawList(blueprint, db, { altMode: options.altMode });
+    try {
+      const planner = selectDeconstructionPlanner(doc, options.blueprintPath);
+      return planDeconstructionPlannerDrawList(planner, db);
+    } catch {
+      const blueprint = selectBlueprint(doc, options.blueprintPath);
+      return planDrawList(blueprint, db, { altMode: options.altMode });
+    }
   }
 }
 

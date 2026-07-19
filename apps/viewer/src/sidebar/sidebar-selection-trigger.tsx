@@ -17,7 +17,11 @@ export const SidebarSelectionTrigger = ({
       {...props}
     >
       <span className="flex min-w-0 flex-1 items-center gap-2">
-        <TreeItemKindIcon kind={selection.kind} icons={selection.icons} />
+        <TreeItemKindIcon
+          kind={selection.kind}
+          icons={selection.icons}
+          iconBackgroundKey={selection.iconBackgroundKey}
+        />
         <span className="min-w-0 truncate text-left">
           <FactorioRichText
             text={selection.label}

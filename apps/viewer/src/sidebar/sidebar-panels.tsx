@@ -51,7 +51,7 @@ export const SidebarPanels = ({
   onClearAllCustoms: () => void;
 }) => {
   return (
-    <div className="flex min-w-0 w-full flex-col gap-2 py-4 pl-4 pr-3">
+    <div className="flex min-w-0 w-full flex-col gap-2 pt-4 pb-6 pl-4 pr-3">
       <section className="flex min-w-0 flex-col gap-2">
         <p className="text-muted-foreground text-sm">Demos</p>
         <SidebarTreeScroll>

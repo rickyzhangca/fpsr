@@ -161,7 +161,7 @@ export const VIEWER_PREFERENCE_KEYS = {
 
 export const DEFAULT_PREVIEW_PREFERENCES: PreviewPreferences = {
   limitTo4k: true,
-  exportFormat: "webp",
+  exportFormat: "png",
   altMode: true,
   showCoords: false,
   showBackground: true,

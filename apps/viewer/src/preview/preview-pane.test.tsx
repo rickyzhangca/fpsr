@@ -354,7 +354,7 @@ describe("PreviewPane alt-mode toggle", () => {
     );
     expect(download?.disabled).toBe(false);
     const copy = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Copy WebP",
+      (button) => button.textContent === "Copy PNG",
     );
     expect(copy?.disabled).toBe(false);
     await act(async () => root.unmount());
@@ -610,40 +610,25 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     const formatInput = host.querySelector<HTMLInputElement>("#export-format");
     const formatSwitch = host.querySelector<HTMLInputElement>("#export-format");
-    expect(formatInput?.checked).toBe(true);
-    expect(findButton("Download 2.0 KB")?.disabled).toBe(false);
-    const copyWebp = findButton("Copy WebP");
-    expect(copyWebp).toBeTruthy();
-    expect(toImageBlob).toHaveBeenCalledTimes(1);
-    expect(toImageBlob).toHaveBeenLastCalledWith({ type: "image/webp", quality: 0.9 });
-    await act(async () => {
-      copyWebp?.click();
-    });
-    expect(mocks.clipboardWrite).toHaveBeenCalledTimes(1);
-    const webpClipboardItem = mocks.clipboardWrite.mock.calls[0]?.[0]?.[0] as
-      | ClipboardItemMock
-      | undefined;
-    expect(webpClipboardItem?.items["image/webp"]?.type).toBe("image/webp");
-    expect(toImageBlob).toHaveBeenCalledTimes(1);
-    act(() => {
-      formatSwitch?.click();
-    });
-    expect(
-      [...host.querySelectorAll<HTMLButtonElement>('[data-slot="switch"]')].every((switchEl) =>
-        switchEl.hasAttribute("data-disabled"),
-      ),
-    ).toBe(true);
+    expect(formatInput?.checked).toBe(false);
     expect(findButton("Encoding")?.disabled).toBe(true);
     await act(async () => {
       resolvePng?.(pngBlob);
       await pngPromise;
     });
-    expect(formatInput?.checked).toBe(false);
-    expect(toImageBlob).toHaveBeenLastCalledWith({ type: "image/png" });
     expect(findButton("Download 1.5 MB")?.disabled).toBe(false);
-    expect(findButton("Copy PNG")).toBeTruthy();
-    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
-    expect(toImageBlob).toHaveBeenCalledTimes(2);
+    const copyPng = findButton("Copy PNG");
+    expect(copyPng).toBeTruthy();
+    expect(toImageBlob).toHaveBeenCalledTimes(1);
+    expect(toImageBlob).toHaveBeenLastCalledWith({ type: "image/png" });
+    await act(async () => {
+      copyPng?.click();
+    });
+    expect(mocks.clipboardWrite).toHaveBeenCalledTimes(1);
+    const pngClipboardItem = mocks.clipboardWrite.mock.calls[0]?.[0]?.[0] as
+      | ClipboardItemMock
+      | undefined;
+    expect(pngClipboardItem?.items["image/png"]?.type).toBe("image/png");
     act(() => {
       formatSwitch?.click();
     });
@@ -652,7 +637,19 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(formatInput?.checked).toBe(true);
     expect(findButton("Download 2.0 KB")?.disabled).toBe(false);
-    expect(findButton("Copy WebP")).toBeTruthy();
+    expect(findButton("Copy WebP")).toBeUndefined();
+    expect(toImageBlob).toHaveBeenCalledTimes(2);
+    expect(toImageBlob).toHaveBeenLastCalledWith({ type: "image/webp", quality: 0.9 });
+    act(() => {
+      formatSwitch?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(formatInput?.checked).toBe(false);
+    expect(findButton("Download 1.5 MB")?.disabled).toBe(false);
+    expect(findButton("Copy PNG")).toBeTruthy();
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(toImageBlob).toHaveBeenCalledTimes(2);
     await act(async () => root.unmount());
   });

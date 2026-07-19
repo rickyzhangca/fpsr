@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     onSelect: (
       sourceId: string,
       path: number[],
-      kind: "book" | "blueprint" | "upgrade_planner",
+      kind: "book" | "blueprint" | "upgrade_planner" | "deconstruction_planner",
     ) => void;
   }>,
   listCustoms: vi.fn(async () => []),
@@ -28,7 +28,7 @@ vi.mock("@/sidebar/sidebar-panels", () => ({
     onSelect: (
       sourceId: string,
       path: number[],
-      kind: "book" | "blueprint" | "upgrade_planner",
+      kind: "book" | "blueprint" | "upgrade_planner" | "deconstruction_planner",
     ) => void;
   }) => {
     mocks.sidebarProps.push(props);

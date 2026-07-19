@@ -25,7 +25,9 @@ export const readLastView = (): LastView | null => {
         ? "book"
         : parsed.kind === "upgrade_planner"
           ? "upgrade_planner"
-          : "blueprint";
+          : parsed.kind === "deconstruction_planner"
+            ? "deconstruction_planner"
+            : "blueprint";
     return { sourceId: parsed.sourceId, path, kind };
   } catch {
     return null;

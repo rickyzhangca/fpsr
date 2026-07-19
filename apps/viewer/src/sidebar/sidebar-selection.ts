@@ -9,6 +9,7 @@ export interface SidebarSelectionInfo {
   label: string;
   kind: BookTreeItemKind;
   icons?: Icon[];
+  iconBackgroundKey?: string;
 }
 const FALLBACK: SidebarSelectionInfo = {
   label: "Select blueprint",
@@ -25,7 +26,12 @@ export const resolveSidebarSelection = (
   const id = selectionId(selectedSourceId, selectedPath);
   const item = items[id];
   if (item) {
-    return { label: item.label, kind: item.kind, icons: item.icons };
+    return {
+      label: item.label,
+      kind: item.kind,
+      icons: item.icons,
+      iconBackgroundKey: item.iconBackgroundKey,
+    };
   }
   return { label: source.label || FALLBACK.label, kind: FALLBACK.kind };
 };

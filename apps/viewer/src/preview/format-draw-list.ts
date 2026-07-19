@@ -80,6 +80,23 @@ export const formatDrawCmd = (cmd: DrawCmd): Record<string, unknown> => {
         backingStyle: cmd.backingStyle,
         rotation: cmd.rotation,
       });
+    case "snap-grid":
+      return {
+        kind: cmd.kind,
+        sort,
+        rect: { x: cmd.x, y: cmd.y, w: cmd.w, h: cmd.h },
+      };
+    case "text":
+      return omitUndefined({
+        kind: cmd.kind,
+        sort,
+        text: cmd.text,
+        point: { x: cmd.x, y: cmd.y },
+        size: cmd.size,
+        color: cmd.color,
+        align: cmd.align,
+        baseline: cmd.baseline,
+      });
   }
 };
 export const formatDrawList = (list: DrawList): DisplayDrawList => {

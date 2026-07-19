@@ -81,7 +81,7 @@ export const PreviewExportControls = ({
             `Download ${exportLabel}`
           ))}
       </Button>
-      {!fullResolution && (
+      {!fullResolution && exportFormat !== "webp" && (
         <Button onClick={() => void handleCopy()} disabled={controlsDisabled} title={exportError}>
           {`Copy ${exportLabel}`}
         </Button>

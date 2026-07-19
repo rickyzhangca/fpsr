@@ -8,6 +8,7 @@ import {
   resolveActivePath,
   selectBlueprint,
   selectBook,
+  selectDeconstructionPlanner,
   selectUpgradePlanner,
 } from "fpsr";
 import esnSqueegeeBp from "../../../../fixtures/demos/esn-squeegee.bp.txt?raw";
@@ -65,6 +66,12 @@ export const sourceLabel = (doc: BlueprintDocument, fallback: string): string =>
     return doc.upgrade_planner.label;
   }
   if (doc.upgrade_planner) return "Upgrade planner";
+  if (
+    typeof doc.deconstruction_planner?.label === "string" &&
+    doc.deconstruction_planner.label.length > 0
+  ) {
+    return doc.deconstruction_planner.label;
+  }
   if (doc.deconstruction_planner) return "Deconstruction planner";
   return fallback;
 };
@@ -109,6 +116,19 @@ export const resolveSelectedUpgradePlanner = (
   }
 };
 
+export const resolveSelectedDeconstructionPlanner = (
+  doc: BlueprintDocument | null,
+  path: number[] | null,
+  kind: SidebarSelectableKind,
+): Record<string, unknown> | null => {
+  if (!doc || kind !== "deconstruction_planner") return null;
+  try {
+    return selectDeconstructionPlanner(doc, path ?? undefined);
+  } catch {
+    return null;
+  }
+};
+
 /** Initial selection after pasting/opening a decoded document. */
 export const selectionForDoc = (
   doc: BlueprintDocument,
@@ -119,6 +139,9 @@ export const selectionForDoc = (
   if (doc.upgrade_planner) {
     return { path: null, kind: "upgrade_planner" };
   }
+  if (doc.deconstruction_planner) {
+    return { path: null, kind: "deconstruction_planner" };
+  }
   if (doc.blueprint_book) {
     const path = resolveActivePath(doc);
     if (!path) return { path: null, kind: "book" };
@@ -126,7 +149,17 @@ export const selectionForDoc = (
       selectUpgradePlanner(doc, path);
       return { path, kind: "upgrade_planner" };
     } catch {
-      return { path, kind: "blueprint" };
+      try {
+        selectDeconstructionPlanner(doc, path);
+        return { path, kind: "deconstruction_planner" };
+      } catch {
+        try {
+          selectBlueprint(doc, path);
+          return { path, kind: "blueprint" };
+        } catch {
+          return { path: null, kind: "book" };
+        }
+      }
     }
   }
   return { path: resolveActivePath(doc), kind: "blueprint" };
@@ -173,6 +206,7 @@ export const resolveStoredSelection = (
   if (kind === "book") {
     if (!doc.blueprint_book) {
       if (doc.upgrade_planner) return { path: null, kind: "upgrade_planner" };
+      if (doc.deconstruction_planner) return { path: null, kind: "deconstruction_planner" };
       return { path: resolveActivePath(doc), kind: "blueprint" };
     }
     try {
@@ -188,11 +222,23 @@ export const resolveStoredSelection = (
       return { path, kind: "upgrade_planner" };
     } catch {
       if (doc.upgrade_planner) return { path: null, kind: "upgrade_planner" };
-      return { path: resolveActivePath(doc), kind: "blueprint" };
+      return selectionForDoc(doc);
+    }
+  }
+  if (kind === "deconstruction_planner") {
+    try {
+      selectDeconstructionPlanner(doc, path ?? undefined);
+      return { path, kind: "deconstruction_planner" };
+    } catch {
+      if (doc.deconstruction_planner) return { path: null, kind: "deconstruction_planner" };
+      return selectionForDoc(doc);
     }
   }
   if (doc.upgrade_planner && !doc.blueprint && !doc.blueprint_book) {
     return { path: null, kind: "upgrade_planner" };
+  }
+  if (doc.deconstruction_planner && !doc.blueprint && !doc.blueprint_book) {
+    return { path: null, kind: "deconstruction_planner" };
   }
   if (!doc.blueprint_book) return { path: null, kind: "blueprint" };
   try {

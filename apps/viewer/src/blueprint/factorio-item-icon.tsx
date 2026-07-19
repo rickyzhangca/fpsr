@@ -226,9 +226,11 @@ export const FactorioItemIcon = ({
   }, [quality, showQuality]);
   const pad = silhouette ? (loaded?.pad ?? 0) : 0;
   const displaySize = iconSize ?? (Math.max(loaded?.frameW ?? 0, loaded?.frameH ?? 0) || 16);
+  // `block` (not inline-block): absolute blueprint slots use normal flow; inline-block
+  // + baseline alignment shifts quality-wrapped icons down within the slot.
   const boxClass = inline
     ? "relative block size-full overflow-visible"
-    : "relative inline-block shrink-0 align-middle overflow-visible";
+    : "relative block shrink-0 overflow-visible";
   if (!loaded?.url) {
     if (inline) {
       return <span className="block size-full bg-muted/40" aria-hidden />;
@@ -283,6 +285,13 @@ export const FactorioItemIcon = ({
     return (
       <span className={boxClass} title={title}>
         {mainImg}
+      </span>
+    );
+  }
+  if (iconSize) {
+    return (
+      <span className={boxClass} style={{ width: displaySize, height: displaySize }} title={title}>
+        <span className="absolute inset-0 flex items-center justify-center">{mainImg}</span>
       </span>
     );
   }
