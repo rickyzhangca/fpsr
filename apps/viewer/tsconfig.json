@@ -10,7 +10,14 @@
     "isolatedModules": true,
     "paths": {
       "@/*": ["./src/*"],
-      "fpsr": ["../../packages/renderer/src/index.ts"]
+      "fpsr": ["../../packages/renderer/src/index.ts"],
+      "fpsr/planner": ["../../packages/renderer/src/planner.ts"],
+      "fpsr/canvas": ["../../packages/renderer/src/canvas.ts"],
+      "fpsr/render-db": ["../../packages/renderer/src/render-db.ts"],
+      "fpsr/node": ["../../packages/renderer/src/node.ts"],
+      "fpsr-internal/prepared-viewport": [
+        "../../packages/renderer/src/internal/prepared-viewport.ts"
+      ]
     }
   },
   "include": ["src"]

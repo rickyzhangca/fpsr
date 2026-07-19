@@ -103,38 +103,61 @@ listBlueprints(doc: BlueprintDocument): BlueprintRef[]; // flattened book tree
 selectBlueprint(doc: BlueprintDocument, path?: number[]): Blueprint; // default: active_index chain
 
 // planning — pure, needs render-db but no images
-planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList;
+planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList; // from "fpsr/planner"
+resolve(bp, db, opts?): { entities: ResolvedEntity[]; warnings: string[] }; // from "fpsr/planner"
 analyzePlan(bp: Blueprint, drawList: DrawList, db: RenderDb): PlanDiagnostics;
 countBlueprintComponents(bp: Blueprint, db: RenderDb): BlueprintComponentCount[];
 
 // rendering — async, needs assets
-const r = await createRenderer({ assets: AssetSource, renderDb?: RenderDb });
-const measurement = r.measure(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize? });
-const out = await r.render(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize?, altMode?, background?, showCheckerboard?, showBackgroundAuto?, showSpace?, showSpacePlanet?, spacePlanet?, terrainBackground?, showCoordinates? });
+const r = await createRenderer({ assets: AssetSource, renderDb?: RenderDb, assetTier?: "1x"|"2x" });
+const measurement = r.measure(docOrBp, { blueprintPath?, pixelsPerTile?, maxOutputSize?, padTiles?, altMode? });
+const out = await r.render(docOrBp, {
+  blueprintPath?, pixelsPerTile?, maxOutputSize?, altMode?,
+  background?: { type: "none"|"solid"|"checkerboard"|"space"|"terrain"|"auto", ... },
+  showCoordinates?,
+});
 // out: { canvas, width, height, drawList, toPngBlob()/toPngBuffer() }
+// In-repo tiled preview uses an internal prepared-viewport helper (not exported).
 
 // asset sources
 cdnAssets(baseUrl: string): AssetSource;      // browser+node fetch
 localAssets(dir: string): AssetSource;        // node only, subpath export "fpsr/node"
+// Subpaths: "fpsr/planner", "fpsr/canvas", "fpsr/render-db"
 ```
 
 `AssetSource` contract:
 
 ```ts
 interface AssetSource {
-  loadRenderDb(): Promise<RenderDb>;
-  loadAtlasImage(index: number): Promise<CanvasImageSource>; // ImageBitmap in browser, skia-canvas Image in node
+  loadRenderDb(tier?: AssetTier, options?: { signal?: AbortSignal }): Promise<RenderDb>;
+  loadAtlasImage(
+    index: number,
+    tier?: AssetTier,
+    options?: { signal?: AbortSignal },
+  ): Promise<ImageSource>;
+  dispose?(): void; // owner-only; Renderer.dispose never calls this
 }
 ```
 
+AbortSignal semantics: aborting rejects only the waiting caller; shared in-flight
+loads continue for other consumers and do not poison successful cache entries.
+The renderer atlas cache stores signal-independent shared promises and applies
+per-caller waiter-only abort at the boundary.
+
+`Renderer.dispose()` releases renderer-owned derived caches (icon crops /
+silhouettes) only. It does not dispose a shared `AssetSource` or close
+source-owned atlas images.
+
 Amendments ratified during M1 (binding):
 
-- `resolve(bp, db, warningsOut?: string[])` — unknown entities are skipped and reported
-  via the optional out-array, never thrown.
+- `resolve(bp, db, opts?)` returns `{ entities, warnings }` — unknown entities are
+  skipped and reported via `warnings`, never thrown.
 - `executeDrawList(ctx, list, images, opts)` requires `opts.frames: FrameMeta[]`
   (trim math needs frame metadata; the DrawList carries only frame ids).
-- `PlanOptions.background` is not emitted into the draw list; the backend/renderer
-  applies it as a canvas clear.
+- `PlanOptions` no longer includes `background` (backend/renderer concern) or
+  mutable `profileOut`; use `planDrawListWithOptions({ profile: true })` or the
+  renderer's `profile` flag. The renderer may use an internal planner entry with
+  `profileOut`; that type is not part of `fpsr/planner`.
 - `PlanOptions.altMode` emits only blueprint-derived entity info: recipes,
   configured filters/requests/items, static display-panel icons (not circuit
   message parameters), splitter priorities, and quality badges. It does not

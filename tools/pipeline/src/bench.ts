@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { decode, planDrawList, selectBlueprint, type RenderDb } from "fpsr";
+import { decode, selectBlueprint, type RenderDb } from "fpsr";
+import { planDrawList } from "fpsr/planner";
 import { readAssetBundle, type AssetTier } from "./verify.js";
 
 export interface AssetBenchResult {

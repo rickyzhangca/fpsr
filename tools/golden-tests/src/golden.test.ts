@@ -66,9 +66,9 @@ describe("golden PNG regression", () => {
   for (const scenario of [
     {
       name: "checkerboard and coordinate overlays",
-      options: { showCheckerboard: true, showCoordinates: true },
+      options: { background: { type: "checkerboard" }, showCoordinates: true },
     },
-    { name: "space backgrounds", options: { showSpace: true } },
+    { name: "space backgrounds", options: { background: { type: "space" } } },
   ] as const) {
     it.skipIf(!hasAssets || !tiledCase)(
       `has no visible tile seams for ${scenario.name}`,

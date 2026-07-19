@@ -110,14 +110,15 @@ export function migrateTo2x(bp: Blueprint): Blueprint {
 }
 
 function migrateBookEntry(entry: BlueprintBookEntry): BlueprintBookEntry {
-  let next = entry;
-  if (entry.blueprint) {
-    next = { ...next, blueprint: migrateTo2x(entry.blueprint) };
+  if ("blueprint" in entry && entry.blueprint) {
+    const { blueprint, ...rest } = entry;
+    return { ...rest, index: entry.index, blueprint: migrateTo2x(blueprint) };
   }
-  if (entry.blueprint_book) {
-    next = { ...next, blueprint_book: migrateBook(entry.blueprint_book) };
+  if ("blueprint_book" in entry && entry.blueprint_book) {
+    const { blueprint_book, ...rest } = entry;
+    return { ...rest, index: entry.index, blueprint_book: migrateBook(blueprint_book) };
   }
-  return next;
+  return entry;
 }
 
 function migrateBook(book: BlueprintBook): BlueprintBook {

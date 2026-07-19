@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "types": ["node"],
+    "noEmit": true,
+    "paths": {
+      "fpsr": ["./dist/index.d.ts"],
+      "fpsr/*": ["./dist/*.d.ts"]
+    }
+  },
+  "include": ["scripts/node-decls-check.ts"],
+  "exclude": ["src", "test", "dist"]
+}

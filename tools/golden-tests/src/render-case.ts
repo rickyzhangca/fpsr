@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
 import { type GoldenCase, bpPath } from "./cases.js";
 
-type SeamRenderOptions = Pick<RenderOptions, "showCheckerboard" | "showCoordinates" | "showSpace">;
+type SeamRenderOptions = Pick<RenderOptions, "background" | "showCoordinates">;
 
 export async function renderCase(
   c: GoldenCase,
@@ -21,8 +21,7 @@ export async function renderCase(
   const result = await renderer.render(doc, {
     pixelsPerTile: c.ppt,
     altMode: c.alt ?? true,
-    showCheckerboard: false,
-    background: null,
+    background: { type: "none" },
     ...options,
   });
 
@@ -43,8 +42,7 @@ export async function renderTiledCase(
   const result = await renderer.renderTiledPng(doc, {
     pixelsPerTile: c.ppt,
     altMode: c.alt ?? true,
-    showCheckerboard: false,
-    background: null,
+    background: { type: "none" },
     tileSize: 256,
     maxStripeBytes: 256 * 256 * 4,
     ...options,

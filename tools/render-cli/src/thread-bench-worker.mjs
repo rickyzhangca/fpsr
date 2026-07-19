@@ -12,7 +12,7 @@ const renderer = await createRenderer({
 const options = {
   pixelsPerTile: workerData.pixelsPerTile,
   altMode: true,
-  background: null,
+  background: { type: "none" },
   profile: true,
   canvas,
 };

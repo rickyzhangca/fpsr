@@ -31,6 +31,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./planner": {
+      "types": "./dist/planner.d.ts",
+      "import": "./dist/planner.js"
+    },
+    "./canvas": {
+      "types": "./dist/canvas.d.ts",
+      "import": "./dist/canvas.js"
+    },
+    "./render-db": {
+      "types": "./dist/render-db.d.ts",
+      "import": "./dist/render-db.js"
+    },
     "./node": {
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"
@@ -44,6 +56,7 @@
     "test": "vp test run",
     "lint": "vp lint",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "typecheck:node-decls": "tsc -p tsconfig.node-decls.json --noEmit",
     "format": "vp fmt",
     "fixtures": "tsx scripts/make-fixtures.ts"
   },

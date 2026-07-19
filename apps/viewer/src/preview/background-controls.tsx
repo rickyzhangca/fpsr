@@ -1,4 +1,5 @@
 import type { PreviewBackgroundMode } from "@/shell/viewer-preferences";
+import type { RenderBackground } from "fpsr";
 
 export const DEFAULT_ORBIT_PLANETS = ["nauvis"] as const;
 export const ORBIT_SELECT_PREFIX = "orbit:";
@@ -28,6 +29,29 @@ export const isTerrainBackgroundMode = (
   value: string,
 ): value is (typeof TERRAIN_BACKGROUND_MODES)[number] => {
   return (TERRAIN_BACKGROUND_MODES as ReadonlyArray<string>).includes(value);
+};
+
+export const toRenderBackground = (
+  showBackground: boolean,
+  backgroundMode: PreviewBackgroundMode,
+  orbitPlanet: string,
+): RenderBackground => {
+  if (!showBackground) return { type: "none" };
+  switch (backgroundMode) {
+    case "auto":
+      return { type: "auto" };
+    case "checkerboard":
+      return { type: "checkerboard" };
+    case "space":
+      return { type: "space" };
+    case "orbit":
+      return { type: "space", planet: true, planetName: orbitPlanet };
+    default:
+      if (isTerrainBackgroundMode(backgroundMode)) {
+        return { type: "terrain", name: backgroundMode };
+      }
+      return { type: "none" };
+  }
 };
 
 const TERRAIN_SWATCH: Record<(typeof TERRAIN_BACKGROUND_MODES)[number], string> = {

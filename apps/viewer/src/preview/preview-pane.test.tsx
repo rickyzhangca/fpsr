@@ -190,10 +190,7 @@ describe("PreviewPane alt-mode toggle", () => {
       pixelsPerTile: 64,
       maxOutputSize: { width: 4096, height: 4096 },
       padTiles: 1,
-      showBackgroundAuto: true,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: undefined,
+      background: { type: "auto" },
       signal: expect.any(AbortSignal),
     });
     const toggle = host.querySelector<HTMLButtonElement>("#alt-mode");
@@ -238,10 +235,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({
-      showBackgroundAuto: true,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: undefined,
+      background: { type: "auto" },
     });
     const backgroundSwitch = host.querySelector<HTMLButtonElement>("#background");
     expect(backgroundSwitch).toBeTruthy();
@@ -253,10 +247,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(2);
     expect(mocks.renderPreview.mock.calls[1]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: undefined,
+      background: { type: "none" },
     });
     const trigger = host.querySelector<HTMLButtonElement>("#background-mode");
     expect(trigger).toBeTruthy();
@@ -269,10 +260,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(3);
     expect(mocks.renderPreview.mock.calls[2]?.[2]).toMatchObject({
-      showBackgroundAuto: true,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: undefined,
+      background: { type: "auto" },
     });
     expect(trigger?.disabled).toBe(false);
     act(() => {
@@ -290,11 +278,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(4);
     expect(mocks.renderPreview.mock.calls[3]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: true,
-      showSpacePlanet: false,
-      terrainBackground: undefined,
+      background: { type: "space" },
     });
     act(() => {
       trigger?.click();
@@ -311,12 +295,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(5);
     expect(mocks.renderPreview.mock.calls[4]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: true,
-      showSpacePlanet: true,
-      spacePlanet: "nauvis",
-      terrainBackground: undefined,
+      background: { type: "space", planet: true, planetName: "nauvis" },
     });
     act(() => {
       trigger?.click();
@@ -336,12 +315,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(6);
     expect(mocks.renderPreview.mock.calls[5]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: true,
-      showSpacePlanet: true,
-      spacePlanet: "vulcanus",
-      terrainBackground: undefined,
+      background: { type: "space", planet: true, planetName: "vulcanus" },
     });
     act(() => {
       trigger?.click();
@@ -358,10 +332,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(7);
     expect(mocks.renderPreview.mock.calls[6]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: "dirt",
+      background: { type: "terrain", name: "dirt" },
     });
     act(() => {
       trigger?.click();
@@ -378,10 +349,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(8);
     expect(mocks.renderPreview.mock.calls[7]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: "water",
+      background: { type: "terrain", name: "water" },
     });
     // Re-selecting the current mode must not leave the UI stuck on "Rendering".
     act(() => {
@@ -418,10 +386,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(9);
     expect(mocks.renderPreview.mock.calls[8]?.[2]).toMatchObject({
-      showBackgroundAuto: true,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: undefined,
+      background: { type: "auto" },
     });
     act(() => {
       trigger?.click();
@@ -438,15 +403,12 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(10);
     expect(mocks.renderPreview.mock.calls[9]?.[2]).toMatchObject({
-      showBackgroundAuto: false,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: "vulcanus",
+      background: { type: "terrain", name: "vulcanus" },
     });
     await act(async () => root.unmount());
   });
 
-  it("passes showBackgroundAuto for space-platform blueprints without resolving locally", async () => {
+  it("passes auto background for space-platform blueprints without resolving locally", async () => {
     const blueprint: Blueprint = {
       item: "blueprint",
       version: 0,
@@ -464,10 +426,7 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     expect(mocks.renderPreview.mock.calls[0]?.[2]).toMatchObject({
-      showBackgroundAuto: true,
-      showCheckerboard: false,
-      showSpace: false,
-      terrainBackground: undefined,
+      background: { type: "auto" },
     });
     await act(async () => root.unmount());
   });
@@ -591,14 +550,12 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.measurePreview).toHaveBeenCalledTimes(1);
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
-    expect(host.textContent).toContain("Full-resolution tiled preview");
     expect(host.textContent).toContain("5696×9664px");
-    expect(host.textContent).toContain("preparing visible tiles");
     expect(host.textContent).not.toContain("Large full-resolution render");
     const formatSwitch = host.querySelector<HTMLInputElement>("#export-format");
     expect(formatSwitch?.disabled).toBe(true);
     const download = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Download full-res PNG",
+      (button) => button.textContent === "Download PNG",
     );
     expect(download?.disabled).toBe(false);
     await act(async () => {

@@ -384,11 +384,13 @@ export function resolveWithContext(
   return out;
 }
 
-export function resolve(
-  bp: Blueprint,
-  db: RenderDb,
-  warningsOut?: string[],
-  opts?: ResolveOptions,
-): ResolvedEntity[] {
-  return resolveWithContext(createResolveContext(migrateTo2x(bp), db), warningsOut, opts);
+export function resolve(bp: Blueprint, db: RenderDb, opts?: ResolveOptions): ResolveResult {
+  const warnings: string[] = [];
+  const entities = resolveWithContext(createResolveContext(migrateTo2x(bp), db), warnings, opts);
+  return { entities, warnings };
+}
+
+export interface ResolveResult {
+  entities: ResolvedEntity[];
+  warnings: string[];
 }

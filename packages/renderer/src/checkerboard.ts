@@ -1,4 +1,5 @@
 import type { Canvas2DContextLike } from "./canvas2d.js";
+import type { ImageSource } from "./host.js";
 
 const TILE_LIGHT = "#1a1a1a";
 const TILE_DARK = "#252525";
@@ -36,7 +37,7 @@ export function blitWithTileCheckerboard(
     height: number;
     getContext(type: "2d"): Canvas2DContextLike | null;
   },
-  image: CanvasImageSource,
+  image: ImageSource,
   width: number,
   height: number,
   pixelsPerTile: number,

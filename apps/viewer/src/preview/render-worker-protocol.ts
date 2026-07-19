@@ -3,7 +3,6 @@ import type {
   Blueprint,
   BlueprintDocument,
   DrawList,
-  PlanOptions,
   RenderImageOptions,
   RenderOptions,
   RenderMeasurement,
@@ -11,17 +10,13 @@ import type {
   RenderProgressEvent,
   TileFrame,
 } from "fpsr";
+import type { PlanOptions } from "fpsr/planner";
 import type { PlanDiagnostics } from "@/process/plan-diagnostics";
 import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
 export type WorkerTiledPreviewOptions = Omit<
   WorkerRenderOptions,
-  | "maxOutputSize"
-  | "outputTileFrame"
-  | "pixelsPerTile"
-  | "preparedDrawList"
-  | "profile"
-  | "tileFrame"
+  "maxOutputSize" | "pixelsPerTile" | "profile"
 >;
 export type WorkerPlanOptions = Pick<PlanOptions, "altMode" | "beltEndings">;
 export interface PreviewRenderProgress {

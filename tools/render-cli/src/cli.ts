@@ -3,6 +3,7 @@
 import {
   type CanvasLike,
   type DecodeStats,
+  type RenderOptions,
   type RenderProfile,
   createRenderer,
   decodeWithStats,
@@ -110,11 +111,11 @@ async function main(): Promise<void> {
     createCanvas: (width, height) => new Canvas(width, height) as unknown as CanvasLike,
   });
 
-  const renderOpts = {
+  const renderOpts: RenderOptions = {
     blueprintPath: opts.blueprintPath,
     pixelsPerTile: opts.ppt,
     altMode: opts.alt,
-    background: null as null,
+    background: { type: "none" },
     profile: opts.profile,
   };
 

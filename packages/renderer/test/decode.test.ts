@@ -87,4 +87,70 @@ describe("decode", () => {
     expect(error).toBeInstanceOf(BlueprintDecodeError);
     expect((error as BlueprintDecodeError).reason).toBe("invalid-document");
   });
+
+  it("throws invalid-document for blueprint:null wrappers", () => {
+    const error = captureError(() => decode('{"blueprint":null}'));
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect((error as BlueprintDecodeError).reason).toBe("invalid-document");
+    expect(String(error)).toContain("null");
+  });
+
+  it("throws invalid-document for book entries with null content", () => {
+    const raw = JSON.stringify({
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [{ index: 0, blueprint: null }],
+      },
+    });
+    const error = captureError(() => decode(raw));
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect((error as BlueprintDecodeError).reason).toBe("invalid-document");
+  });
+
+  it("throws invalid-document when a book entry has zero content keys", () => {
+    const raw = JSON.stringify({
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        blueprints: [{ index: 0 }],
+      },
+    });
+    const error = captureError(() => decode(raw));
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect((error as BlueprintDecodeError).reason).toBe("invalid-document");
+  });
+
+  it("throws invalid-document for empty blueprint payload", () => {
+    const error = captureError(() => decode('{"blueprint":{}}'));
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect((error as BlueprintDecodeError).reason).toBe("invalid-document");
+    expect(String(error)).toMatch(/item|version/);
+  });
+
+  it("throws invalid-document when blueprint item is wrong", () => {
+    const error = captureError(() =>
+      decode(JSON.stringify({ blueprint: { item: "blueprint-book", version: 1 } })),
+    );
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect(String(error)).toContain('"blueprint"');
+  });
+
+  it("throws invalid-document when blueprint version is missing", () => {
+    const error = captureError(() => decode(JSON.stringify({ blueprint: { item: "blueprint" } })));
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect(String(error)).toContain("version");
+  });
+
+  it("throws invalid-document for empty blueprint_book payload", () => {
+    const error = captureError(() => decode('{"blueprint_book":{}}'));
+    expect(error).toBeInstanceOf(BlueprintDecodeError);
+    expect((error as BlueprintDecodeError).reason).toBe("invalid-document");
+  });
+
+  it("accepts opaque upgrade_planner objects without item/version", () => {
+    expect(decode(JSON.stringify({ upgrade_planner: { settings: {} } }))).toEqual({
+      upgrade_planner: { settings: {} },
+    });
+  });
 });

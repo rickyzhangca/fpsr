@@ -1,11 +1,6 @@
 import { cn } from "@/lib/utils";
-import {
-  bakeEntityInfoSilhouette,
-  entityInfoSilhouettePadPx,
-  resolveIconFrameId,
-  type FrameMeta,
-  type RenderDb,
-} from "fpsr";
+import { resolveIconFrameId, type FrameMeta, type RenderDb } from "fpsr";
+import { bakeEntityInfoSilhouette, entityInfoSilhouettePadPx } from "fpsr/canvas";
 import { useEffect, useState, type CSSProperties } from "react";
 import { viewerAssets as assets } from "@/shell/viewer-assets";
 /** Alt-mode entity-info silhouette defaults (see `icon-silhouette.ts`). */
@@ -95,7 +90,7 @@ const compositeWithSilhouette = (
   const ctx = out.getContext("2d");
   if (!ctx) return iconCanvas.toDataURL("image/png") || null;
   ctx.globalAlpha = intensity;
-  ctx.drawImage(silhouette, 0, 0);
+  ctx.drawImage(silhouette as CanvasImageSource, 0, 0);
   ctx.globalAlpha = 1;
   ctx.drawImage(iconCanvas, pad, pad);
   return out.toDataURL("image/png") || null;
@@ -115,7 +110,7 @@ const loadIcon = async (
       if (frameId === undefined) return null;
       const frame = db.frames[frameId];
       if (!frame) return null;
-      const atlas = await assets.loadAtlasImage(frame.a);
+      const atlas = (await assets.loadAtlasImage(frame.a)) as CanvasImageSource;
       const iconCanvas = cropFrameToCanvas(atlas, frame);
       if (!resolved) {
         return {

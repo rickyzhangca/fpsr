@@ -1,4 +1,5 @@
 import type { Canvas2DContextLike } from "./canvas2d.js";
+import type { ImageSource } from "./host.js";
 import type { FrameMeta } from "./types/render-db.js";
 
 const SPACE_FILL = "#000000";
@@ -48,7 +49,7 @@ const cellHash = (cellX: number, cellY: number, salt: number): number => {
 
 export interface SpacePlanetDecoration {
   frame: FrameMeta;
-  image: CanvasImageSource;
+  image: ImageSource;
 }
 
 export interface DrawSpaceBackgroundOptions {

@@ -1,3 +1,5 @@
+import type { ImageDataLike, ImageSource } from "./host.js";
+
 /** Pixel radius for feMorphology-style alpha dilation on entity-info icons. */
 export const ENTITY_INFO_SILHOUETTE_RADIUS_PX = 12;
 /** Soft blur applied after dilation to feather the silhouette edge. */
@@ -12,10 +14,10 @@ export function entityInfoSilhouettePadPx(
 }
 
 export interface ImageDataContext {
-  drawImage(image: CanvasImageSource, dx: number, dy: number): void;
-  createImageData?(sw: number, sh: number): ImageData;
-  getImageData(sx: number, sy: number, sw: number, sh: number): ImageData;
-  putImageData(data: ImageData, dx: number, dy: number): void;
+  drawImage(image: ImageSource, dx: number, dy: number): void;
+  createImageData?(sw: number, sh: number): ImageDataLike;
+  getImageData(sx: number, sy: number, sw: number, sh: number): ImageDataLike;
+  putImageData(data: ImageDataLike, dx: number, dy: number): void;
 }
 
 /** Box blur on the alpha channel; output RGB is solid black. */
@@ -190,11 +192,11 @@ export interface SilhouetteCanvasLike {
 
 /** Bake from an already-cropped icon without reading back a second offscreen canvas. */
 export function bakeEntityInfoSilhouetteFromImageData(
-  iconData: ImageData,
+  iconData: ImageDataLike,
   createCanvas: (width: number, height: number) => SilhouetteCanvasLike,
   dilateRadius = ENTITY_INFO_SILHOUETTE_RADIUS_PX,
   blurRadius = ENTITY_INFO_SILHOUETTE_BLUR_PX,
-): CanvasImageSource | undefined {
+): ImageSource | undefined {
   const iconWidth = iconData.width;
   const iconHeight = iconData.height;
   const pad = entityInfoSilhouettePadPx(dilateRadius, blurRadius);
@@ -217,7 +219,7 @@ export function bakeEntityInfoSilhouetteFromImageData(
   const alpha = dilateAlphaChannel(imageData.data, width, height, dilateRadius);
   writeBlurredBlackRgba(alpha, imageData.data, width, height, blurRadius);
   ctx.putImageData(imageData, 0, 0);
-  return canvas as unknown as CanvasImageSource;
+  return canvas as unknown as ImageSource;
 }
 
 /**
@@ -225,13 +227,13 @@ export function bakeEntityInfoSilhouetteFromImageData(
  * Returns undefined when the canvas context cannot read/write ImageData.
  */
 export function bakeEntityInfoSilhouette(
-  iconImage: CanvasImageSource,
+  iconImage: ImageSource,
   iconWidth: number,
   iconHeight: number,
   createCanvas: (width: number, height: number) => SilhouetteCanvasLike,
   dilateRadius = ENTITY_INFO_SILHOUETTE_RADIUS_PX,
   blurRadius = ENTITY_INFO_SILHOUETTE_BLUR_PX,
-): CanvasImageSource | undefined {
+): ImageSource | undefined {
   const pad = entityInfoSilhouettePadPx(dilateRadius, blurRadius);
   const width = iconWidth + 2 * pad;
   const height = iconHeight + 2 * pad;
@@ -246,5 +248,5 @@ export function bakeEntityInfoSilhouette(
   const alpha = dilateAlphaChannel(imageData.data, width, height, dilateRadius);
   writeBlurredBlackRgba(alpha, imageData.data, width, height, blurRadius);
   ctx.putImageData(imageData, 0, 0);
-  return canvas as unknown as CanvasImageSource;
+  return canvas as unknown as ImageSource;
 }

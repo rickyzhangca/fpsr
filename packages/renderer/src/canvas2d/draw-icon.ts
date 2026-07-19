@@ -1,3 +1,4 @@
+import type { ImageSource } from "../host.js";
 import { entityInfoSilhouettePadPx } from "../icon-silhouette.js";
 import type { IconCmd } from "../types/draw-list.js";
 import type { FrameMeta } from "../types/render-db.js";
@@ -22,11 +23,11 @@ export function drawIcon(
   ctx: Canvas2DContextLike,
   cmd: IconCmd,
   frame: FrameMeta,
-  image: CanvasImageSource,
+  image: ImageSource,
   frames: FrameMeta[],
-  images: CanvasImageSource[],
-  iconImage: CanvasImageSource | undefined,
-  silhouetteImage: CanvasImageSource | undefined,
+  images: ImageSource[],
+  iconImage: ImageSource | undefined,
+  silhouetteImage: ImageSource | undefined,
   ox: number,
   oy: number,
   ppt: number,
@@ -93,7 +94,7 @@ export function drawIcon(
   const needsEntityInfoSilhouette =
     !isRequestPin && (hasEntityInfoBacking || cmd.silhouette === true);
   const drawIconLayer = (
-    sourceImage: CanvasImageSource,
+    sourceImage: ImageSource,
     sourceX: number,
     sourceY: number,
     sourceW: number,

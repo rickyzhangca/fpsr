@@ -1,7 +1,6 @@
 import { formatGameVersion } from "@/blueprint/blueprint-meta";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -43,6 +42,7 @@ import {
   parseOrbitSelectValue,
   sortOrbitPlanets,
   staticBackgroundOptionLabel,
+  toRenderBackground,
 } from "./background-controls";
 import { PreviewExportControls } from "./export-controls";
 import { EXPORT_OPTIONS, formatTileSize, resultPixelsPerTile, type ExportFormat } from "./format";
@@ -54,10 +54,10 @@ import {
   renderPreview,
   type PreviewRenderResult,
 } from "./preview-renderer";
-import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
-import { TiledPreviewLayer, type TiledPreviewStatus } from "./tiled-preview-layer";
 import type { TiledPreviewViewport } from "./preview-tiles";
+import { ASSETS_MISSING_HINT, isMissingAssetsError } from "./render-errors";
 import type { PreviewRenderProgress, WorkerTiledPreviewOptions } from "./render-worker-protocol";
+import { TiledPreviewLayer } from "./tiled-preview-layer";
 
 const FULL_PIXELS_PER_TILE = 64;
 const MAX_OUTPUT_SIZE = { width: 4096, height: 4096 } as const;
@@ -123,7 +123,6 @@ export const PreviewPane = ({
   const setLimitTo4k = (value: boolean) => {
     if (value) {
       setTiledViewport(null);
-      setTiledStatus(null);
     }
     setPreviewPreferences((previous) => ({ ...previous, limitTo4k: value }));
   };
@@ -161,7 +160,6 @@ export const PreviewPane = ({
   const [lastResult, setLastResult] = useState<PreviewRenderResult | null>(null);
   const [fullMeasurement, setFullMeasurement] = useState<RenderMeasurement | null>(null);
   const [tiledViewport, setTiledViewport] = useState<TiledPreviewViewport | null>(null);
-  const [tiledStatus, setTiledStatus] = useState<TiledPreviewStatus | null>(null);
   const [previewMaxOutput, setPreviewMaxOutput] = useState<{ width: number; height: number }>(
     MAX_OUTPUT_SIZE,
   );
@@ -228,22 +226,19 @@ export const PreviewPane = ({
   for (const planet of orbitPlanetOptions) {
     backgroundSelectItems[orbitSelectValue(planet)] = `${formatPlanetLabel(planet)} orbit`;
   }
+  const renderBackground = useMemo(
+    () => toRenderBackground(showBackground, backgroundMode, orbitPlanet),
+    [showBackground, backgroundMode, orbitPlanet],
+  );
   const tiledPreviewOptions = useMemo<WorkerTiledPreviewOptions>(
     () => ({
       blueprintPath: blueprintPath ?? undefined,
       padTiles: 1,
       altMode,
-      background: null,
-      showBackgroundAuto: showBackground && backgroundMode === "auto",
-      showCheckerboard: showBackground && backgroundMode === "checkerboard",
-      showSpace: showBackground && (backgroundMode === "space" || backgroundMode === "orbit"),
-      showSpacePlanet: showBackground && backgroundMode === "orbit",
-      spacePlanet: backgroundMode === "orbit" ? orbitPlanet : undefined,
-      terrainBackground:
-        showBackground && isTerrainBackgroundMode(backgroundMode) ? backgroundMode : undefined,
+      background: renderBackground,
       showCoordinates: showCoords,
     }),
-    [blueprintPath, altMode, showBackground, backgroundMode, orbitPlanet, showCoords],
+    [blueprintPath, altMode, renderBackground, showCoords],
   );
   useEffect(() => {
     onTileSizeChange?.(formatTileSize(lastResult));
@@ -479,9 +474,8 @@ export const PreviewPane = ({
       return;
     }
     let stale = false;
-    setMeasuringFull(true);
     setFullMeasurement(null);
-    setTiledStatus(null);
+    setMeasuringFull(true);
     setError(null);
     onRenderProgress?.({ value: 3, label: "Measuring full-resolution output" });
     void measurePreview(doc, {
@@ -516,15 +510,6 @@ export const PreviewPane = ({
   }, []);
   const handleTiledViewportChange = useCallback((viewport: TiledPreviewViewport | null) => {
     setTiledViewport(viewport);
-  }, []);
-  const handleTiledStatusChange = useCallback((status: TiledPreviewStatus) => {
-    setTiledStatus((current) =>
-      current?.pixelsPerTile === status.pixelsPerTile &&
-      current.ready === status.ready &&
-      current.total === status.total
-        ? current
-        : status,
-    );
   }, []);
   const handleTiledPreviewError = useCallback(
     (reason: Error) => {
@@ -578,17 +563,35 @@ export const PreviewPane = ({
           <Switch
             size="sm"
             id="limit-to-4k"
-            checked={!limitTo4k}
+            checked={limitTo4k}
             disabled={controlsDisabled}
-            onCheckedChange={(checked) => setLimitTo4k(!checked)}
+            onCheckedChange={setLimitTo4k}
           />
           <Label htmlFor="limit-to-4k" className="gap-1.5">
-            Full-res export
+            Limit to 4K
             <span className="text-muted-foreground">
               {!limitTo4k && fullMeasurement
                 ? `${fullMeasurement.width}×${fullMeasurement.height}px`
                 : dimensions && `${dimensions.width}×${dimensions.height}px`}
             </span>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    aria-label="About resolution limits"
+                  />
+                }
+              >
+                <InfoIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm text-pretty">
+                When enabled, preview and export are capped to 4K resolution. When disabled, the
+                full image is shown as a tiled preview. Visible tiles load as you zoom or pan like
+                Google Maps.
+              </TooltipContent>
+            </Tooltip>
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -615,9 +618,8 @@ export const PreviewPane = ({
                 <InfoIcon className="size-3.5" />
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-sm text-pretty">
-                {limitTo4k
-                  ? "Smaller file size, but takes longer to encode."
-                  : "Full-resolution exports use streaming PNG so they never need one giant canvas."}
+                WebP provides smaller file size, but takes longer to encode. Can be enabled when
+                Limit to 4K is enabled.
               </TooltipContent>
             </Tooltip>
           </Label>
@@ -719,22 +721,6 @@ export const PreviewPane = ({
         </div>
       </div>
 
-      {!limitTo4k && (
-        <Alert className="mx-4 mb-3 shrink-0">
-          {measuringFull ? <Spinner /> : <InfoIcon />}
-          <AlertTitle>
-            {measuringFull ? "Preparing full-resolution preview" : "Full-resolution tiled preview"}
-          </AlertTitle>
-          <AlertDescription>
-            {fullMeasurement
-              ? tiledStatus
-                ? `${fullMeasurement.width}×${fullMeasurement.height}px · visible tiles ${tiledStatus.ready}/${tiledStatus.total} at ${tiledStatus.pixelsPerTile}px/tile. Zoom or pan to load more detail; Download and Copy still use streaming PNG.`
-                : `${fullMeasurement.width}×${fullMeasurement.height}px · fitting the full image and preparing visible tiles.`
-              : "Measuring the full image before loading the visible tiles."}
-          </AlertDescription>
-        </Alert>
-      )}
-
       {assetsMissing && (
         <Alert className="shrink-0 mx-4">
           <AlertTitle>Assets missing</AlertTitle>
@@ -760,7 +746,6 @@ export const PreviewPane = ({
               options={tiledPreviewOptions}
               measurement={fullMeasurement}
               viewport={tiledViewport}
-              onStatusChange={handleTiledStatusChange}
               onError={handleTiledPreviewError}
             />
           ) : null

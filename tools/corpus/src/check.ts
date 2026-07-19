@@ -1,15 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  type CanvasLike,
-  createRenderer,
-  decode,
-  planDrawList,
-  resolve,
-  selectBlueprint,
-} from "fpsr";
+import { type CanvasLike, createRenderer, decode, selectBlueprint } from "fpsr";
 import type { RenderDb } from "fpsr";
+import { planDrawList, resolve } from "fpsr/planner";
 import { localAssets } from "fpsr/node";
 import { Canvas } from "skia-canvas";
 
@@ -67,8 +61,7 @@ async function main(): Promise<void> {
     try {
       const doc = decode(source);
       const bp = selectBlueprint(doc);
-      const resolveWarnings: string[] = [];
-      resolve(bp, db, resolveWarnings);
+      const { warnings: resolveWarnings } = resolve(bp, db);
       for (const w of resolveWarnings) warnings.push(`[${id}] ${w}`);
 
       // Also plan to catch planner errors early.
@@ -76,8 +69,7 @@ async function main(): Promise<void> {
 
       const result = await renderer.render(doc, {
         pixelsPerTile: 16,
-        showCheckerboard: false,
-        background: null,
+        background: { type: "none" },
       });
       const png = await result.toPngBuffer();
       await writeFile(path.join(PNG_DIR, `${id}.png`), png);

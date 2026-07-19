@@ -1,8 +1,16 @@
+import { raceWithAbort, throwIfAborted as throwIfSignalAborted } from "./abort.js";
 import type { AssetSource, AssetTier } from "./assets.js";
+import {
+  AssetDensityMismatchError,
+  resolveBackground,
+  UnknownTerrainBackgroundError,
+  type RenderBackground,
+} from "./background.js";
 import { selectBlueprint } from "./book.js";
 import type { Canvas2DContextLike, ExecuteDrawListStats } from "./canvas2d.js";
 import * as canvas2d from "./canvas2d.js";
 import { computeTileFrame, type TileFrame } from "./frame.js";
+import type { ImageDataLike, ImageSource } from "./host.js";
 import {
   bakeEntityInfoSilhouette,
   bakeEntityInfoSilhouetteFromImageData,
@@ -11,7 +19,7 @@ import {
   type ImageDataContext,
   type SilhouetteCanvasLike,
 } from "./icon-silhouette.js";
-import { planDrawList } from "./plan.js";
+import { planDrawList, planDrawListInternal } from "./plan.js";
 import { createStreamingPngEncoder } from "./png-stream.js";
 import {
   nowMs,
@@ -27,6 +35,9 @@ import { drawListForTile } from "./tiled-draw-list.js";
 import type { Blueprint, BlueprintDocument } from "./types/blueprint.js";
 import type { DrawList } from "./types/draw-list.js";
 import type { RenderDb, SpaceBackground, TerrainPatchBackground } from "./types/render-db.js";
+
+export type { RenderBackground } from "./background.js";
+export { AssetDensityMismatchError, UnknownTerrainBackgroundError } from "./background.js";
 
 export interface CanvasLike {
   width: number;
@@ -82,6 +93,21 @@ export type RenderProgressEvent =
   | { stage: "encoding" }
   | { stage: "complete" };
 
+/**
+ * Layout-only options for {@link Renderer.measure}.
+ * Honored fields affect planned bounds / output size; paint-only options are omitted.
+ */
+export interface MeasureOptions {
+  blueprintPath?: number[];
+  pixelsPerTile?: number;
+  maxOutputSize?: MaxOutputSize;
+  padTiles?: number;
+  altMode?: boolean;
+  beltEndings?: boolean;
+  signal?: AbortSignal;
+}
+
+/** Public render options (no prepared-viewport / tiled internals). */
 export interface RenderOptions {
   blueprintPath?: number[];
   pixelsPerTile?: number;
@@ -91,48 +117,37 @@ export interface RenderOptions {
    */
   maxOutputSize?: MaxOutputSize;
   altMode?: boolean;
-  background?: [number, number, number, number] | null;
+  beltEndings?: boolean;
+  /** Discriminated background mode. Defaults to `{ type: "none" }`. */
+  background?: RenderBackground;
   padTiles?: number;
-  /**
-   * When true, pick checkerboard vs space from the blueprint (space platform → space).
-   * Overrides the other `show*` background flags.
-   */
-  showBackgroundAuto?: boolean;
-  /** Draw tile-aligned checkerboard behind commands (replaces solid background). */
-  showCheckerboard?: boolean;
-  /** Draw a procedural space starfield behind commands (replaces solid/checkerboard). */
-  showSpace?: boolean;
-  /**
-   * When `showSpace` is set, also draw the render-db space-platform planet
-   * (e.g. Nauvis) in the bottom-left. Starfield-only when omitted/false.
-   */
-  showSpacePlanet?: boolean;
-  /**
-   * Factorio planet prototype name selecting which starmap frame to draw when
-   * `showSpacePlanet` is set. Falls back to `spaceBackground.planetFrame`.
-   */
-  spacePlanet?: string;
-  /** Named entry from `RenderDb.terrainBackgrounds` (e.g. "dirt", "vulcanus"). */
-  terrainBackground?: string;
   /** Draw tile grid lines and map-space coordinate labels. */
   showCoordinates?: boolean;
   /** Reuse an existing canvas instead of creating one. */
   canvas?: CanvasLike;
-  /** Advanced: render only this tile-aligned viewport. */
-  tileFrame?: TileFrame;
-  /** Full frame containing `tileFrame`, used to anchor global backgrounds. */
-  outputTileFrame?: TileFrame;
-  /** Internal/prepared draw list used by tiled exporters to avoid replanning each tile. */
-  preparedDrawList?: DrawList;
   /** Cancel before the destination canvas is resized or painted. */
   signal?: AbortSignal;
   /** Coarse, host-neutral render stages suitable for progress UI. */
   onProgress?: (event: RenderProgressEvent) => void;
   /**
    * When true, collect stage timings / draw-list stats onto `RenderResult.profile`.
-   * Near-zero overhead when omitted/false.
+   * Near-zero overhead when omitted/false. Ignored by {@link Renderer.renderTiledPng}.
    */
   profile?: boolean;
+}
+
+/**
+ * Internal prepared-viewport paint options used by the viewer tiled preview and
+ * the tiled PNG exporter. Not part of the stable public `render()` contract —
+ * see `internal/prepared-viewport.ts`.
+ */
+export interface PreparedViewportRenderOptions extends RenderOptions {
+  /** Advanced: render only this tile-aligned viewport. */
+  tileFrame: TileFrame;
+  /** Full frame containing `tileFrame`, used to anchor global backgrounds. */
+  outputTileFrame: TileFrame;
+  /** Prepared draw list (already clipped) to avoid replanning each tile. */
+  preparedDrawList: DrawList;
 }
 
 export interface RenderResult {
@@ -153,7 +168,7 @@ export interface RenderResult {
 
 export interface Renderer {
   /** Plan bounds and output dimensions without loading atlases or painting. */
-  measure(docOrBlueprint: BlueprintDocument | Blueprint, opts?: RenderOptions): RenderMeasurement;
+  measure(docOrBlueprint: BlueprintDocument | Blueprint, opts?: MeasureOptions): RenderMeasurement;
   render(
     docOrBlueprint: BlueprintDocument | Blueprint,
     opts?: RenderOptions,
@@ -163,16 +178,24 @@ export interface Renderer {
     docOrBlueprint: BlueprintDocument | Blueprint,
     opts?: TiledPngOptions,
   ): Promise<TiledPngResult>;
+  /**
+   * Release renderer-owned derived caches (icon crops / silhouettes).
+   * Does **not** dispose the caller-supplied {@link AssetSource} or close
+   * atlas `ImageSource` objects owned by that source.
+   */
+  dispose(): void;
 }
 
 export interface TiledPngOptions extends Omit<
   RenderOptions,
-  "canvas" | "maxOutputSize" | "preparedDrawList" | "tileFrame" | "outputTileFrame"
+  "canvas" | "maxOutputSize" | "profile" | "onProgress"
 > {
   /** Target maximum edge of each temporary canvas. Defaults to 2048 px. */
   tileSize?: number;
   /** Maximum assembled raw strip memory. Defaults to 32 MiB. */
   maxStripeBytes?: number;
+  signal?: AbortSignal;
+  onProgress?: (event: RenderProgressEvent) => void;
 }
 
 export interface TiledPngResult {
@@ -228,16 +251,11 @@ function isBlueprint(value: BlueprintDocument | Blueprint): value is Blueprint {
 }
 
 /** Resolve Auto background into concrete checkerboard / space flags. */
-function resolveBackgroundOpts(bp: Blueprint, opts: RenderOptions): RenderOptions {
-  if (!opts.showBackgroundAuto) return opts;
-  const useSpace = blueprintPrefersPlatformGraphics(bp);
-  return {
-    ...opts,
-    showCheckerboard: !useSpace,
-    showSpace: useSpace,
-    showSpacePlanet: false,
-    terrainBackground: undefined,
-  };
+function resolveBackgroundOpts(
+  bp: Blueprint,
+  background: RenderBackground | undefined,
+): ReturnType<typeof resolveBackground> {
+  return resolveBackground(blueprintPrefersPlatformGraphics(bp), background);
 }
 
 function defaultCreateCanvas(width: number, height: number): CanvasLike {
@@ -266,14 +284,16 @@ async function encodeCanvasBlob(
   if (typeof canvas.convertToBlob === "function") {
     blob = await canvas.convertToBlob({ type, quality: options.quality });
   } else {
-    const htmlCanvas = canvas as unknown as HTMLCanvasElement;
+    const htmlCanvas = canvas as unknown as {
+      toBlob?: (callback: (blob: Blob | null) => void, type?: string, quality?: number) => void;
+    };
     if (typeof htmlCanvas.toBlob !== "function") {
       throw new Error(
         "Canvas does not support image blob encoding; use OffscreenCanvas or HTMLCanvasElement.",
       );
     }
     blob = await new Promise<Blob>((resolve, reject) => {
-      htmlCanvas.toBlob(
+      htmlCanvas.toBlob!(
         (encoded) => {
           if (encoded) resolve(encoded);
           else reject(new Error("canvas.toBlob returned null"));
@@ -339,11 +359,14 @@ function collectAtlasIndices(
 
 function selectTerrainBackground(
   db: RenderDb,
-  opts: RenderOptions,
+  terrainName: string | undefined,
 ): TerrainPatchBackground | undefined {
-  if (opts.showSpace) return undefined;
-  if (opts.terrainBackground == null) return undefined;
-  return db.terrainBackgrounds?.[opts.terrainBackground];
+  if (terrainName == null) return undefined;
+  const background = db.terrainBackgrounds?.[terrainName];
+  if (!background) {
+    throw new UnknownTerrainBackgroundError(terrainName);
+  }
+  return background;
 }
 
 /** Resolve the starmap frame for an optional planet prototype name. */
@@ -359,9 +382,12 @@ export function resolveSpacePlanetFrameId(
   return spaceBackground.planetFrame;
 }
 
-function selectSpaceBackground(db: RenderDb, opts: RenderOptions): SpaceBackground | undefined {
-  if (!opts.showSpace || !opts.showSpacePlanet || !db.spaceBackground) return undefined;
-  const planetFrame = resolveSpacePlanetFrameId(db.spaceBackground, opts.spacePlanet);
+function selectSpaceBackground(
+  db: RenderDb,
+  resolved: ReturnType<typeof resolveBackground>,
+): SpaceBackground | undefined {
+  if (!resolved.showSpace || !resolved.showSpacePlanet || !db.spaceBackground) return undefined;
+  const planetFrame = resolveSpacePlanetFrameId(db.spaceBackground, resolved.spacePlanet);
   if (planetFrame == null) return undefined;
   return { ...db.spaceBackground, planetFrame };
 }
@@ -401,14 +427,37 @@ function emptyPlanProfile(): PlanProfile {
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
-  if (!signal?.aborted) return;
-  if (typeof signal.throwIfAborted === "function") signal.throwIfAborted();
-  const error = new Error("Render aborted");
-  error.name = "AbortError";
-  throw error;
+  throwIfSignalAborted(signal, "Render aborted");
 }
 
-function reportProgress(opts: RenderOptions, event: RenderProgressEvent): void {
+/**
+ * Internal registry so tiled/viewer hosts can paint prepared viewports without
+ * exposing that method on the stable {@link Renderer} type.
+ */
+const preparedViewportByRenderer = new WeakMap<
+  Renderer,
+  (
+    docOrBlueprint: BlueprintDocument | Blueprint,
+    opts: PreparedViewportRenderOptions,
+  ) => Promise<RenderResult>
+>();
+
+/** @internal Used by `internal/prepared-viewport.ts` only. */
+export function getPreparedViewportHandler(
+  renderer: Renderer,
+):
+  | ((
+      docOrBlueprint: BlueprintDocument | Blueprint,
+      opts: PreparedViewportRenderOptions,
+    ) => Promise<RenderResult>)
+  | undefined {
+  return preparedViewportByRenderer.get(renderer);
+}
+
+function reportProgress(
+  opts: { signal?: AbortSignal; onProgress?: (event: RenderProgressEvent) => void },
+  event: RenderProgressEvent,
+): void {
   if (!opts.signal?.aborted) opts.onProgress?.(event);
 }
 
@@ -421,11 +470,19 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
   const assetTier = options.assetTier ?? "2x";
   const createCanvas = options.createCanvas ?? defaultCreateCanvas;
   const db = options.renderDb ?? (await assets.loadRenderDb(assetTier));
-  const atlasCache = new Map<number, Promise<CanvasImageSource>>();
-  const iconImageCache = new Map<string, CanvasImageSource>();
-  const silhouetteImageCache = new Map<string, CanvasImageSource>();
+  const expectedDensity = assetTier === "1x" ? 1 : 2;
+  if (db.assetDensity != null && db.assetDensity !== expectedDensity) {
+    throw new AssetDensityMismatchError(assetTier, expectedDensity, db.assetDensity);
+  }
+  const atlasCache = new Map<number, Promise<ImageSource>>();
+  const iconImageCache = new Map<string, ImageSource>();
+  const silhouetteImageCache = new Map<string, ImageSource>();
 
-  const loadAtlas = (index: number): Promise<CanvasImageSource> => {
+  /**
+   * Cache only signal-independent shared atlas promises. Per-caller abort is
+   * applied via {@link raceWithAbort} so concurrent renders are not coupled.
+   */
+  const loadAtlas = (index: number, signal?: AbortSignal): Promise<ImageSource> => {
     let pending = atlasCache.get(index);
     if (!pending) {
       pending = assets.loadAtlasImage(index, assetTier).catch((error) => {
@@ -434,8 +491,337 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       });
       atlasCache.set(index, pending);
     }
-    return pending;
+    return raceWithAbort(pending, signal);
   };
+
+  /** Shared paint path for both a fresh plan (`render`) and a prepared viewport. */
+  async function paint(
+    docOrBlueprint: BlueprintDocument | Blueprint,
+    opts: RenderOptions & Partial<PreparedViewportRenderOptions>,
+  ): Promise<RenderResult> {
+    throwIfAborted(opts.signal);
+    const wantProfile = opts.profile === true;
+    const tTotal = wantProfile ? nowMs() : 0;
+    if (wantProfile) perfMark("fpsr-render-start");
+
+    let t = wantProfile ? nowMs() : 0;
+    const bp = isBlueprint(docOrBlueprint)
+      ? docOrBlueprint
+      : selectBlueprint(docOrBlueprint, opts.blueprintPath);
+    const selectMs = wantProfile ? nowMs() - t : 0;
+    const bg = resolveBackgroundOpts(bp, opts.background);
+
+    const requestedPixelsPerTile = opts.pixelsPerTile ?? 64;
+    const padTiles = opts.padTiles ?? 0;
+
+    const planProfile = wantProfile ? emptyPlanProfile() : undefined;
+    reportProgress(opts, { stage: "planning" });
+    if (wantProfile) perfMark("fpsr-plan-start");
+    const drawList =
+      opts.preparedDrawList ??
+      planDrawListInternal(bp, db, {
+        altMode: opts.altMode,
+        beltEndings: opts.beltEndings,
+        profileOut: planProfile,
+      }).drawList;
+    throwIfAborted(opts.signal);
+    if (wantProfile) {
+      perfMark("fpsr-plan-end");
+      perfMeasure("fpsr-plan", "fpsr-plan-start", "fpsr-plan-end");
+    }
+
+    const terrainBackground = selectTerrainBackground(db, bg.terrainName);
+    const spaceBackground = selectSpaceBackground(db, bg);
+    const atlasIndices = collectAtlasIndices(
+      drawList,
+      db,
+      terrainBackground,
+      spaceBackground?.planetFrame,
+    );
+    const assetEvents: AssetEvent[] = [];
+    let loadedAtlasCount = 0;
+    reportProgress(opts, {
+      stage: "loading-assets",
+      completed: loadedAtlasCount,
+      total: atlasIndices.length,
+    });
+
+    if (wantProfile) perfMark("fpsr-assets-start");
+    const tAssets = wantProfile ? nowMs() : 0;
+    const loaded = await Promise.all(
+      atlasIndices.map(async (i) => {
+        const cached = atlasCache.has(i);
+        const tAtlas = wantProfile ? nowMs() : 0;
+        const img = await loadAtlas(i, opts.signal);
+        loadedAtlasCount++;
+        reportProgress(opts, {
+          stage: "loading-assets",
+          completed: loadedAtlasCount,
+          total: atlasIndices.length,
+        });
+        if (wantProfile) {
+          const atlas = db.atlases[i];
+          assetEvents.push({
+            kind: "atlas",
+            index: i,
+            tier: assetTier,
+            cached,
+            decodedPixels: atlas ? atlas.width * atlas.height : undefined,
+            totalMs: nowMs() - tAtlas,
+          });
+        }
+        return img;
+      }),
+    );
+    const assetsMs = wantProfile ? nowMs() - tAssets : 0;
+    throwIfAborted(opts.signal);
+    if (wantProfile) {
+      perfMark("fpsr-assets-end");
+      perfMeasure("fpsr-assets", "fpsr-assets-start", "fpsr-assets-end");
+    }
+
+    const images: ImageSource[] = [];
+    for (let i = 0; i < atlasIndices.length; i++) {
+      const idx = atlasIndices[i];
+      const img = loaded[i];
+      if (idx !== undefined && img !== undefined) {
+        images[idx] = img;
+      }
+    }
+
+    t = wantProfile ? nowMs() : 0;
+    reportProgress(opts, { stage: "baking-icons" });
+    const iconImages = new Map<number, ImageSource>();
+    const iconImageData = new Map<number, ImageDataLike>();
+    const silhouetteImages = new Map<number, ImageSource>();
+    const seenIconKeys = new Set<string>();
+    const seenSilhouetteKeys = new Set<string>();
+    let iconCacheHits = 0;
+    let iconCacheMisses = 0;
+    let silhouetteCacheHits = 0;
+    let silhouetteCacheMisses = 0;
+    for (const cmd of drawList.commands) {
+      if (
+        cmd.kind !== "icon" ||
+        (cmd.backingFrame == null && cmd.backing !== true && cmd.silhouette !== true)
+      ) {
+        continue;
+      }
+      const frame = db.frames[cmd.frame];
+      const atlasImage = frame ? images[frame.a] : undefined;
+      if (!frame || !atlasImage || frame.w <= 0 || frame.h <= 0) continue;
+
+      const packedWidth = frame.pw ?? frame.w;
+      const packedHeight = frame.ph ?? frame.h;
+
+      const iconKey = `${assetTier}:${cmd.frame}:${packedWidth}x${packedHeight}`;
+      const cachedIcon = iconImageCache.get(iconKey);
+      if (!seenIconKeys.has(iconKey)) {
+        seenIconKeys.add(iconKey);
+        if (cachedIcon) iconCacheHits++;
+      }
+      if (cachedIcon) {
+        iconImages.set(cmd.frame, cachedIcon);
+      } else if (!iconImages.has(cmd.frame)) {
+        const iconCanvas = createCanvas(packedWidth, packedHeight);
+        iconCanvas.width = packedWidth;
+        iconCanvas.height = packedHeight;
+        const iconContext = iconCanvas.getContext("2d");
+        if (!iconContext) continue;
+        iconContext.drawImage(
+          atlasImage,
+          frame.x,
+          frame.y,
+          packedWidth,
+          packedHeight,
+          0,
+          0,
+          packedWidth,
+          packedHeight,
+        );
+        const image = iconCanvas as unknown as ImageSource;
+        iconImages.set(cmd.frame, image);
+        iconImageCache.set(iconKey, image);
+        const readableContext = iconContext as unknown as Partial<ImageDataContext>;
+        if (
+          cmd.backingStyle !== "request-pin" &&
+          typeof readableContext.getImageData === "function"
+        ) {
+          iconImageData.set(
+            cmd.frame,
+            readableContext.getImageData(0, 0, packedWidth, packedHeight),
+          );
+        }
+        iconCacheMisses++;
+      }
+
+      if (cmd.backingStyle === "request-pin" || silhouetteImages.has(cmd.frame)) continue;
+      const densityScale = (db.assetDensity ?? 2) / 2;
+      const dilateRadius = Math.max(1, Math.round(ENTITY_INFO_SILHOUETTE_RADIUS_PX * densityScale));
+      const blurRadius = Math.max(1, Math.round(ENTITY_INFO_SILHOUETTE_BLUR_PX * densityScale));
+      const silhouetteKey = `${iconKey}:${dilateRadius}:${blurRadius}`;
+      const cachedSilhouette = silhouetteImageCache.get(silhouetteKey);
+      if (!seenSilhouetteKeys.has(silhouetteKey)) {
+        seenSilhouetteKeys.add(silhouetteKey);
+        if (cachedSilhouette) silhouetteCacheHits++;
+      }
+      if (cachedSilhouette) {
+        silhouetteImages.set(cmd.frame, cachedSilhouette);
+        continue;
+      }
+      const iconSource = iconImages.get(cmd.frame);
+      if (!iconSource) continue;
+      const sourceData = iconImageData.get(cmd.frame);
+      const silhouette = sourceData
+        ? bakeEntityInfoSilhouetteFromImageData(
+            sourceData,
+            createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
+            dilateRadius,
+            blurRadius,
+          )
+        : bakeEntityInfoSilhouette(
+            iconSource,
+            packedWidth,
+            packedHeight,
+            createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
+            dilateRadius,
+            blurRadius,
+          );
+      if (silhouette) {
+        silhouetteImages.set(cmd.frame, silhouette);
+        silhouetteImageCache.set(silhouetteKey, silhouette);
+        silhouetteCacheMisses++;
+      }
+    }
+    const iconBakeMs = wantProfile ? nowMs() - t : 0;
+
+    t = wantProfile ? nowMs() : 0;
+    const outputTileFrame = opts.outputTileFrame ?? computeTileFrame(drawList.bounds, padTiles);
+    const tileFrame = opts.tileFrame ?? outputTileFrame;
+    if (
+      tileFrame.minX < outputTileFrame.minX ||
+      tileFrame.minY < outputTileFrame.minY ||
+      tileFrame.maxX > outputTileFrame.maxX ||
+      tileFrame.maxY > outputTileFrame.maxY ||
+      tileFrame.minX >= tileFrame.maxX ||
+      tileFrame.minY >= tileFrame.maxY
+    ) {
+      throw new Error("tileFrame must be a non-empty viewport inside outputTileFrame");
+    }
+    const output = measureTileFrame(tileFrame, requestedPixelsPerTile, opts.maxOutputSize);
+    const { width, height, pixelsPerTile } = output;
+
+    throwIfAborted(opts.signal);
+    const canvas = opts.canvas ?? createCanvas(width, height);
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to acquire 2d canvas context");
+    }
+    const frameMs = wantProfile ? nowMs() - t : 0;
+
+    if (wantProfile) perfMark("fpsr-paint-start");
+    reportProgress(opts, { stage: "painting" });
+    t = wantProfile ? nowMs() : 0;
+    const paintStats: ExecuteDrawListStats = {
+      shadowRuns: 0,
+      shadowTiles: 0,
+      shadowCompositedPixels: 0,
+      shadowPeakScratchPixels: 0,
+    };
+    const paintList = opts.tileFrame ? drawListForTile(drawList, db.frames, tileFrame) : drawList;
+    canvas2d.executeDrawList(ctx, paintList, images, {
+      pixelsPerTile,
+      padTiles,
+      tileFrame,
+      outputTileFrame,
+      background: bg.solid,
+      showCheckerboard: bg.showCheckerboard,
+      showSpace: bg.showSpace,
+      terrainBackground,
+      spaceBackground,
+      showCoordinates: opts.showCoordinates,
+      frames: db.frames,
+      iconImages,
+      silhouetteImages,
+      createCanvas,
+      stats: paintStats,
+    });
+    const paintMs = wantProfile ? nowMs() - t : 0;
+    if (wantProfile) {
+      perfMark("fpsr-paint-end");
+      perfMeasure("fpsr-paint", "fpsr-paint-start", "fpsr-paint-end");
+      perfMark("fpsr-render-end");
+      perfMeasure("fpsr-render", "fpsr-render-start", "fpsr-render-end");
+    }
+
+    const profile: RenderProfile | undefined = wantProfile
+      ? {
+          selectMs,
+          plan: planProfile ?? emptyPlanProfile(),
+          assets: assetEvents,
+          assetsMs,
+          iconBakeMs,
+          iconBakeCount: iconImages.size,
+          silhouetteBakeCount: silhouetteImages.size,
+          iconCacheHits,
+          iconCacheMisses,
+          silhouetteCacheHits,
+          silhouetteCacheMisses,
+          frameMs,
+          paintMs,
+          shadow: {
+            runs: paintStats.shadowRuns,
+            tiles: paintStats.shadowTiles,
+            compositedPixels: paintStats.shadowCompositedPixels,
+            peakScratchPixels: paintStats.shadowPeakScratchPixels,
+          },
+          totalMs: nowMs() - tTotal,
+          cold: assetEvents.some((e) => !e.cached),
+          drawList: summarizeDrawList(drawList, atlasIndices),
+          output: {
+            width,
+            height,
+            megapixels: (width * height) / 1_000_000,
+            pixelsPerTile,
+            requestedPixelsPerTile,
+            capped: output.capped,
+            assetTier,
+            tileFrame,
+          },
+          db: {
+            entityDefs: Object.keys(db.entities).length,
+            tileDefs: Object.keys(db.tiles).length,
+            frameCount: db.frames.length,
+            atlasCount: db.atlases.length,
+          },
+        }
+      : undefined;
+
+    reportProgress(opts, { stage: "complete" });
+
+    return {
+      canvas,
+      width,
+      height,
+      drawList,
+      tileFrame,
+      profile,
+      toImageBlob(options?: RenderImageOptions): Promise<Blob> {
+        return encodeCanvasBlob(canvas, options);
+      },
+      toImageBuffer(options?: RenderImageOptions): Promise<Uint8Array> {
+        return encodeCanvasBuffer(canvas, options);
+      },
+      async toPngBlob(): Promise<Blob> {
+        return encodeCanvasBlob(canvas, { type: "image/png" });
+      },
+      async toPngBuffer(): Promise<Uint8Array> {
+        return encodeCanvasBuffer(canvas, { type: "image/png" });
+      },
+    };
+  }
 
   const renderer: Renderer = {
     measure(docOrBlueprint, opts = {}): RenderMeasurement {
@@ -445,343 +831,15 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
         : selectBlueprint(docOrBlueprint, opts.blueprintPath);
       const drawList = planDrawList(bp, db, {
         altMode: opts.altMode,
-        background: opts.background ?? null,
+        beltEndings: opts.beltEndings,
       });
       throwIfAborted(opts.signal);
       const tileFrame = computeTileFrame(drawList.bounds, opts.padTiles ?? 0);
       return measureTileFrame(tileFrame, opts.pixelsPerTile ?? 64, opts.maxOutputSize);
     },
 
-    async render(docOrBlueprint, opts = {}): Promise<RenderResult> {
-      throwIfAborted(opts.signal);
-      const wantProfile = opts.profile === true;
-      const tTotal = wantProfile ? nowMs() : 0;
-      if (wantProfile) perfMark("fpsr-render-start");
-
-      let t = wantProfile ? nowMs() : 0;
-      const bp = isBlueprint(docOrBlueprint)
-        ? docOrBlueprint
-        : selectBlueprint(docOrBlueprint, opts.blueprintPath);
-      const selectMs = wantProfile ? nowMs() - t : 0;
-      const resolvedOpts = resolveBackgroundOpts(bp, opts);
-
-      const requestedPixelsPerTile = resolvedOpts.pixelsPerTile ?? 64;
-      const padTiles = resolvedOpts.padTiles ?? 0;
-      const background = resolvedOpts.background ?? null;
-
-      const planProfile = wantProfile ? emptyPlanProfile() : undefined;
-      reportProgress(resolvedOpts, { stage: "planning" });
-      if (wantProfile) perfMark("fpsr-plan-start");
-      const drawList =
-        resolvedOpts.preparedDrawList ??
-        planDrawList(bp, db, {
-          altMode: resolvedOpts.altMode,
-          background,
-          profileOut: planProfile,
-        });
-      throwIfAborted(resolvedOpts.signal);
-      if (wantProfile) {
-        perfMark("fpsr-plan-end");
-        perfMeasure("fpsr-plan", "fpsr-plan-start", "fpsr-plan-end");
-      }
-
-      const terrainBackground = selectTerrainBackground(db, resolvedOpts);
-      const spaceBackground = selectSpaceBackground(db, resolvedOpts);
-      const atlasIndices = collectAtlasIndices(
-        drawList,
-        db,
-        terrainBackground,
-        spaceBackground?.planetFrame,
-      );
-      const assetEvents: AssetEvent[] = [];
-      let loadedAtlasCount = 0;
-      reportProgress(opts, {
-        stage: "loading-assets",
-        completed: loadedAtlasCount,
-        total: atlasIndices.length,
-      });
-
-      if (wantProfile) perfMark("fpsr-assets-start");
-      const tAssets = wantProfile ? nowMs() : 0;
-      const loaded = await Promise.all(
-        atlasIndices.map(async (i) => {
-          const cached = atlasCache.has(i);
-          const tAtlas = wantProfile ? nowMs() : 0;
-          const img = await loadAtlas(i);
-          loadedAtlasCount++;
-          reportProgress(opts, {
-            stage: "loading-assets",
-            completed: loadedAtlasCount,
-            total: atlasIndices.length,
-          });
-          if (wantProfile) {
-            const atlas = db.atlases[i];
-            assetEvents.push({
-              kind: "atlas",
-              index: i,
-              tier: assetTier,
-              cached,
-              decodedPixels: atlas ? atlas.width * atlas.height : undefined,
-              totalMs: nowMs() - tAtlas,
-            });
-          }
-          return img;
-        }),
-      );
-      const assetsMs = wantProfile ? nowMs() - tAssets : 0;
-      throwIfAborted(opts.signal);
-      if (wantProfile) {
-        perfMark("fpsr-assets-end");
-        perfMeasure("fpsr-assets", "fpsr-assets-start", "fpsr-assets-end");
-      }
-
-      const images: CanvasImageSource[] = [];
-      for (let i = 0; i < atlasIndices.length; i++) {
-        const idx = atlasIndices[i];
-        const img = loaded[i];
-        if (idx !== undefined && img !== undefined) {
-          images[idx] = img;
-        }
-      }
-
-      t = wantProfile ? nowMs() : 0;
-      reportProgress(opts, { stage: "baking-icons" });
-      const iconImages = new Map<number, CanvasImageSource>();
-      const iconImageData = new Map<number, ImageData>();
-      const silhouetteImages = new Map<number, CanvasImageSource>();
-      const seenIconKeys = new Set<string>();
-      const seenSilhouetteKeys = new Set<string>();
-      let iconCacheHits = 0;
-      let iconCacheMisses = 0;
-      let silhouetteCacheHits = 0;
-      let silhouetteCacheMisses = 0;
-      for (const cmd of drawList.commands) {
-        if (
-          cmd.kind !== "icon" ||
-          (cmd.backingFrame == null && cmd.backing !== true && cmd.silhouette !== true)
-        ) {
-          continue;
-        }
-        const frame = db.frames[cmd.frame];
-        const atlasImage = frame ? images[frame.a] : undefined;
-        if (!frame || !atlasImage || frame.w <= 0 || frame.h <= 0) continue;
-
-        const packedWidth = frame.pw ?? frame.w;
-        const packedHeight = frame.ph ?? frame.h;
-
-        const iconKey = `${assetTier}:${cmd.frame}:${packedWidth}x${packedHeight}`;
-        const cachedIcon = iconImageCache.get(iconKey);
-        if (!seenIconKeys.has(iconKey)) {
-          seenIconKeys.add(iconKey);
-          if (cachedIcon) iconCacheHits++;
-        }
-        if (cachedIcon) {
-          iconImages.set(cmd.frame, cachedIcon);
-        } else if (!iconImages.has(cmd.frame)) {
-          const iconCanvas = createCanvas(packedWidth, packedHeight);
-          iconCanvas.width = packedWidth;
-          iconCanvas.height = packedHeight;
-          const iconContext = iconCanvas.getContext("2d");
-          if (!iconContext) continue;
-          iconContext.drawImage(
-            atlasImage,
-            frame.x,
-            frame.y,
-            packedWidth,
-            packedHeight,
-            0,
-            0,
-            packedWidth,
-            packedHeight,
-          );
-          const image = iconCanvas as unknown as CanvasImageSource;
-          iconImages.set(cmd.frame, image);
-          iconImageCache.set(iconKey, image);
-          const readableContext = iconContext as unknown as Partial<ImageDataContext>;
-          if (
-            cmd.backingStyle !== "request-pin" &&
-            typeof readableContext.getImageData === "function"
-          ) {
-            iconImageData.set(
-              cmd.frame,
-              readableContext.getImageData(0, 0, packedWidth, packedHeight),
-            );
-          }
-          iconCacheMisses++;
-        }
-
-        if (cmd.backingStyle === "request-pin" || silhouetteImages.has(cmd.frame)) continue;
-        const densityScale = (db.assetDensity ?? 2) / 2;
-        const dilateRadius = Math.max(
-          1,
-          Math.round(ENTITY_INFO_SILHOUETTE_RADIUS_PX * densityScale),
-        );
-        const blurRadius = Math.max(1, Math.round(ENTITY_INFO_SILHOUETTE_BLUR_PX * densityScale));
-        const silhouetteKey = `${iconKey}:${dilateRadius}:${blurRadius}`;
-        const cachedSilhouette = silhouetteImageCache.get(silhouetteKey);
-        if (!seenSilhouetteKeys.has(silhouetteKey)) {
-          seenSilhouetteKeys.add(silhouetteKey);
-          if (cachedSilhouette) silhouetteCacheHits++;
-        }
-        if (cachedSilhouette) {
-          silhouetteImages.set(cmd.frame, cachedSilhouette);
-          continue;
-        }
-        const iconSource = iconImages.get(cmd.frame);
-        if (!iconSource) continue;
-        const sourceData = iconImageData.get(cmd.frame);
-        const silhouette = sourceData
-          ? bakeEntityInfoSilhouetteFromImageData(
-              sourceData,
-              createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
-              dilateRadius,
-              blurRadius,
-            )
-          : bakeEntityInfoSilhouette(
-              iconSource,
-              packedWidth,
-              packedHeight,
-              createCanvas as (width: number, height: number) => SilhouetteCanvasLike,
-              dilateRadius,
-              blurRadius,
-            );
-        if (silhouette) {
-          silhouetteImages.set(cmd.frame, silhouette);
-          silhouetteImageCache.set(silhouetteKey, silhouette);
-          silhouetteCacheMisses++;
-        }
-      }
-      const iconBakeMs = wantProfile ? nowMs() - t : 0;
-
-      t = wantProfile ? nowMs() : 0;
-      const outputTileFrame =
-        resolvedOpts.outputTileFrame ?? computeTileFrame(drawList.bounds, padTiles);
-      const tileFrame = resolvedOpts.tileFrame ?? outputTileFrame;
-      if (
-        tileFrame.minX < outputTileFrame.minX ||
-        tileFrame.minY < outputTileFrame.minY ||
-        tileFrame.maxX > outputTileFrame.maxX ||
-        tileFrame.maxY > outputTileFrame.maxY ||
-        tileFrame.minX >= tileFrame.maxX ||
-        tileFrame.minY >= tileFrame.maxY
-      ) {
-        throw new Error("tileFrame must be a non-empty viewport inside outputTileFrame");
-      }
-      const output = measureTileFrame(tileFrame, requestedPixelsPerTile, opts.maxOutputSize);
-      const { width, height, pixelsPerTile } = output;
-
-      throwIfAborted(opts.signal);
-      const canvas = opts.canvas ?? createCanvas(width, height);
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        throw new Error("Failed to acquire 2d canvas context");
-      }
-      const frameMs = wantProfile ? nowMs() - t : 0;
-
-      if (wantProfile) perfMark("fpsr-paint-start");
-      reportProgress(opts, { stage: "painting" });
-      t = wantProfile ? nowMs() : 0;
-      const paintStats: ExecuteDrawListStats = {
-        shadowRuns: 0,
-        shadowTiles: 0,
-        shadowCompositedPixels: 0,
-        shadowPeakScratchPixels: 0,
-      };
-      const paintList = resolvedOpts.tileFrame
-        ? drawListForTile(drawList, db.frames, tileFrame)
-        : drawList;
-      canvas2d.executeDrawList(ctx, paintList, images, {
-        pixelsPerTile,
-        padTiles,
-        tileFrame,
-        outputTileFrame,
-        background,
-        showCheckerboard: resolvedOpts.showCheckerboard,
-        showSpace: resolvedOpts.showSpace,
-        terrainBackground,
-        spaceBackground,
-        showCoordinates: resolvedOpts.showCoordinates,
-        frames: db.frames,
-        iconImages,
-        silhouetteImages,
-        createCanvas,
-        stats: paintStats,
-      });
-      const paintMs = wantProfile ? nowMs() - t : 0;
-      if (wantProfile) {
-        perfMark("fpsr-paint-end");
-        perfMeasure("fpsr-paint", "fpsr-paint-start", "fpsr-paint-end");
-        perfMark("fpsr-render-end");
-        perfMeasure("fpsr-render", "fpsr-render-start", "fpsr-render-end");
-      }
-
-      const profile: RenderProfile | undefined = wantProfile
-        ? {
-            selectMs,
-            plan: planProfile ?? emptyPlanProfile(),
-            assets: assetEvents,
-            assetsMs,
-            iconBakeMs,
-            iconBakeCount: iconImages.size,
-            silhouetteBakeCount: silhouetteImages.size,
-            iconCacheHits,
-            iconCacheMisses,
-            silhouetteCacheHits,
-            silhouetteCacheMisses,
-            frameMs,
-            paintMs,
-            shadow: {
-              runs: paintStats.shadowRuns,
-              tiles: paintStats.shadowTiles,
-              compositedPixels: paintStats.shadowCompositedPixels,
-              peakScratchPixels: paintStats.shadowPeakScratchPixels,
-            },
-            totalMs: nowMs() - tTotal,
-            cold: assetEvents.some((e) => !e.cached),
-            drawList: summarizeDrawList(drawList, atlasIndices),
-            output: {
-              width,
-              height,
-              megapixels: (width * height) / 1_000_000,
-              pixelsPerTile,
-              requestedPixelsPerTile,
-              capped: output.capped,
-              assetTier,
-              tileFrame,
-            },
-            db: {
-              entityDefs: Object.keys(db.entities).length,
-              tileDefs: Object.keys(db.tiles).length,
-              frameCount: db.frames.length,
-              atlasCount: db.atlases.length,
-            },
-          }
-        : undefined;
-
-      reportProgress(opts, { stage: "complete" });
-
-      return {
-        canvas,
-        width,
-        height,
-        drawList,
-        tileFrame,
-        profile,
-        toImageBlob(options?: RenderImageOptions): Promise<Blob> {
-          return encodeCanvasBlob(canvas, options);
-        },
-        toImageBuffer(options?: RenderImageOptions): Promise<Uint8Array> {
-          return encodeCanvasBuffer(canvas, options);
-        },
-        async toPngBlob(): Promise<Blob> {
-          return encodeCanvasBlob(canvas, { type: "image/png" });
-        },
-        async toPngBuffer(): Promise<Uint8Array> {
-          return encodeCanvasBuffer(canvas, { type: "image/png" });
-        },
-      };
+    render(docOrBlueprint, opts = {}): Promise<RenderResult> {
+      return paint(docOrBlueprint, opts);
     },
 
     async renderTiledPng(docOrBlueprint, opts = {}): Promise<TiledPngResult> {
@@ -793,13 +851,13 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const bp = isBlueprint(docOrBlueprint)
         ? docOrBlueprint
         : selectBlueprint(docOrBlueprint, opts.blueprintPath);
-      const resolvedOpts = resolveBackgroundOpts(bp, opts);
       reportProgress(opts, { stage: "planning" });
       const preparedDrawList = planDrawList(bp, db, {
-        altMode: resolvedOpts.altMode,
-        background: resolvedOpts.background ?? null,
+        altMode: opts.altMode,
+        beltEndings: opts.beltEndings,
       });
-      const tileFrame = computeTileFrame(preparedDrawList.bounds, resolvedOpts.padTiles ?? 0);
+      const padTiles = opts.padTiles ?? 0;
+      const tileFrame = computeTileFrame(preparedDrawList.bounds, padTiles);
       const { width, height } = measureTileFrame(tileFrame, pixelsPerTile);
       const tileSize = Math.max(pixelsPerTile, Math.floor(opts.tileSize ?? 2048));
       const maxPaintTileEdge = Math.max(1, Math.floor(tileSize / pixelsPerTile));
@@ -823,12 +881,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       const encoder = createStreamingPngEncoder(width, height);
       let completedTiles = 0;
 
-      const {
-        tileSize: _tileSize,
-        maxStripeBytes: _maxStripeBytes,
-        profile: _profile,
-        ...renderOpts
-      } = opts;
+      const { tileSize: _tileSize, maxStripeBytes: _maxStripeBytes, ...renderOpts } = opts;
 
       for (let minY = tileFrame.minY; minY < tileFrame.maxY; minY += stripTileHeight) {
         throwIfAborted(opts.signal);
@@ -846,7 +899,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
             maxY: Math.min(tileFrame.maxY, maxY + viewportBleedTiles),
           };
           const regionDrawList = drawListForTile(preparedDrawList, db.frames, paintRegion);
-          const rendered = await renderer.render(docOrBlueprint, {
+          const rendered = await paint(docOrBlueprint, {
             ...renderOpts,
             pixelsPerTile,
             profile: false,
@@ -857,7 +910,7 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
           });
           const context = rendered.canvas.getContext("2d") as
             | (Canvas2DContextLike & {
-                getImageData(x: number, y: number, width: number, height: number): ImageData;
+                getImageData(x: number, y: number, width: number, height: number): ImageDataLike;
               })
             | null;
           if (!context || typeof context.getImageData !== "function") {
@@ -892,6 +945,17 @@ export async function createRenderer(options: CreateRendererOptions): Promise<Re
       reportProgress(opts, { stage: "complete" });
       return { blob, width, height, tileFrame, tiled: true };
     },
+
+    dispose(): void {
+      // Only renderer-owned derived surfaces. Atlas ImageSources and the
+      // caller-supplied AssetSource remain owned by the asset host.
+      iconImageCache.clear();
+      silhouetteImageCache.clear();
+      atlasCache.clear();
+    },
   };
+
+  preparedViewportByRenderer.set(renderer, (docOrBlueprint, opts) => paint(docOrBlueprint, opts));
+
   return renderer;
 }

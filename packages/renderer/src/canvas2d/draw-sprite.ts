@@ -1,3 +1,4 @@
+import type { ImageSource } from "../host.js";
 import { RENDER_LAYERS, type RectCmd, type SpriteCmd } from "../types/draw-list.js";
 import type { FrameMeta } from "../types/render-db.js";
 import type { Canvas2DContextLike, ExecuteDrawListOptions } from "./types.js";
@@ -49,7 +50,7 @@ export function drawSprite(
   ctx: Canvas2DContextLike,
   cmd: SpriteCmd,
   frame: FrameMeta,
-  image: CanvasImageSource,
+  image: ImageSource,
   ox: number,
   oy: number,
   ppt: number,
@@ -122,7 +123,7 @@ export function drawSprite(
   };
 
   /** Multiply-tint the sprite via an offscreen canvas, then draw the result. */
-  const tintedSource = (): { image: CanvasImageSource; w: number; h: number } | null => {
+  const tintedSource = (): { image: ImageSource; w: number; h: number } | null => {
     if (!tint || !createCanvas) return null;
     const tw = Math.max(1, Math.ceil(trimmedDw));
     const th = Math.max(1, Math.ceil(trimmedDh));
@@ -139,7 +140,7 @@ export function drawSprite(
     sctx.globalCompositeOperation = "destination-in";
     blit(sctx, 0, 0, tw, th);
     sctx.globalCompositeOperation = "source-over";
-    return { image: scratch as unknown as CanvasImageSource, w: tw, h: th };
+    return { image: scratch as unknown as ImageSource, w: tw, h: th };
   };
 
   const tinted = tintedSource();

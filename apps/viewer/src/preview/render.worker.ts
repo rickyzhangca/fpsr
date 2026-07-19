@@ -1,13 +1,9 @@
 import { ASSETS_BASE, MAX_CONCURRENT_ASSET_DECODES } from "@/shell/asset-config";
 import {
-  analyzePlan,
   cdnAssets,
   computeTileFrame,
   createRenderer,
-  drawListForTile,
   measureTileFrame,
-  nowMs,
-  planDrawList,
   selectBlueprint,
   type AssetEvent,
   type AssetTier,
@@ -16,6 +12,9 @@ import {
   type RenderResult,
   type TileFrame,
 } from "fpsr";
+import { nowMs } from "fpsr/canvas";
+import { analyzePlan, drawListForTile, planDrawList } from "fpsr/planner";
+import { renderPreparedViewport } from "fpsr-internal/prepared-viewport";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,
@@ -240,7 +239,7 @@ const openTiledPreview = async (
     const blueprint = selectBlueprint(request.doc, request.options.blueprintPath);
     const getTierPlan = createTiledPreviewTierPlanCache(assets, blueprint, {
       altMode: request.options.altMode,
-      background: request.options.background ?? null,
+      background: request.options.background,
     });
     const { drawList } = await getTierPlan("2x");
     const tileFrame = computeTileFrame(drawList.bounds, request.options.padTiles ?? 0);
@@ -297,7 +296,7 @@ const renderPreviewTile = async (
     const preparedDrawList = drawListForTile(drawList, db.frames, paintRegion);
     const renderer = await getRenderer(tier);
     if (controller.signal.aborted) return;
-    const result = await renderer.render(session.doc, {
+    const result = await renderPreparedViewport(renderer, session.doc, {
       ...session.options,
       pixelsPerTile: request.pixelsPerTile,
       profile: false,

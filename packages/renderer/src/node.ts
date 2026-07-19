@@ -6,10 +6,12 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { raceWithAbort, throwIfAborted } from "./abort.js";
 import type { AssetManifest, AssetSource, AssetTier } from "./assets.js";
+import type { AssetLoadOptions, ImageSource } from "./host.js";
 import type { RenderDb } from "./types/render-db.js";
 
-type SkiaLoadImage = (src: string | Uint8Array) => Promise<CanvasImageSource>;
+type SkiaLoadImage = (src: string | Uint8Array) => Promise<ImageSource>;
 
 async function loadSkiaLoadImage(): Promise<SkiaLoadImage> {
   try {
@@ -28,12 +30,17 @@ async function loadSkiaLoadImage(): Promise<SkiaLoadImage> {
 /**
  * Filesystem AssetSource for a pipeline output directory
  * (manifest.json + content-addressed render-db/atlas files).
+ *
+ * AbortSignal rejects only the waiting caller; shared in-flight loads continue
+ * for other consumers. Rejected loads are cleared from the cache so a later
+ * call can retry (including abort-driven waiter rejection of a still-pending
+ * shared promise, which does not clear the shared slot).
  */
 export function localAssets(dir: string): AssetSource {
   const root = path.resolve(dir);
   const dbPromises = new Map<AssetTier, Promise<RenderDb>>();
   let manifestPromise: Promise<AssetManifest> | undefined;
-  const atlasCache = new Map<string, Promise<CanvasImageSource>>();
+  const atlasCache = new Map<string, Promise<ImageSource>>();
 
   const readJson = async <T>(file: string): Promise<T> => {
     const text = await readFile(path.join(root, file), "utf8");
@@ -42,31 +49,45 @@ export function localAssets(dir: string): AssetSource {
 
   const loadManifest = (): Promise<AssetManifest> => {
     if (!manifestPromise) {
-      manifestPromise = readJson<AssetManifest>("manifest.json");
+      manifestPromise = readJson<AssetManifest>("manifest.json").catch((error) => {
+        manifestPromise = undefined;
+        throw error;
+      });
     }
     return manifestPromise;
   };
 
   return {
-    loadRenderDb(tier: AssetTier = "2x"): Promise<RenderDb> {
+    loadRenderDb(tier: AssetTier = "2x", options?: AssetLoadOptions): Promise<RenderDb> {
+      throwIfAborted(options?.signal);
       let pending = dbPromises.get(tier);
       if (!pending) {
-        pending = loadManifest().then(async (manifest) => {
-          if (manifest.schema !== 2) {
-            throw new Error(`Unsupported asset manifest schema: ${String(manifest.schema)}`);
-          }
-          const db = await readJson<RenderDb>(manifest.tiers[tier].renderDb.file);
-          if (db.schema !== 2) {
-            throw new Error(`Unsupported render-db schema: ${String(db.schema)}`);
-          }
-          return db;
-        });
+        pending = loadManifest()
+          .then(async (manifest) => {
+            if (manifest.schema !== 2) {
+              throw new Error(`Unsupported asset manifest schema: ${String(manifest.schema)}`);
+            }
+            const db = await readJson<RenderDb>(manifest.tiers[tier].renderDb.file);
+            if (db.schema !== 2) {
+              throw new Error(`Unsupported render-db schema: ${String(db.schema)}`);
+            }
+            return db;
+          })
+          .catch((error) => {
+            dbPromises.delete(tier);
+            throw error;
+          });
         dbPromises.set(tier, pending);
       }
-      return pending;
+      return raceWithAbort(pending, options?.signal);
     },
 
-    async loadAtlasImage(index: number, tier: AssetTier = "2x"): Promise<CanvasImageSource> {
+    loadAtlasImage(
+      index: number,
+      tier: AssetTier = "2x",
+      options?: AssetLoadOptions,
+    ): Promise<ImageSource> {
+      throwIfAborted(options?.signal);
       const cacheKey = `${tier}:${index}`;
       let pending = atlasCache.get(cacheKey);
       if (!pending) {
@@ -78,10 +99,19 @@ export function localAssets(dir: string): AssetSource {
           }
           const loadImage = await loadSkiaLoadImage();
           return loadImage(path.join(root, entry.file));
-        })();
+        })().catch((error) => {
+          atlasCache.delete(cacheKey);
+          throw error;
+        });
         atlasCache.set(cacheKey, pending);
       }
-      return pending;
+      return raceWithAbort(pending, options?.signal);
+    },
+
+    dispose(): void {
+      atlasCache.clear();
+      dbPromises.clear();
+      manifestPromise = undefined;
     },
   };
 }

@@ -1,5 +1,6 @@
 import { drawTileCheckerboard } from "../checkerboard.js";
 import { drawCoordinateOverlay } from "../coordinate-overlay.js";
+import type { ImageSource } from "../host.js";
 import { drawSpaceBackground } from "../space-background.js";
 import { drawTerrainBackground } from "../terrain-background.js";
 import type { DrawList, SpriteCmd } from "../types/draw-list.js";
@@ -23,7 +24,7 @@ const TERRAIN_FALLBACK_COLOR: [number, number, number, number] = [
 export function executeDrawList(
   ctx: Canvas2DContextLike,
   list: DrawList,
-  images: CanvasImageSource[],
+  images: ImageSource[],
   opts: ExecuteDrawListOptions,
 ): void {
   const ppt = opts.pixelsPerTile;
@@ -175,7 +176,7 @@ export function executeDrawList(
 
       ctx.globalAlpha = prevAlpha * 0.5;
       ctx.drawImage(
-        shadowCanvas as unknown as CanvasImageSource,
+        shadowCanvas as unknown as ImageSource,
         0,
         0,
         outputTileWidth,

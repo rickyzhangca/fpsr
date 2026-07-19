@@ -2,8 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { encode } from "fpsr";
-import type { Blueprint, BlueprintDocument, BlueprintEntity } from "fpsr";
-import type { EntityRenderDef, LayerGroup, RenderDb } from "fpsr";
+import type { Blueprint, BlueprintDocument, BlueprintEntity, RenderDb } from "fpsr";
+import type { EntityRenderDef, LayerGroup } from "fpsr/render-db";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");

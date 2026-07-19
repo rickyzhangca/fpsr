@@ -38,5 +38,6 @@ export type {
   LayerSelection,
   ResolveContext,
   ResolveOptions,
+  ResolveResult,
   ResolvedEntity,
 } from "./resolve/index.js";

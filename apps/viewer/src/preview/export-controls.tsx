@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { trackEvent } from "@/shell/analytics";
 import { stripRichText, type Blueprint } from "fpsr";
 import { toast } from "sonner";
-import { trackEvent } from "@/shell/analytics";
 import { EXPORT_OPTIONS, exportFormatLabel, formatExportSize, type ExportFormat } from "./format";
 
 export const PreviewExportControls = ({
@@ -72,17 +72,20 @@ export const PreviewExportControls = ({
       >
         {downloadPendingLabel && <Spinner data-icon="inline-start" />}
         {downloadPendingLabel ??
-          (fullResolution
-            ? exportBlob
-              ? `Download full-res · ${formatExportSize(exportBlob.size)}`
-              : "Download full-res PNG"
-            : exportBlob
-              ? `Download ${formatExportSize(exportBlob.size)}`
-              : `Download ${exportLabel}`)}
+          (exportBlob ? (
+            <>
+              Download{" "}
+              <span className="text-muted-foreground">{formatExportSize(exportBlob.size)}</span>
+            </>
+          ) : (
+            `Download ${exportLabel}`
+          ))}
       </Button>
-      <Button onClick={() => void handleCopy()} disabled={controlsDisabled} title={exportError}>
-        {fullResolution ? "Copy full-res PNG" : `Copy ${exportLabel}`}
-      </Button>
+      {!fullResolution && (
+        <Button onClick={() => void handleCopy()} disabled={controlsDisabled} title={exportError}>
+          {`Copy ${exportLabel}`}
+        </Button>
+      )}
     </div>
   );
 };

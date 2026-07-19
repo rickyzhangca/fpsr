@@ -85,8 +85,7 @@ describe("resolve", () => {
   const db = makeMiniDb();
 
   it("skips unknown entities with a warning", () => {
-    const warnings: string[] = [];
-    const out = resolve(
+    const { entities: out, warnings } = resolve(
       bp([
         {
           entity_number: 1,
@@ -100,7 +99,6 @@ describe("resolve", () => {
         },
       ]),
       db,
-      warnings,
     );
     expect(out).toHaveLength(1);
     expect(out[0]?.entity.name).toBe("wooden-chest");
@@ -127,7 +125,7 @@ describe("resolve", () => {
         },
       ]),
       db,
-    );
+    ).entities;
     expect(out[0]?.selections[0]?.variantKey).toBe("in");
     expect(out[1]?.selections[0]?.variantKey).toBe("out");
     expect(out[0]?.selections[0]?.index).toBe(1); // east input → structure column 1 (N,E,S,W sheet)
@@ -145,7 +143,7 @@ describe("resolve", () => {
         },
       ]),
       db,
-    );
+    ).entities;
     const sels = out[0]?.selections ?? [];
     const platform = sels.find((s) => s.group === 0);
     const hands = sels.filter((s) => s.group > 0);
@@ -165,7 +163,7 @@ describe("resolve", () => {
       { entity_number: 4, name: "pipe", position: { x: 0.5, y: 1.5 } },
       { entity_number: 5, name: "pipe", position: { x: -0.5, y: 0.5 } },
     ];
-    const out = resolve(bp(entities), db);
+    const out = resolve(bp(entities), db).entities;
     const byNum = new Map(out.map((r) => [r.entity.entity_number, r]));
     expect(byNum.get(1)?.selections[0]?.variantKey).toBe("1111");
     expect(byNum.get(2)?.selections[0]?.variantKey).toBe("0010");
@@ -194,7 +192,7 @@ describe("resolve", () => {
         },
       ]),
       db,
-    );
+    ).entities;
     const corner = out.find((r) => r.entity.entity_number === 1);
     expect(corner?.selections[0]?.variantKey).toBe("0110");
   });
@@ -207,7 +205,7 @@ describe("resolve", () => {
         { entity_number: 3, name: "stone-wall", position: { x: 0.5, y: 0.5 } },
       ]),
       db,
-    );
+    ).entities;
     // Entity 1 has N+E neighbors (raw 1100); Factorio picture is ending_right.
     expect(out.find((r) => r.entity.entity_number === 1)?.selections[0]?.variantKey).toBe("0100");
     expect(out.find((r) => r.entity.entity_number === 2)?.selections[0]?.variantKey).toBe("0001");
@@ -221,7 +219,7 @@ describe("resolve", () => {
         { entity_number: 3, name: "stone-wall", position: { x: 2.5, y: 0.5 } },
       ]),
       db,
-    );
+    ).entities;
     const byNum = new Map(out.map((r) => [r.entity.entity_number, r]));
     expect(byNum.get(1)?.selections[0]?.variantKey).toBe("0100"); // E only
     expect(byNum.get(2)?.selections[0]?.variantKey).toBe("horizontal");
@@ -240,9 +238,8 @@ describe("resolve", () => {
           },
         ]),
         db,
-        undefined,
         { beltEndings: false },
-      );
+      ).entities;
       expect(out[0]?.selections[0]?.index).toBe(BELT_STRAIGHT_INDEX[dir]);
     }
   });
@@ -258,7 +255,7 @@ describe("resolve", () => {
         },
       ]),
       db,
-    );
+    ).entities;
     const idxs = out[0]?.selections.map((s) => s.index) ?? [];
     expect(idxs).toContain(BELT_STRAIGHT_INDEX[0]);
     expect(idxs).toContain(BELT_START_INDEX[0]);
@@ -287,9 +284,8 @@ describe("resolve", () => {
         },
       ]),
       db,
-      undefined,
       { beltEndings: false },
-    );
+    ).entities;
     const north = out.find((r) => r.entity.entity_number === 1);
     expect(north?.selections[0]?.index).toBe(BELT_CURVE_LEFT[0]); // west_to_north
   });
@@ -312,9 +308,8 @@ describe("resolve", () => {
         },
       ]),
       db,
-      undefined,
       { beltEndings: false },
-    );
+    ).entities;
     const west = out.find((r) => r.entity.entity_number === 1);
     expect(west?.entity.direction).toBe(12);
     expect(west?.selections[0]?.index).toBe(BELT_CURVE_LEFT[12]); // south_to_west
@@ -344,9 +339,8 @@ describe("resolve", () => {
         },
       ]),
       db,
-      undefined,
       { beltEndings: false },
-    );
+    ).entities;
     const mid = out.find((r) => r.entity.entity_number === 1);
     expect(mid?.selections[0]?.index).toBe(BELT_STRAIGHT_INDEX[0]);
   });
@@ -362,9 +356,8 @@ describe("resolve", () => {
         { entity_number: 4, name: "transport-belt", position: { x: 0.5, y: 1.5 }, direction: 0 },
       ]),
       db,
-      undefined,
       { beltEndings: false },
-    );
+    ).entities;
     const byNum = new Map(out.map((r) => [r.entity.entity_number, r.selections[0]?.index]));
     // Each corner: sole feeder from behind-relative-right or left.
     // #1 east-facing, feeder from south (#4 is at west of #1... wait)
@@ -390,7 +383,7 @@ describe("resolve", () => {
         { entity_number: 2, name: "pipe", position: { x: -1.5, y: 0.5 } },
       ]),
       db,
-    );
+    ).entities;
     const pipeEnt = out.find((r) => r.entity.entity_number === 2);
     // Pipe should see a connection toward the boiler (east).
     expect(pipeEnt?.selections[0]?.variantKey).toBe("0100");
@@ -416,7 +409,7 @@ describe("resolve", () => {
           { entity_number: 2, name: "heat-pipe", position: pipe },
         ]),
         FIXTURE_DB,
-      );
+      ).entities;
       const heatPipe = out.find((r) => r.entity.entity_number === 2);
       expect(heatPipe?.selections[0]?.variantKey).toBe(mask);
     }
@@ -435,7 +428,7 @@ describe("resolve", () => {
         { entity_number: 4, name: "nuclear-reactor", position: { x: 5, y: 5 } },
       ]),
       FIXTURE_DB,
-    );
+    ).entities;
     const patches = (entityNumber: number) =>
       out
         .find((entry) => entry.entity.entity_number === entityNumber)
@@ -506,7 +499,7 @@ describe("vehicle orientation", () => {
     const out = resolve(
       bp([{ entity_number: 1, name: "car", position: { x: 0, y: 0 }, orientation: 4 / 64 }]),
       db,
-    );
+    ).entities;
     expect(out[0]?.selections[0]?.index).toBe(3);
   });
 });
@@ -621,7 +614,7 @@ describe("resolve (fixture render-db)", () => {
         type: "output",
       },
     ] as Blueprint["entities"];
-    const out = resolve(bp(entities), FIXTURE_DB);
+    const out = resolve(bp(entities), FIXTURE_DB).entities;
     const graphics = FIXTURE_DB.entities["underground-belt"]?.graphics ?? [];
     const beltGroup = graphics.findIndex((g) => g.layer === "transport-belt");
     const objectGroup = graphics.findIndex((g) => g.layer === "object");
@@ -656,7 +649,7 @@ describe("resolve (fixture render-db)", () => {
         type: "output",
       },
     ] as Blueprint["entities"];
-    const out = resolve(bp(entities), FIXTURE_DB);
+    const out = resolve(bp(entities), FIXTURE_DB).entities;
     const graphics = FIXTURE_DB.entities["underground-belt"]?.graphics ?? [];
     const objectGroup = graphics.findIndex((g) => g.layer === "object");
     const eastIn = out[0]?.selections.find((s) => s.group === objectGroup);
@@ -683,7 +676,7 @@ describe("resolve (fixture render-db)", () => {
         type: "output",
       },
     ] as Blueprint["entities"];
-    const out = resolve(bp(entities), FIXTURE_DB);
+    const out = resolve(bp(entities), FIXTURE_DB).entities;
     const objectGroup = FIXTURE_DB.entities["underground-belt"]?.graphics.find(
       (g) => g.layer === "object",
     );
@@ -722,7 +715,7 @@ describe("resolve (fixture render-db)", () => {
         },
       ]),
       FIXTURE_DB,
-    );
+    ).entities;
     const ug = out.find((r) => r.entity.entity_number === 1);
     const graphics = FIXTURE_DB.entities["underground-belt"]?.graphics ?? [];
     const beltGroup = graphics.findIndex((g) => g.layer === "transport-belt");
@@ -749,7 +742,7 @@ describe("resolve (fixture render-db)", () => {
         },
       ]),
       FIXTURE_DB,
-    );
+    ).entities;
     const ug = out.find((r) => r.entity.entity_number === 1);
     const graphics = FIXTURE_DB.entities["underground-belt"]?.graphics ?? [];
     const beltGroup = graphics.findIndex((g) => g.layer === "transport-belt");
@@ -762,7 +755,7 @@ describe("resolve (fixture render-db)", () => {
       { entity_number: 1, name: "fast-splitter", position: { x: 0.5, y: 0.5 }, direction: 0 },
       { entity_number: 2, name: "fast-splitter", position: { x: 2.5, y: 0.5 }, direction: 4 },
     ] as Blueprint["entities"];
-    const out = resolve(bp(entities), FIXTURE_DB);
+    const out = resolve(bp(entities), FIXTURE_DB).entities;
     const graphics = FIXTURE_DB.entities["fast-splitter"]?.graphics ?? [];
     const structureIdx = graphics.findIndex(
       (g) =>

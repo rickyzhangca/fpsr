@@ -63,10 +63,36 @@ export default defineConfig({
     setupFiles: ["./src/test-setup.ts"],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      fpsr: path.resolve(__dirname, "../../packages/renderer/src/index.ts"),
-    },
+    alias: [
+      {
+        find: /^fpsr\/planner$/,
+        replacement: path.resolve(__dirname, "../../packages/renderer/src/planner.ts"),
+      },
+      {
+        find: /^fpsr\/canvas$/,
+        replacement: path.resolve(__dirname, "../../packages/renderer/src/canvas.ts"),
+      },
+      {
+        find: /^fpsr\/render-db$/,
+        replacement: path.resolve(__dirname, "../../packages/renderer/src/render-db.ts"),
+      },
+      {
+        find: /^fpsr\/node$/,
+        replacement: path.resolve(__dirname, "../../packages/renderer/src/node.ts"),
+      },
+      {
+        find: /^fpsr-internal\/prepared-viewport$/,
+        replacement: path.resolve(
+          __dirname,
+          "../../packages/renderer/src/internal/prepared-viewport.ts",
+        ),
+      },
+      {
+        find: /^fpsr$/,
+        replacement: path.resolve(__dirname, "../../packages/renderer/src/index.ts"),
+      },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
   server: {
     port: 5173,

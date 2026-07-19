@@ -1,3 +1,11 @@
+import type {
+  CanvasFillStyle,
+  CanvasLineCap,
+  CanvasTextAlign,
+  CanvasTextBaseline,
+  GlobalCompositeOperation,
+  ImageSource,
+} from "../host.js";
 import type { FrameMeta, SpaceBackground, TerrainPatchBackground } from "../types/render-db.js";
 
 /** Minimal Canvas 2D surface used by the backend (browser or skia-canvas). */
@@ -19,9 +27,9 @@ export interface Canvas2DContextLike {
   roundRect?(x: number, y: number, w: number, h: number, radii: number | number[]): void;
   rect(x: number, y: number, w: number, h: number): void;
   clip(): void;
-  drawImage(image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: ImageSource, dx: number, dy: number, dw: number, dh: number): void;
   drawImage(
-    image: CanvasImageSource,
+    image: ImageSource,
     sx: number,
     sy: number,
     sw: number,
@@ -32,8 +40,8 @@ export interface Canvas2DContextLike {
     dh: number,
   ): void;
   fillText(text: string, x: number, y: number): void;
-  set fillStyle(value: string | CanvasGradient | CanvasPattern);
-  set strokeStyle(value: string | CanvasGradient | CanvasPattern);
+  set fillStyle(value: CanvasFillStyle);
+  set strokeStyle(value: CanvasFillStyle);
   set lineWidth(value: number);
   set lineCap(value: CanvasLineCap);
   set globalAlpha(value: number);
@@ -72,9 +80,9 @@ export interface ExecuteDrawListOptions {
   /** Draw tile grid lines and map-space coordinate labels after commands. */
   showCoordinates?: boolean;
   /** Transparent per-frame icon crops used for alpha-safe silhouette filtering. */
-  iconImages?: ReadonlyMap<number, CanvasImageSource>;
+  iconImages?: ReadonlyMap<number, ImageSource>;
   /** Padded, dilated black silhouettes keyed by icon frame index. */
-  silhouetteImages?: ReadonlyMap<number, CanvasImageSource>;
+  silhouetteImages?: ReadonlyMap<number, ImageSource>;
   /**
    * Frame table from the RenderDb that produced `list`. Required for trim math;
    * not in the CONTRACTS.md sketch — see M1 report.

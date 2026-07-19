@@ -1,5 +1,4 @@
 import {
-  planDrawList,
   type Blueprint,
   type BlueprintBook,
   type BlueprintDocument,
@@ -8,6 +7,7 @@ import {
   type RenderDb,
   type Tile,
 } from "fpsr";
+import { planDrawList } from "fpsr/planner";
 import { BASE_ENTITY_NAMES, BASE_GAME_VERSION, BASE_TILE_NAMES } from "./base-game-book-spec.js";
 import { poseCellId, posesForEntity, type EntityPose } from "./entity-poses.js";
 import {

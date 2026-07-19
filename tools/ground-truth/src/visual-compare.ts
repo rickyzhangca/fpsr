@@ -229,8 +229,7 @@ export async function compareVisualPages(
     const rendered = await renderer.render(page.blueprint, {
       pixelsPerTile: options.pixelsPerTile,
       altMode: false,
-      showCheckerboard: false,
-      background: null,
+      background: { type: "none" },
     });
     const transparent = PNG.sync.read(Buffer.from(await rendered.toPngBuffer()));
     const view = reference.view;

@@ -80,17 +80,26 @@ function runtimeColorMaskTint(
 export interface PlanOptions {
   /** Emit blueprint-derived entity-info overlays (recipes, filters, signals, quality). */
   altMode?: boolean;
-  /** Canvas clear color; not emitted into the draw list (backend concern). */
-  background?: [number, number, number, number] | null;
   /**
    * Emit belt starting/ending cap sprites. Default true.
    * Caps use a full-tile shift behind/ahead of the belt (FBE-aligned).
    */
   beltEndings?: boolean;
   /**
-   * When provided, filled with phase timings for this plan call.
-   * Near-zero overhead when omitted.
+   * When true, attach phase timings on the returned {@link PlanResult.profile}.
+   * Near-zero overhead when omitted/false.
    */
+  profile?: boolean;
+}
+
+export interface PlanResult {
+  drawList: DrawList;
+  /** Present when {@link PlanOptions.profile} was true. */
+  profile?: PlanProfile;
+}
+
+/** @internal Mutable profiling sink used by the renderer hot path. */
+export interface PlanInternalOptions extends PlanOptions {
   profileOut?: PlanProfile;
 }
 
@@ -201,11 +210,48 @@ export { UNSUPPORTED_ENTITY_ICON_KEY } from "./unsupported.js";
 
 /**
  * Pure draw planner: blueprint + render-db -> sorted DrawList.
+ * Profiling details are available via {@link planDrawListWithOptions}.
  */
 export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList {
+  return planDrawListWithOptions(bp, db, opts).drawList;
+}
+
+/**
+ * Plan a draw list, optionally collecting phase timings when `opts.profile` is true.
+ * Accepts only the public {@link PlanOptions} surface.
+ */
+export function planDrawListWithOptions(
+  bp: Blueprint,
+  db: RenderDb,
+  opts?: PlanOptions,
+): PlanResult {
+  return planDrawListInternal(bp, db, opts);
+}
+
+/**
+ * @internal Renderer hot-path planner that may fill a mutable `profileOut` sink.
+ * Not part of the stable `fpsr/planner` API.
+ */
+export function planDrawListInternal(
+  bp: Blueprint,
+  db: RenderDb,
+  opts?: PlanInternalOptions,
+): PlanResult {
   const altMode = opts?.altMode ?? true;
   const beltEndings = opts?.beltEndings ?? true;
-  const profile = opts?.profileOut;
+  const profile =
+    opts?.profileOut ??
+    (opts?.profile
+      ? {
+          migrateMs: 0,
+          resolveMs: 0,
+          tilesMs: 0,
+          entitiesMs: 0,
+          overlaysMs: 0,
+          sortMs: 0,
+          totalMs: 0,
+        }
+      : undefined);
   const tTotal = profile ? nowMs() : 0;
 
   let t = profile ? nowMs() : 0;
@@ -411,15 +457,21 @@ export function planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): D
 
   if (commands.length === 0) {
     return {
-      schema: 1,
-      bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
-      commands: [],
+      drawList: {
+        schema: 1,
+        bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+        commands: [],
+      },
+      profile,
     };
   }
 
   return {
-    schema: 1,
-    bounds: bounds ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
-    commands,
+    drawList: {
+      schema: 1,
+      bounds: bounds ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+      commands,
+    },
+    profile,
   };
 }

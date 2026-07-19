@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { Canvas } from "skia-canvas";
-import { createRenderer, decode, type CanvasLike } from "fpsr";
+import { createRenderer, decode, type CanvasLike, type RenderOptions } from "fpsr";
 import { localAssets } from "fpsr/node";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,10 +62,10 @@ const renderer = await createRenderer({
   assets: localAssets(assets),
   createCanvas: (width, height) => new Canvas(width, height) as unknown as CanvasLike,
 });
-const options = {
+const options: RenderOptions = {
   pixelsPerTile,
   altMode: true,
-  background: null as null,
+  background: { type: "none" },
   profile: true,
   canvas: mainCanvas,
 };

@@ -1,5 +1,6 @@
 import type { Canvas2DContextLike } from "./canvas2d.js";
 import type { TileFrame } from "./frame.js";
+import type { ImageSource } from "./host.js";
 import type { FrameMeta, TerrainPatchBackground, TerrainPatchSet } from "./types/render-db.js";
 
 const UINT32_RANGE = 4_294_967_296;
@@ -133,7 +134,7 @@ export interface DrawTerrainBackgroundOptions {
   tileFrame: TileFrame;
   pixelsPerTile: number;
   frames: FrameMeta[];
-  images: CanvasImageSource[];
+  images: ImageSource[];
   background?: TerrainPatchBackground;
   fallbackColor: [number, number, number, number];
 }

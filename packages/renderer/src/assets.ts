@@ -1,13 +1,29 @@
+import { raceWithAbort, throwIfAborted } from "./abort.js";
+import type { AssetLoadOptions, ImageSource } from "./host.js";
 import { nowMs, type AssetEvent } from "./profile.js";
 import type { RenderDb } from "./types/render-db.js";
 
 /**
  * Pluggable atlas / render-db loader. Browser uses ImageBitmap; node uses
  * skia-canvas Image (via fpsr/node).
+ *
+ * ## AbortSignal semantics
+ *
+ * `loadRenderDb` / `loadAtlasImage` accept an optional `signal` on the load
+ * options. Aborting rejects **only the waiting caller** with an `AbortError`.
+ * Shared in-flight network/decode work is **not** cancelled for other
+ * concurrent consumers of the same cache key. Aborted waits never write into
+ * or delete a successful cache entry; only genuine load failures clear the
+ * shared promise slot so a later call can retry.
  */
 export interface AssetSource {
-  loadRenderDb(tier?: AssetTier): Promise<RenderDb>;
-  loadAtlasImage(index: number, tier?: AssetTier): Promise<CanvasImageSource>;
+  loadRenderDb(tier?: AssetTier, options?: AssetLoadOptions): Promise<RenderDb>;
+  loadAtlasImage(index: number, tier?: AssetTier, options?: AssetLoadOptions): Promise<ImageSource>;
+  /**
+   * Optional: release retained decoded images / clear caches.
+   * Ownership stays with the AssetSource caller — Renderer.dispose never invokes this.
+   */
+  dispose?(): void;
 }
 
 export type AssetTier = "1x" | "2x";
@@ -42,7 +58,7 @@ export interface CdnAssetsOptions {
    * with fetch but no ImageBitmap). Required for node consumers of cdnAssets;
    * browser builds ignore this when createImageBitmap exists.
    */
-  decodeImage?: (blob: Blob) => Promise<CanvasImageSource>;
+  decodeImage?: (blob: Blob, signal?: AbortSignal) => Promise<ImageSource>;
   fetchImpl?: typeof fetch;
   /** Maximum simultaneous bitmap decodes. Fetches remain concurrent. Default: 2. */
   maxConcurrentDecodes?: number;
@@ -53,9 +69,10 @@ export interface CdnAssetsOptions {
 async function loadJson<T>(
   url: string,
   fetchImpl: typeof fetch,
+  signal?: AbortSignal,
 ): Promise<{ value: T; bytes?: number; fetchMs: number }> {
   const t0 = nowMs();
-  const res = await fetchImpl(url);
+  const res = await fetchImpl(url, signal ? { signal } : undefined);
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   }
@@ -103,15 +120,19 @@ function decodeLimiter(
 
 async function blobToImage(
   blob: Blob,
-  decodeImage?: (blob: Blob) => Promise<CanvasImageSource>,
-): Promise<{ image: CanvasImageSource; decodeMs: number }> {
+  decodeImage?: (blob: Blob, signal?: AbortSignal) => Promise<ImageSource>,
+  signal?: AbortSignal,
+): Promise<{ image: ImageSource; decodeMs: number }> {
+  throwIfAborted(signal);
   const t0 = nowMs();
   if (typeof createImageBitmap === "function") {
     const image = await createImageBitmap(blob);
-    return { image, decodeMs: nowMs() - t0 };
+    throwIfAborted(signal);
+    return { image: image as ImageSource, decodeMs: nowMs() - t0 };
   }
   if (decodeImage) {
-    const image = await decodeImage(blob);
+    const image = await decodeImage(blob, signal);
+    throwIfAborted(signal);
     return { image, decodeMs: nowMs() - t0 };
   }
   throw new Error(
@@ -136,9 +157,14 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
   let manifestReady = false;
   const dbPromises = new Map<AssetTier, Promise<RenderDb>>();
   const dbReady = new Set<AssetTier>();
-  const atlasCache = new Map<string, Promise<CanvasImageSource>>();
+  const atlasCache = new Map<string, Promise<ImageSource>>();
   const atlasReady = new Set<string>();
 
+  /**
+   * Shared loads intentionally omit AbortSignal so one cancelled waiter does
+   * not cancel the underlying fetch for other consumers. Waiters race via
+   * {@link raceWithAbort}.
+   */
   const loadManifest = (): Promise<AssetManifest> => {
     if (!manifestPromise) {
       const url = `${root}/manifest.json`;
@@ -177,8 +203,9 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
     return manifestPromise;
   };
 
-  return {
-    loadRenderDb(tier: AssetTier = "2x"): Promise<RenderDb> {
+  const source: AssetSource = {
+    loadRenderDb(tier: AssetTier = "2x", loadOptions?: AssetLoadOptions): Promise<RenderDb> {
+      throwIfAborted(loadOptions?.signal);
       let pending = dbPromises.get(tier);
       if (!pending) {
         pending = (async () => {
@@ -215,10 +242,15 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
           totalMs: 0,
         });
       }
-      return pending;
+      return raceWithAbort(pending, loadOptions?.signal);
     },
 
-    async loadAtlasImage(index: number, tier: AssetTier = "2x"): Promise<CanvasImageSource> {
+    loadAtlasImage(
+      index: number,
+      tier: AssetTier = "2x",
+      loadOptions?: AssetLoadOptions,
+    ): Promise<ImageSource> {
+      throwIfAborted(loadOptions?.signal);
       const cacheKey = `${tier}:${index}`;
       let pending = atlasCache.get(cacheKey);
       if (!pending) {
@@ -271,7 +303,24 @@ export function cdnAssets(baseUrl: string, options?: CdnAssetsOptions): AssetSou
           totalMs: 0,
         });
       }
-      return pending;
+      return raceWithAbort(pending, loadOptions?.signal);
+    },
+
+    dispose(): void {
+      for (const pending of atlasCache.values()) {
+        void pending.then((image) => {
+          const maybeBitmap = image as { close?: () => void };
+          maybeBitmap.close?.();
+        });
+      }
+      atlasCache.clear();
+      atlasReady.clear();
+      dbPromises.clear();
+      dbReady.clear();
+      manifestPromise = undefined;
+      manifestReady = false;
     },
   };
+
+  return source;
 }

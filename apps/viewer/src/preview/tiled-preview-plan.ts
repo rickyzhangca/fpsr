@@ -1,5 +1,4 @@
 import {
-  planDrawList,
   type AssetSource,
   type AssetTier,
   type Blueprint,
@@ -7,6 +6,7 @@ import {
   type RenderDb,
   type RenderOptions,
 } from "fpsr";
+import { planDrawList } from "fpsr/planner";
 
 export interface TiledPreviewTierPlan {
   db: RenderDb;
@@ -32,7 +32,6 @@ export const createTiledPreviewTierPlanCache = (
           db,
           drawList: planDrawList(blueprint, db, {
             altMode: options.altMode,
-            background: options.background ?? null,
           }),
         }))
         .catch((error) => {

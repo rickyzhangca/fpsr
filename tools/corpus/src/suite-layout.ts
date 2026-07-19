@@ -2,13 +2,13 @@ import type {
   BlueprintBook,
   BlueprintEntity,
   DrawCmd,
-  EntityRenderDef,
   FrameMeta,
   Icon,
   RenderDb,
   Tile,
 } from "fpsr";
-import { planDrawList } from "fpsr";
+import { planDrawList } from "fpsr/planner";
+import type { EntityRenderDef } from "fpsr/render-db";
 
 export const BLUEPRINT_VERSION = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
 export const CASES_PER_ROW = 4;

@@ -1,5 +1,5 @@
-import type { RenderDb } from "fpsr";
-import { computeTileFrame, decode, planDrawList, selectBlueprint } from "fpsr";
+import { computeTileFrame, decode, selectBlueprint, type RenderDb } from "fpsr";
+import { planDrawList } from "fpsr/planner";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ASSETS_DIR, GAME_VERSION } from "./paths.js";

@@ -172,15 +172,37 @@ export interface Blueprint {
   [key: string]: unknown;
 }
 
-export interface BlueprintBookEntry {
+/** Book-slot wrappers: exactly one content key is present (unknown fields preserved). */
+export type BlueprintBookEntry = {
   /** 0-based slot index. */
   index: number;
-  blueprint?: Blueprint;
-  blueprint_book?: BlueprintBook;
-  upgrade_planner?: Record<string, unknown>;
-  deconstruction_planner?: Record<string, unknown>;
   [key: string]: unknown;
-}
+} & (
+  | {
+      blueprint: Blueprint;
+      blueprint_book?: never;
+      upgrade_planner?: never;
+      deconstruction_planner?: never;
+    }
+  | {
+      blueprint_book: BlueprintBook;
+      blueprint?: never;
+      upgrade_planner?: never;
+      deconstruction_planner?: never;
+    }
+  | {
+      upgrade_planner: Record<string, unknown>;
+      blueprint?: never;
+      blueprint_book?: never;
+      deconstruction_planner?: never;
+    }
+  | {
+      deconstruction_planner: Record<string, unknown>;
+      blueprint?: never;
+      blueprint_book?: never;
+      upgrade_planner?: never;
+    }
+);
 
 export interface BlueprintBook {
   item: "blueprint-book";
@@ -194,14 +216,36 @@ export interface BlueprintBook {
   [key: string]: unknown;
 }
 
-/** Top-level decoded document: exactly one of these keys is present. */
-export interface BlueprintDocument {
-  blueprint?: Blueprint;
-  blueprint_book?: BlueprintBook;
-  upgrade_planner?: Record<string, unknown>;
-  deconstruction_planner?: Record<string, unknown>;
-  [key: string]: unknown;
-}
+/**
+ * Top-level decoded document: exactly one wrapper key is present.
+ * Unknown extra fields are preserved for encode round-trips.
+ */
+export type BlueprintDocument = { [key: string]: unknown } & (
+  | {
+      blueprint: Blueprint;
+      blueprint_book?: never;
+      upgrade_planner?: never;
+      deconstruction_planner?: never;
+    }
+  | {
+      blueprint_book: BlueprintBook;
+      blueprint?: never;
+      upgrade_planner?: never;
+      deconstruction_planner?: never;
+    }
+  | {
+      upgrade_planner: Record<string, unknown>;
+      blueprint?: never;
+      blueprint_book?: never;
+      deconstruction_planner?: never;
+    }
+  | {
+      deconstruction_planner: Record<string, unknown>;
+      blueprint?: never;
+      blueprint_book?: never;
+      upgrade_planner?: never;
+    }
+);
 
 /** Flattened reference to a renderable blueprint inside a (possibly nested) book. */
 export interface BlueprintRef {

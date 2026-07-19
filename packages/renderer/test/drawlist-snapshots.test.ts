@@ -109,7 +109,7 @@ function beltRingEntities(): BlueprintEntity[] {
 describe("drawlist snapshots (committed render-db)", () => {
   it("belt-ring: 4x4 loop exposes all four curve variants", () => {
     const entities = beltRingEntities();
-    const resolved = resolve(bp(entities), db);
+    const resolved = resolve(bp(entities), db).entities;
     const mainIdx = new Set(
       resolved.map((r) => r.selections.find((s) => !s.shift)?.index).filter((i) => i != null),
     );
@@ -131,7 +131,7 @@ describe("drawlist snapshots (committed render-db)", () => {
       { entity_number: 3, name: "transport-belt", position: { x: 2.5, y: 0.5 }, direction: 4 },
       { entity_number: 4, name: "transport-belt", position: { x: 1.5, y: 1.5 }, direction: 0 },
     ];
-    const resolved = resolve(bp(entities), db, undefined, { beltEndings: false });
+    const resolved = resolve(bp(entities), db, { beltEndings: false }).entities;
     const mid = resolved.find((r) => r.entity.entity_number === 2);
     expect(mid?.selections[0]?.index).toBe(BELT_STRAIGHT_INDEX[4]);
     assertSnapshot("belt-sideload", planDrawList(bp(entities), db));
@@ -156,7 +156,7 @@ describe("drawlist snapshots (committed render-db)", () => {
       },
       { entity_number: 4, name: "transport-belt", position: { x: 6.5, y: 0.5 }, direction: 4 },
     ];
-    const resolved = resolve(bp(entities), db);
+    const resolved = resolve(bp(entities), db).entities;
     const byNum = new Map(resolved.map((r) => [r.entity.entity_number, r]));
     expect(byNum.get(2)?.selections.some((s) => s.variantKey === "in")).toBe(true);
     expect(byNum.get(3)?.selections.some((s) => s.variantKey === "out")).toBe(true);
@@ -261,7 +261,7 @@ describe("drawlist snapshots (committed render-db)", () => {
       // SE south port at [1,2] → pipe tile (0.5,-7.5) when tank is at (-0.5,-9.5).
       { entity_number: 11, name: "storage-tank", position: { x: -0.5, y: -9.5 }, direction: 0 },
     ];
-    const resolved = resolve(bp(entities), db);
+    const resolved = resolve(bp(entities), db).entities;
     const byNum = new Map(resolved.map((r) => [r.entity.entity_number, r]));
     expect(byNum.get(4)?.selections[0]?.variantKey).toBe("1111");
     expect(byNum.get(2)?.selections[0]?.variantKey).toBe("0100"); // east → boiler
@@ -347,7 +347,7 @@ describe("drawlist snapshots (committed render-db)", () => {
         direction: 0,
       };
     }
-    const resolved = resolve(bp(ents), db);
+    const resolved = resolve(bp(ents), db).entities;
     expect(resolved.find((r) => r.entity.name === "gate")?.selections[0]?.variantKey).toBe(
       "horizontal",
     );
@@ -1011,7 +1011,7 @@ describe("drawlist snapshots (committed render-db)", () => {
     const n = db.entities.locomotive?.data?.orientationCount as number;
     expect(n).toBeGreaterThan(0);
 
-    const resolved = resolve(bp(entities), db);
+    const resolved = resolve(bp(entities), db).entities;
     const loco = resolved.find((r) => r.entity.entity_number === 4);
     const expected = Math.round(0.25 * n) % n;
     // Body/mask/shadow use projected orientation; east (0.25) projects near itself.
@@ -1142,7 +1142,7 @@ describe("drawlist snapshots (committed render-db)", () => {
         },
       ]),
       db,
-    )[0];
+    ).entities[0];
     const cannonIdxs = new Set(cannonGroupIndices);
     const cannonSels = resolved?.selections.filter((s) => cannonIdxs.has(s.group)) ?? [];
     expect(cannonSels.length).toBeGreaterThanOrEqual(2);
@@ -1157,11 +1157,11 @@ describe("drawlist snapshots (committed render-db)", () => {
     const east = resolve(
       bp([{ entity_number: 1, name: "cargo-wagon", position: { x: 0, y: 0 }, orientation: 0.25 }]),
       db,
-    )[0];
+    ).entities[0];
     const west = resolve(
       bp([{ entity_number: 1, name: "cargo-wagon", position: { x: 0, y: 0 }, orientation: 0.75 }]),
       db,
-    )[0];
+    ).entities[0];
     const eastBody = east?.selections.find((s) => s.group === 1)?.index;
     const westBody = west?.selections.find((s) => s.group === 1)?.index;
     expect(eastBody).toBe(32);

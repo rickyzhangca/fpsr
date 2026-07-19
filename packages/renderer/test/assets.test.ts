@@ -78,9 +78,7 @@ describe("cdnAssets", () => {
       if (url.includes("render-db.")) return jsonResponse(db);
       return new Response(new Blob([url]), { status: 200 });
     });
-    const decodeImage = vi.fn<(blob: Blob) => Promise<CanvasImageSource>>(
-      async () => ({}) as CanvasImageSource,
-    );
+    const decodeImage = vi.fn<(blob: Blob) => Promise<object>>(async () => ({}));
     const assets = cdnAssets("https://assets.example/2.1.11", { fetchImpl, decodeImage });
 
     await Promise.all([
@@ -103,12 +101,12 @@ describe("cdnAssets", () => {
       if (url.endsWith("manifest.json")) return jsonResponse(manifest);
       return new Response(new Blob([url]), { status: 200 });
     });
-    const decodeImage = vi.fn<(blob: Blob) => Promise<CanvasImageSource>>(async () => {
+    const decodeImage = vi.fn<(blob: Blob) => Promise<object>>(async () => {
       active++;
       maxActive = Math.max(maxActive, active);
       await new Promise((resolve) => setTimeout(resolve, 5));
       active--;
-      return {} as CanvasImageSource;
+      return {};
     });
     const assets = cdnAssets("https://assets.example/2.1.11", {
       fetchImpl,
@@ -139,11 +137,37 @@ describe("cdnAssets", () => {
     });
     const assets = cdnAssets("https://assets.example/2.1.11", {
       fetchImpl,
-      decodeImage: async () => ({}) as CanvasImageSource,
+      decodeImage: async () => ({}),
     });
 
     await expect(assets.loadAtlasImage(0)).rejects.toThrow("503");
     await expect(assets.loadAtlasImage(0)).resolves.toBeTruthy();
     expect(atlasAttempts).toBe(2);
+  });
+
+  it("aborts only the waiting caller without cancelling shared in-flight work", async () => {
+    let resolveFetch!: (value: Response) => void;
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = requestUrl(input);
+      if (url.endsWith("manifest.json")) return jsonResponse(manifest);
+      return await new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      });
+    });
+    const assets = cdnAssets("https://assets.example/2.1.11", {
+      fetchImpl,
+      decodeImage: async () => ({ ok: true }),
+    });
+
+    const controller = new AbortController();
+    const aborted = assets.loadAtlasImage(0, "2x", { signal: controller.signal });
+    const kept = assets.loadAtlasImage(0, "2x");
+    controller.abort();
+
+    await expect(aborted).rejects.toMatchObject({ name: "AbortError" });
+    resolveFetch(new Response(new Blob(["ok"]), { status: 200 }));
+    await expect(kept).resolves.toEqual({ ok: true });
+    await expect(assets.loadAtlasImage(0, "2x")).resolves.toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });

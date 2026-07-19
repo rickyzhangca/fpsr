@@ -41,8 +41,8 @@ function stubCtx(): Canvas2DContextLike {
     clip() {},
     drawImage() {},
     fillText() {},
-    set fillStyle(_v: string | CanvasGradient | CanvasPattern) {},
-    set strokeStyle(_v: string | CanvasGradient | CanvasPattern) {},
+    set fillStyle(_v: string) {},
+    set strokeStyle(_v: string) {},
     set lineWidth(_v: number) {},
     set lineCap(_v: CanvasLineCap) {},
     set globalAlpha(_v: number) {},
@@ -319,7 +319,7 @@ describe("createRenderer", () => {
     spy.mockRestore();
   });
 
-  it("forwards showCheckerboard to executeDrawList", async () => {
+  it("forwards checkerboard background to executeDrawList", async () => {
     const spy = vi.spyOn(canvas2d, "executeDrawList");
     const renderer = await createRenderer({
       assets,
@@ -339,7 +339,7 @@ describe("createRenderer", () => {
       ],
     };
 
-    await renderer.render(bp, { pixelsPerTile: 32, showCheckerboard: true });
+    await renderer.render(bp, { pixelsPerTile: 32, background: { type: "checkerboard" } });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -349,7 +349,7 @@ describe("createRenderer", () => {
     spy.mockRestore();
   });
 
-  it("resolves showBackgroundAuto to checkerboard for normal blueprints", async () => {
+  it("resolves auto background to checkerboard for normal blueprints", async () => {
     const spy = vi.spyOn(canvas2d, "executeDrawList");
     const renderer = await createRenderer({
       assets,
@@ -369,7 +369,7 @@ describe("createRenderer", () => {
       ],
     };
 
-    await renderer.render(bp, { pixelsPerTile: 32, showBackgroundAuto: true });
+    await renderer.render(bp, { pixelsPerTile: 32, background: { type: "auto" } });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -383,7 +383,7 @@ describe("createRenderer", () => {
     spy.mockRestore();
   });
 
-  it("resolves showBackgroundAuto to space for space-platform blueprints", async () => {
+  it("resolves auto background to space for space-platform blueprints", async () => {
     const spy = vi.spyOn(canvas2d, "executeDrawList");
     const renderer = await createRenderer({
       assets,
@@ -404,7 +404,7 @@ describe("createRenderer", () => {
       tiles: [{ name: "space-platform-foundation", position: { x: 0, y: 0 } }],
     };
 
-    await renderer.render(bp, { pixelsPerTile: 32, showBackgroundAuto: true });
+    await renderer.render(bp, { pixelsPerTile: 32, background: { type: "auto" } });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -419,7 +419,7 @@ describe("createRenderer", () => {
     spy.mockRestore();
   });
 
-  it("forwards showSpace to executeDrawList", async () => {
+  it("forwards space background to executeDrawList", async () => {
     const spy = vi.spyOn(canvas2d, "executeDrawList");
     const renderer = await createRenderer({
       assets,
@@ -439,7 +439,7 @@ describe("createRenderer", () => {
       ],
     };
 
-    await renderer.render(bp, { pixelsPerTile: 32, showSpace: true });
+    await renderer.render(bp, { pixelsPerTile: 32, background: { type: "space" } });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -452,8 +452,7 @@ describe("createRenderer", () => {
 
     await renderer.render(bp, {
       pixelsPerTile: 32,
-      showSpace: true,
-      showSpacePlanet: true,
+      background: { type: "space", planet: true },
     });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
@@ -470,9 +469,7 @@ describe("createRenderer", () => {
 
     await renderer.render(bp, {
       pixelsPerTile: 32,
-      showSpace: true,
-      showSpacePlanet: true,
-      spacePlanet: "vulcanus",
+      background: { type: "space", planet: true, planetName: "vulcanus" },
     });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
@@ -488,7 +485,7 @@ describe("createRenderer", () => {
     spy.mockRestore();
   });
 
-  it("forwards terrainBackground to executeDrawList", async () => {
+  it("forwards terrain background to executeDrawList", async () => {
     const spy = vi.spyOn(canvas2d, "executeDrawList");
     const renderer = await createRenderer({
       assets,
@@ -508,7 +505,7 @@ describe("createRenderer", () => {
       ],
     };
 
-    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "dirt" });
+    await renderer.render(bp, { pixelsPerTile: 32, background: { type: "terrain", name: "dirt" } });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -518,7 +515,10 @@ describe("createRenderer", () => {
       }),
     );
 
-    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "water" });
+    await renderer.render(bp, {
+      pixelsPerTile: 32,
+      background: { type: "terrain", name: "water" },
+    });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -528,7 +528,10 @@ describe("createRenderer", () => {
       }),
     );
 
-    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "vulcanus" });
+    await renderer.render(bp, {
+      pixelsPerTile: 32,
+      background: { type: "terrain", name: "vulcanus" },
+    });
     expect(spy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -606,10 +609,13 @@ describe("createRenderer", () => {
       entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
     };
 
-    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "dirt" });
+    await renderer.render(bp, { pixelsPerTile: 32, background: { type: "terrain", name: "dirt" } });
     expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1, 3]);
 
-    await renderer.render(bp, { pixelsPerTile: 32, terrainBackground: "water" });
+    await renderer.render(bp, {
+      pixelsPerTile: 32,
+      background: { type: "terrain", name: "water" },
+    });
     expect(loadAtlasImage.mock.calls.map(([index]) => index)).toEqual([0, 1, 3, 2]);
   });
 

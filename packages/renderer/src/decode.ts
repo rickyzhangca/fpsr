@@ -27,8 +27,109 @@ const TOP_LEVEL_KEYS = [
   "deconstruction_planner",
 ] as const;
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const ENTRY_WRAPPER_KEYS = [
+  "blueprint",
+  "blueprint_book",
+  "upgrade_planner",
+  "deconstruction_planner",
+] as const;
+
+function validateBlueprint(bp: Record<string, unknown>, path: string): void {
+  if (bp.item !== "blueprint") {
+    throw new BlueprintDecodeError("invalid-document", `${path}.item must be "blueprint"`);
+  }
+  if (typeof bp.version !== "number" || !Number.isFinite(bp.version)) {
+    throw new BlueprintDecodeError("invalid-document", `${path}.version must be a finite number`);
+  }
+}
+
+function validatePlannerPayload(value: Record<string, unknown>, path: string): void {
+  // Upgrade / deconstruction planners are opaque Record payloads; only require
+  // a plain object (already checked by the caller).
+  void value;
+  void path;
+}
+
+function validateBookEntry(entry: unknown, path: string): void {
+  if (!isPlainObject(entry)) {
+    throw new BlueprintDecodeError("invalid-document", `${path} must be an object`);
+  }
+  if (!("index" in entry) || typeof entry.index !== "number" || !Number.isFinite(entry.index)) {
+    throw new BlueprintDecodeError("invalid-document", `${path}.index must be a finite number`);
+  }
+  const keys = ENTRY_WRAPPER_KEYS.filter((k) => k in entry);
+  if (keys.length !== 1) {
+    throw new BlueprintDecodeError(
+      "invalid-document",
+      `${path} expected exactly one content key, found ${keys.length}`,
+    );
+  }
+  const key = keys[0]!;
+  const value = entry[key];
+  if (value === null || value === undefined) {
+    throw new BlueprintDecodeError(
+      "invalid-document",
+      `${path}.${key} must be an object, got ${value === null ? "null" : "undefined"}`,
+    );
+  }
+  if (!isPlainObject(value)) {
+    throw new BlueprintDecodeError("invalid-document", `${path}.${key} must be an object`);
+  }
+  if (key === "blueprint") {
+    validateBlueprint(value, `${path}.blueprint`);
+  } else if (key === "blueprint_book") {
+    validateBlueprintBook(value, `${path}.blueprint_book`);
+  } else {
+    validatePlannerPayload(value, `${path}.${key}`);
+  }
+}
+
+function validateBlueprintBook(book: Record<string, unknown>, path: string): void {
+  if (book.item !== "blueprint-book") {
+    throw new BlueprintDecodeError("invalid-document", `${path}.item must be "blueprint-book"`);
+  }
+  if (typeof book.version !== "number" || !Number.isFinite(book.version)) {
+    throw new BlueprintDecodeError("invalid-document", `${path}.version must be a finite number`);
+  }
+  const entries = book.blueprints;
+  if (entries === undefined) return;
+  if (!Array.isArray(entries)) {
+    throw new BlueprintDecodeError("invalid-document", `${path}.blueprints must be an array`);
+  }
+  for (let i = 0; i < entries.length; i++) {
+    validateBookEntry(entries[i], `${path}.blueprints[${i}]`);
+  }
+}
+
+function validateWrapperValue(
+  doc: Record<string, unknown>,
+  key: (typeof TOP_LEVEL_KEYS)[number],
+): void {
+  const value = doc[key];
+  if (value === null || value === undefined) {
+    throw new BlueprintDecodeError(
+      "invalid-document",
+      `Top-level "${key}" must be an object, got ${value === null ? "null" : "undefined"}`,
+    );
+  }
+  if (!isPlainObject(value)) {
+    throw new BlueprintDecodeError("invalid-document", `Top-level "${key}" must be an object`);
+  }
+  if (key === "blueprint") {
+    validateBlueprint(value, "blueprint");
+  } else if (key === "blueprint_book") {
+    validateBlueprintBook(value, "blueprint_book");
+  } else {
+    validatePlannerPayload(value, key);
+  }
+}
+
 function validateDocument(doc: unknown): BlueprintDocument {
-  if (typeof doc !== "object" || doc === null || Array.isArray(doc)) {
+  if (!isPlainObject(doc)) {
     throw new BlueprintDecodeError("invalid-document", "Document must be an object");
   }
   const keys = TOP_LEVEL_KEYS.filter((k) => k in doc);
@@ -38,6 +139,8 @@ function validateDocument(doc: unknown): BlueprintDocument {
       `Expected exactly one top-level key, found ${keys.length}`,
     );
   }
+  const key = keys[0]!;
+  validateWrapperValue(doc, key);
   return doc as BlueprintDocument;
 }
 

@@ -1,0 +1,37 @@
+/**
+ * Render database type surface: `fpsr/render-db`.
+ */
+
+export type {
+  AtlasMeta,
+  BeltConnectorGraphics,
+  BeltReaderGraphics,
+  CargoBayConnectionCell,
+  CargoBayConnectionLayer,
+  CargoBayConnections,
+  CombinatorGraphics,
+  DirectionalConnectionMap,
+  EntityKind,
+  EntityRenderData,
+  EntityRenderDef,
+  FactorioRenderLayerName,
+  FpsrRenderLayerName,
+  FrameId,
+  FrameMeta,
+  LayerGroup,
+  PipeCoverGraphics,
+  RenderDb,
+  RenderLayerName,
+  SpaceBackground,
+  SpriteVariant,
+  TerrainBackgroundName,
+  TerrainBackgrounds,
+  TerrainPatchBackground,
+  TerrainPatchSet,
+  TileMaterialAtlas,
+  TileRenderDef,
+  WireAnchorMap,
+  WireAnchorSet,
+  WireConnectorGraphics,
+  WireConnectorLayerName,
+} from "./types/render-db.js";
