@@ -185,5 +185,8 @@ export function includeCmdBounds(
       }
       return b ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 };
     }
+    case "snap-grid": {
+      return expandBounds(bounds, cmd.x, cmd.y, cmd.w, cmd.h);
+    }
   }
 }

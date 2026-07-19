@@ -245,6 +245,9 @@ describe("render-db contract", () => {
       "utility/missing-icon",
       "utility/filter-blacklist",
       "utility/indication-arrow",
+      "utility/blueprint-snap-full",
+      "utility/blueprint-snap-corner-sm",
+      "utility/blueprint-snap-corner-lg",
       "utility/item-request-slot",
       "utility/unsupported-entity",
     ]) {

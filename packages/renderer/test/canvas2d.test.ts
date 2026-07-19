@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { type Canvas2DContextLike, executeDrawList } from "../src/canvas2d.js";
+import { executeDrawList, type Canvas2DContextLike } from "../src/canvas2d.js";
 import { RENDER_LAYERS, type DrawList } from "../src/types/draw-list.js";
 import { TRIMMED_FRAME, makeMiniDb } from "./fixtures/mini-db.js";
 
@@ -28,6 +28,9 @@ function mockCtx(): Canvas2DContextLike & { calls: Call[]; _alpha: number } {
     },
     fillRect(x: number, y: number, w: number, h: number) {
       calls.push({ method: "fillRect", args: [x, y, w, h] });
+    },
+    strokeRect(x: number, y: number, w: number, h: number) {
+      calls.push({ method: "strokeRect", args: [x, y, w, h] });
     },
     clearRect(x: number, y: number, w: number, h: number) {
       calls.push({ method: "clearRect", args: [x, y, w, h] });
@@ -73,6 +76,9 @@ function mockCtx(): Canvas2DContextLike & { calls: Call[]; _alpha: number } {
     },
     set lineCap(value: CanvasLineCap) {
       calls.push({ method: "set lineCap", args: [value] });
+    },
+    setLineDash(segments: number[]) {
+      calls.push({ method: "setLineDash", args: [segments] });
     },
     set globalAlpha(value: number) {
       alpha = value;
@@ -848,5 +854,64 @@ describe("executeDrawList", () => {
 
     expect(ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "4,4")).toBe(true);
     expect(ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "3,3")).toBe(false);
+  });
+
+  it("draws the 1×1 snap-grid as a dashed perimeter", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      commands: [
+        {
+          kind: "snap-grid",
+          layer: RENDER_LAYERS["selection-box"],
+          sortY: 0,
+          sortX: 0,
+          entity: 0,
+          sub: 0,
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+        },
+      ],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      frames: db.frames,
+    });
+    expect(ctx.calls.some((c) => c.method === "strokeRect")).toBe(true);
+    expect(ctx.calls.some((c) => c.method === "setLineDash")).toBe(true);
+  });
+
+  it("draws larger snap-grids as a dashed perimeter along the edges", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 4, maxY: 3 },
+      commands: [
+        {
+          kind: "snap-grid",
+          layer: RENDER_LAYERS["selection-box"],
+          sortY: 0,
+          sortX: 0,
+          entity: 0,
+          sub: 0,
+          x: 0,
+          y: 0,
+          w: 4,
+          h: 3,
+        },
+      ],
+    };
+    const ctx = mockCtx();
+    executeDrawList(ctx, list, [fakeImage], {
+      pixelsPerTile: 32,
+      padTiles: 0,
+      frames: db.frames,
+    });
+    expect(ctx.calls.some((c) => c.method === "strokeRect")).toBe(true);
+    expect(ctx.calls.some((c) => c.method === "setLineDash")).toBe(true);
+    expect(ctx.calls.filter((c) => c.method === "drawImage")).toHaveLength(0);
   });
 });

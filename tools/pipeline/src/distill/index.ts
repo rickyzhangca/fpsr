@@ -74,7 +74,7 @@ import {
   distillReactor,
   distillSteamEngine,
 } from "./production.js";
-import { clearPipeCoversCache, withFluidData } from "./shared/pipe.js";
+import { finalizeEntityDef } from "./shared/finalize.js";
 import {
   baseEntity,
   distillDirection4Animation,
@@ -82,7 +82,7 @@ import {
   distillSimplePicture,
   layersFromSprite,
 } from "./shared/layers.js";
-import { finalizeEntityDef } from "./shared/finalize.js";
+import { clearPipeCoversCache, withFluidData } from "./shared/pipe.js";
 import {
   distillAsteroidCollector,
   distillGraphicsSetPictureArray,
@@ -491,6 +491,52 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
       if (typeof sprite.scale === "number" && Number.isFinite(sprite.scale)) {
         iconScales[key] = sprite.scale;
       }
+    } catch (err) {
+      console.log(`  icon ${key} MISSING (${err instanceof Error ? err.message : String(err)})`);
+    }
+  }
+
+  // Blueprint snap-to-grid cursor box (`utility-sprites.cursor_box.blueprint_snap_rectangle`).
+  // Full 1×1 box from cursor-boxes-32x32; L-corners from cursor-boxes.png (size tiers).
+  for (const [key, sprite] of [
+    [
+      "utility/blueprint-snap-full",
+      {
+        filename: "__core__/graphics/cursor-boxes-32x32.png",
+        width: 64,
+        height: 64,
+        x: 320,
+        y: 0,
+        scale: 0.5,
+      },
+    ],
+    [
+      "utility/blueprint-snap-corner-sm",
+      {
+        filename: "__core__/graphics/cursor-boxes.png",
+        width: 64,
+        height: 64,
+        x: 64,
+        y: 324,
+        scale: 0.5,
+      },
+    ],
+    [
+      "utility/blueprint-snap-corner-lg",
+      {
+        filename: "__core__/graphics/cursor-boxes.png",
+        width: 64,
+        height: 64,
+        x: 0,
+        y: 324,
+        scale: 0.5,
+      },
+    ],
+  ] as const) {
+    try {
+      icons[key] = (await bank.addSprite(sprite)).frameId;
+      iconScales[key] = sprite.scale;
+      console.log(`  icon ${key} ok`);
     } catch (err) {
       console.log(`  icon ${key} MISSING (${err instanceof Error ? err.message : String(err)})`);
     }

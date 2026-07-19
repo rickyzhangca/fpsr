@@ -16,6 +16,7 @@ export interface Canvas2DContextLike {
   rotate(angle: number): void;
   translate(x: number, y: number): void;
   fillRect(x: number, y: number, w: number, h: number): void;
+  strokeRect?(x: number, y: number, w: number, h: number): void;
   clearRect(x: number, y: number, w: number, h: number): void;
   beginPath(): void;
   moveTo(x: number, y: number): void;
@@ -44,6 +45,7 @@ export interface Canvas2DContextLike {
   set strokeStyle(value: CanvasFillStyle);
   set lineWidth(value: number);
   set lineCap(value: CanvasLineCap);
+  setLineDash?(segments: number[]): void;
   set globalAlpha(value: number);
   get globalAlpha(): number;
   set globalCompositeOperation(value: GlobalCompositeOperation);

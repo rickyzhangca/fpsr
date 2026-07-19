@@ -609,6 +609,9 @@ export function makeMiniDb(): RenderDb {
       "item/stone-brick": 3,
       "quality/rare": 3,
       "utility/unsupported-entity": 4,
+      "utility/blueprint-snap-full": 3,
+      "utility/blueprint-snap-corner-sm": 3,
+      "utility/blueprint-snap-corner-lg": 3,
     },
   };
 }

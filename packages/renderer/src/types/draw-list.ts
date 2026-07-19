@@ -218,7 +218,18 @@ export interface IconCmd extends DrawCmdBase {
   rotation?: number;
 }
 
-export type DrawCmd = RectCmd | SpriteCmd | WireCmd | TrainChainCmd | IconCmd;
+/**
+ * Blueprint snap-to-grid visualization: dashed green perimeter along the snap cell.
+ */
+export interface SnapGridCmd extends DrawCmdBase {
+  kind: "snap-grid";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export type DrawCmd = RectCmd | SpriteCmd | WireCmd | TrainChainCmd | IconCmd | SnapGridCmd;
 
 export interface DrawListBounds {
   minX: number;

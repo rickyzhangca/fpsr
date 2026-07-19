@@ -5,6 +5,7 @@ import { drawSpaceBackground } from "../space-background.js";
 import { drawTerrainBackground } from "../terrain-background.js";
 import type { DrawList, SpriteCmd } from "../types/draw-list.js";
 import { drawIcon } from "./draw-icon.js";
+import { drawSnapGrid } from "./draw-snap-grid.js";
 import { drawRect, drawSprite, shadowSpriteBounds } from "./draw-sprite.js";
 import { drawTrainChain, drawWire } from "./draw-wire.js";
 import type { Canvas2DContextLike, ExecuteDrawListOptions } from "./types.js";
@@ -224,6 +225,9 @@ export function executeDrawList(
         break;
       case "train-chain":
         drawTrainChain(ctx, cmd, ox, oy, ppt);
+        break;
+      case "snap-grid":
+        drawSnapGrid(ctx, cmd, ox, oy, ppt);
         break;
       case "icon": {
         const frame = frames[cmd.frame];
