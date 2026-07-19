@@ -821,6 +821,33 @@ describe("executeDrawList", () => {
     expect(ctx.calls.some((c) => c.method === "fillText" && c.args[0] === "0,0")).toBe(true);
   });
 
+  it("keeps coordinate overlay outer strokes inside the canvas", () => {
+    const list: DrawList = {
+      schema: 1,
+      bounds: { minX: 0, minY: 0, maxX: 2, maxY: 2 },
+      commands: [],
+    };
+    const ctx = mockCtx();
+    const pixelsPerTile = 32;
+    const width = 64;
+    const height = 64;
+    executeDrawList(ctx, list, [], {
+      pixelsPerTile,
+      padTiles: 0,
+      tileFrame: { minX: 0, minY: 0, maxX: 2, maxY: 2 },
+      showCoordinates: true,
+      frames: db.frames,
+    });
+
+    const pathArgs = ctx.calls
+      .filter((c) => c.method === "moveTo" || c.method === "lineTo")
+      .flatMap((c) => c.args as number[]);
+    expect(pathArgs).toContain(width - 0.5);
+    expect(pathArgs).toContain(height - 0.5);
+    expect(pathArgs).not.toContain(width + 0.5);
+    expect(pathArgs).not.toContain(height + 0.5);
+  });
+
   it("does not draw coordinate labels when showCoordinates is unset", () => {
     const list: DrawList = {
       schema: 1,

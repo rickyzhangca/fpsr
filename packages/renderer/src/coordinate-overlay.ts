@@ -34,12 +34,13 @@ export function drawCoordinateOverlay(
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let i = 0; i <= cols; i++) {
-    const x = i * pixelsPerTile + 0.5;
+    // Inset the outer edge so the 1px stroke stays inside the canvas.
+    const x = i === cols ? width - 0.5 : i * pixelsPerTile + 0.5;
     ctx.moveTo(x, 0);
     ctx.lineTo(x, height);
   }
   for (let j = 0; j <= rows; j++) {
-    const y = j * pixelsPerTile + 0.5;
+    const y = j === rows ? height - 0.5 : j * pixelsPerTile + 0.5;
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
   }
