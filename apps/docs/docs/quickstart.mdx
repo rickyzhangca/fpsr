@@ -6,7 +6,7 @@ description: Render a Factorio blueprint string in the browser or Node.js.
 ## Browser
 
 ```ts
-import { cdnAssets, createRenderer, decode } from "fpsr";
+import { cdnAssets, createRenderer, decode } from "@rickyzhangca/fpsr";
 
 const doc = decode(blueprintString);
 const renderer = await createRenderer({
@@ -24,8 +24,8 @@ document.body.appendChild(canvas as HTMLCanvasElement);
 ```ts
 import { writeFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
-import { createRenderer, decode } from "fpsr";
-import { localAssets } from "fpsr/node";
+import { createRenderer, decode } from "@rickyzhangca/fpsr";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 
 const doc = decode(blueprintString);
 const renderer = await createRenderer({

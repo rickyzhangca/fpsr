@@ -1,4 +1,4 @@
-import type { BlueprintEntity, Icon, RenderDb, Tile } from "fpsr";
+import type { BlueprintEntity, Icon, RenderDb, Tile } from "@rickyzhangca/fpsr";
 import {
   BASE_DIRECTION_16_ENTITIES,
   BASE_DIRECTION_8_ENTITIES,

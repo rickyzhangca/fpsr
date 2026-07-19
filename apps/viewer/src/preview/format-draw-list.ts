@@ -1,4 +1,4 @@
-import type { DrawCmd, DrawList } from "fpsr";
+import type { DrawCmd, DrawList } from "@rickyzhangca/fpsr";
 type SortGroup = {
   layer: number;
   sortY: number;

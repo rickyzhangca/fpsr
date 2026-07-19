@@ -1,12 +1,12 @@
 #!/usr/bin/env tsx
 
-import { createHmac } from "node:crypto";
 import { execFile } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

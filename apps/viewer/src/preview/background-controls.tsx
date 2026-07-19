@@ -1,5 +1,5 @@
 import type { PreviewBackgroundMode } from "@/shell/viewer-preferences";
-import type { RenderBackground } from "fpsr";
+import type { RenderBackground } from "@rickyzhangca/fpsr";
 
 export const DEFAULT_ORBIT_PLANETS = ["nauvis"] as const;
 export const ORBIT_SELECT_PREFIX = "orbit:";

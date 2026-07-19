@@ -17,10 +17,10 @@ import {
   type Renderer,
   type RenderResult,
   type TileFrame,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import { renderPreparedViewport } from "fpsr-internal/prepared-viewport";
-import { nowMs } from "fpsr/canvas";
-import { analyzePlan, drawListForTile, planDrawList } from "fpsr/planner";
+import { nowMs } from "@rickyzhangca/fpsr/canvas";
+import { analyzePlan, drawListForTile, planDrawList } from "@rickyzhangca/fpsr/planner";
 import {
   toPreviewRenderProgress,
   type RenderWorkerRequest,

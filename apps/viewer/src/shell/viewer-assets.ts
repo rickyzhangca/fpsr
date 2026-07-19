@@ -1,4 +1,4 @@
-import { cdnAssets, type AssetSource } from "fpsr";
+import { cdnAssets, type AssetSource } from "@rickyzhangca/fpsr";
 import {
   assetsBaseFor,
   cdnDebugFetchFor,

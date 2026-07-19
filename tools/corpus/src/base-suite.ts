@@ -1,4 +1,4 @@
-import type { BlueprintBook, BlueprintDocument, RenderDb } from "fpsr";
+import type { BlueprintBook, BlueprintDocument, RenderDb } from "@rickyzhangca/fpsr";
 import {
   BASE_ENTITY_NAMES,
   BASE_GAME_BOOK_SPEC,

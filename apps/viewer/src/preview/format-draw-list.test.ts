@@ -1,4 +1,4 @@
-import type { DrawCmd, DrawList } from "fpsr";
+import type { DrawCmd, DrawList } from "@rickyzhangca/fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { formatDrawCmd, formatDrawList } from "./format-draw-list";
 const list: DrawList = {

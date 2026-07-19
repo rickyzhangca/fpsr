@@ -4,7 +4,7 @@ import {
   type Blueprint,
   type BlueprintBook,
   type BlueprintEntity,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 
 export const formatGameVersion = (version: number): string => {
   const { major, minor, patch } = decodeVersion(version);

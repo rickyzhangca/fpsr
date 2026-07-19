@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { encodedByteSize, formatByteSize } from "@/blueprint/blueprint-meta";
 import { VIEWER_PREFERENCE_KEYS } from "@/shell/viewer-preferences";
-import type { Blueprint } from "fpsr";
+import type { Blueprint } from "@rickyzhangca/fpsr";
 import { createStore, Provider } from "jotai";
 import { act } from "react";
 import { createRoot } from "react-dom/client";

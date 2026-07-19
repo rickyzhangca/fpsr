@@ -1,4 +1,4 @@
-import type { EntityRenderDef, LayerGroup } from "fpsr/render-db";
+import type { EntityRenderDef, LayerGroup } from "@rickyzhangca/fpsr/render-db";
 
 export const CARDINAL_DIRECTIONS = [0, 4, 8, 12] as const;
 export const DIRECTIONS_8 = [0, 2, 4, 6, 8, 10, 12, 14] as const;

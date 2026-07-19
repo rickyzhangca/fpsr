@@ -1,7 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
-export { localAssets } from "fpsr/node";
+export { localAssets } from "@rickyzhangca/fpsr/node";
 
 export async function assertAssetsDir(dir: string): Promise<void> {
   try {

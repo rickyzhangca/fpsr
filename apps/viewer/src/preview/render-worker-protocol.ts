@@ -10,8 +10,8 @@ import type {
   RenderProfile,
   RenderProgressEvent,
   TileFrame,
-} from "fpsr";
-import type { PlanOptions } from "fpsr/planner";
+} from "@rickyzhangca/fpsr";
+import type { PlanOptions } from "@rickyzhangca/fpsr/planner";
 import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 export type WorkerRenderOptions = Omit<RenderOptions, "canvas" | "signal" | "onProgress">;
 export type WorkerTiledPreviewOptions = Omit<

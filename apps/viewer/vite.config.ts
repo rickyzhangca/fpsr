@@ -65,19 +65,19 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^fpsr\/planner$/,
+        find: /^@rickyzhangca\/fpsr\/planner$/,
         replacement: path.resolve(__dirname, "../../packages/renderer/src/planner.ts"),
       },
       {
-        find: /^fpsr\/canvas$/,
+        find: /^@rickyzhangca\/fpsr\/canvas$/,
         replacement: path.resolve(__dirname, "../../packages/renderer/src/canvas.ts"),
       },
       {
-        find: /^fpsr\/render-db$/,
+        find: /^@rickyzhangca\/fpsr\/render-db$/,
         replacement: path.resolve(__dirname, "../../packages/renderer/src/render-db.ts"),
       },
       {
-        find: /^fpsr\/node$/,
+        find: /^@rickyzhangca\/fpsr\/node$/,
         replacement: path.resolve(__dirname, "../../packages/renderer/src/node.ts"),
       },
       {
@@ -88,7 +88,7 @@ export default defineConfig({
         ),
       },
       {
-        find: /^fpsr$/,
+        find: /^@rickyzhangca\/fpsr$/,
         replacement: path.resolve(__dirname, "../../packages/renderer/src/index.ts"),
       },
       { find: "@", replacement: path.resolve(__dirname, "./src") },

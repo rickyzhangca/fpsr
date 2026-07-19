@@ -11,7 +11,7 @@ from the official data packages.
 ## Install
 
 ```bash
-npm install fpsr
+npm install @rickyzhangca/fpsr
 ```
 
 For Node.js rendering, add the optional peer dependency:
@@ -26,7 +26,7 @@ not included (see [Asset hosting](#asset-hosting)).
 ## Quick start (browser)
 
 ```ts
-import { cdnAssets, createRenderer, decode } from "fpsr";
+import { cdnAssets, createRenderer, decode } from "@rickyzhangca/fpsr";
 
 const doc = decode(blueprintString);
 const renderer = await createRenderer({
@@ -72,8 +72,8 @@ that fit safely in one canvas.
 ```ts
 import { writeFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
-import { createRenderer, decode } from "fpsr";
-import { localAssets } from "fpsr/node";
+import { createRenderer, decode } from "@rickyzhangca/fpsr";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 
 const doc = decode(blueprintString);
 const renderer = await createRenderer({
@@ -95,16 +95,16 @@ renderer. The render DB's `assetDensity` must match the selected tier or
 
 | Import           | Contents                                                                 |
 | ---------------- | ------------------------------------------------------------------------ |
-| `fpsr`           | Decode/encode, books, migrate, `createRenderer`, `cdnAssets`, core types |
-| `fpsr/planner`   | `resolve`, `planDrawList`, draw-list helpers, belt/train/wire utilities  |
-| `fpsr/canvas`    | `executeDrawList`, background painters, silhouette helpers               |
-| `fpsr/render-db` | Full `RenderDb` / entity / terrain type surface                          |
-| `fpsr/node`      | `localAssets` (filesystem; requires `skia-canvas`)                       |
+| `@rickyzhangca/fpsr`           | Decode/encode, books, migrate, `createRenderer`, `cdnAssets`, core types |
+| `@rickyzhangca/fpsr/planner`   | `resolve`, `planDrawList`, draw-list helpers, belt/train/wire utilities  |
+| `@rickyzhangca/fpsr/canvas`    | `executeDrawList`, background painters, silhouette helpers               |
+| `@rickyzhangca/fpsr/render-db` | Full `RenderDb` / entity / terrain type surface                          |
+| `@rickyzhangca/fpsr/node`      | `localAssets` (filesystem; requires `skia-canvas`)                       |
 
 ## Blueprint books
 
 ```ts
-import { decode, listBlueprints, selectBlueprint } from "fpsr";
+import { decode, listBlueprints, selectBlueprint } from "@rickyzhangca/fpsr";
 
 const doc = decode(bookString);
 const refs = listBlueprints(doc); // flattened tree with paths
@@ -121,8 +121,8 @@ directly — no images or network required beyond loading the render DB named by
 `manifest.json`:
 
 ```ts
-import { decode, migrateTo2x, selectBlueprint } from "fpsr";
-import { planDrawList, resolve, serializeDrawList } from "fpsr/planner";
+import { decode, migrateTo2x, selectBlueprint } from "@rickyzhangca/fpsr";
+import { planDrawList, resolve, serializeDrawList } from "@rickyzhangca/fpsr/planner";
 import renderDb from "./render-db.json" with { type: "json" };
 
 const bp = migrateTo2x(selectBlueprint(decode(source))); // optional; plan/resolve also migrate
@@ -184,7 +184,7 @@ failures clear the shared promise so a later call can retry.
 | `BlueprintSelectError`  | class    | Thrown when book navigation fails                       |
 | `BlueprintSelectReason` | type     | Error reason codes for selection failures               |
 
-### Planner (`fpsr/planner`)
+### Planner (`@rickyzhangca/fpsr/planner`)
 
 | Export                    | Kind     | Description                                                                |
 | ------------------------- | -------- | -------------------------------------------------------------------------- |
@@ -195,7 +195,7 @@ failures clear the shared promise so a later call can retry.
 | `PlanOptions`             | type     | `altMode`, `beltEndings`, optional `profile`                               |
 | `serializeDrawList`       | function | Stable JSON serialization for fixtures                                     |
 
-### Rendering (`fpsr`)
+### Rendering (`@rickyzhangca/fpsr`)
 
 | Export                          | Kind     | Description                                                          |
 | ------------------------------- | -------- | -------------------------------------------------------------------- |
@@ -213,7 +213,7 @@ failures clear the shared promise so a later call can retry.
 **not** call `AssetSource.dispose()` or close atlas images owned by the asset
 source — those remain the caller's responsibility.
 
-### Canvas (`fpsr/canvas`)
+### Canvas (`@rickyzhangca/fpsr/canvas`)
 
 | Export                  | Kind     | Description                       |
 | ----------------------- | -------- | --------------------------------- |

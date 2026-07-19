@@ -1,5 +1,5 @@
 /**
- * Canvas2D execution subpath: `fpsr/canvas`.
+ * Canvas2D execution subpath: `@rickyzhangca/fpsr/canvas`.
  */
 
 export { executeDrawList } from "./canvas2d.js";

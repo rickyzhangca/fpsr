@@ -23,7 +23,7 @@ import {
   type BlueprintDocument,
   type DecodeStats,
   type RenderMeasurement,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import { useAtom } from "jotai";
 import { InfoIcon } from "lucide-react";
 import {

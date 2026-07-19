@@ -9,7 +9,7 @@ import { formatDrawList } from "@/preview/format-draw-list";
 import { planPreviewWithDiagnostics } from "@/preview/preview-renderer";
 import type { PreviewRenderProgress } from "@/preview/render-worker-protocol";
 import { previewPreferencesAtom, processPreferencesAtom } from "@/shell/viewer-preferences";
-import type { Blueprint, BlueprintDocument, DecodeStats, DrawList } from "fpsr";
+import type { Blueprint, BlueprintDocument, DecodeStats, DrawList } from "@rickyzhangca/fpsr";
 import { useAtom } from "jotai";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getAdapterChecks } from "./adapter-checks";

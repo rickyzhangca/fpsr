@@ -1,4 +1,4 @@
-import type { Blueprint } from "fpsr";
+import type { Blueprint } from "@rickyzhangca/fpsr";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   countEntitiesByName,
@@ -9,7 +9,7 @@ import {
   formatGameVersion,
   formatSnapping,
 } from "./blueprint-meta";
-vi.mock("fpsr", () => ({
+vi.mock("@rickyzhangca/fpsr", () => ({
   decodeVersion: (v: number) => ({
     major: Math.floor(v / 2 ** 48) % 2 ** 16,
     minor: Math.floor(v / 2 ** 32) % 2 ** 16,

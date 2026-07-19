@@ -7,7 +7,7 @@
  * actual Base-only dump or only a merged/synthetic source.
  */
 
-import type { RenderDb } from "fpsr";
+import type { RenderDb } from "@rickyzhangca/fpsr";
 
 /** Loose Factorio data.raw: table name → prototype name → fields. */
 export type DataRaw = Record<string, Record<string, Record<string, unknown>> | undefined>;

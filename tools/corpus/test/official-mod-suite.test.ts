@@ -1,4 +1,4 @@
-import { encode, listBlueprints, selectBlueprint, type RenderDb } from "fpsr";
+import { encode, listBlueprints, selectBlueprint, type RenderDb } from "@rickyzhangca/fpsr";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

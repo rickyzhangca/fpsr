@@ -1,4 +1,4 @@
-import type { Blueprint, DecodeStats } from "fpsr";
+import type { Blueprint, DecodeStats } from "@rickyzhangca/fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { getAdapterChecks } from "./adapter-checks";
 import { createPipelineReceipt } from "./pipeline-receipt";

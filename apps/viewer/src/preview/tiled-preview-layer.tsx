@@ -1,4 +1,4 @@
-import type { BlueprintDocument, RenderMeasurement } from "fpsr";
+import type { BlueprintDocument, RenderMeasurement } from "@rickyzhangca/fpsr";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   openTiledPreview,

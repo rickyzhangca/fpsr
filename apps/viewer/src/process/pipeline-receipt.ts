@@ -1,4 +1,4 @@
-import type { Blueprint, DecodeStats } from "fpsr";
+import type { Blueprint, DecodeStats } from "@rickyzhangca/fpsr";
 import type { AdapterCheck } from "./adapter-checks";
 import type { PerfReport } from "@/performance/perf-report";
 import type { PlanDiagnostics } from "./plan-diagnostics";

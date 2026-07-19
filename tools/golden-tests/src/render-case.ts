@@ -1,5 +1,5 @@
-import { type CanvasLike, createRenderer, decode, type RenderOptions } from "fpsr";
-import { localAssets } from "fpsr/node";
+import { type CanvasLike, createRenderer, decode, type RenderOptions } from "@rickyzhangca/fpsr";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 import { readFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
 import { bpPath, type GoldenCase } from "./cases.js";

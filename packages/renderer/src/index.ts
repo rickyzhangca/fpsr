@@ -1,11 +1,11 @@
 /**
- * Stable root export surface for `fpsr`.
+ * Stable root export surface for `@rickyzhangca/fpsr`.
  *
  * Prefer subpaths for deeper APIs:
- * - `fpsr/planner` — resolve / plan / draw-list diagnostics
- * - `fpsr/canvas` — Canvas2D execution and backgrounds
- * - `fpsr/render-db` — RenderDb / frame types
- * - `fpsr/node` — filesystem asset source (Node only)
+ * - `@rickyzhangca/fpsr/planner` — resolve / plan / draw-list diagnostics
+ * - `@rickyzhangca/fpsr/canvas` — Canvas2D execution and backgrounds
+ * - `@rickyzhangca/fpsr/render-db` — RenderDb / frame types
+ * - `@rickyzhangca/fpsr/node` — filesystem asset source (Node only)
  */
 
 export {

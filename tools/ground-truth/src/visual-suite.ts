@@ -1,4 +1,4 @@
-import { decode, encode, selectBlueprint, type Blueprint, type BlueprintDocument } from "fpsr";
+import { decode, encode, selectBlueprint, type Blueprint, type BlueprintDocument } from "@rickyzhangca/fpsr";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";

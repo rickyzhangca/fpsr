@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { Icon } from "fpsr";
+import type { Icon } from "@rickyzhangca/fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";

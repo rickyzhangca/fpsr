@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import type { BlueprintDocument } from "fpsr";
+import type { BlueprintDocument } from "@rickyzhangca/fpsr";
 import { PreviewRenderWorkerClient, renderPreview } from "./preview-renderer";
 import type { RenderWorkerRequest, RenderWorkerResponse } from "./render-worker-protocol";
 class FakeWorker extends EventTarget {

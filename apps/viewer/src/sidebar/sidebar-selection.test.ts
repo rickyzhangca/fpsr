@@ -1,4 +1,4 @@
-import type { BlueprintDocument } from "fpsr";
+import type { BlueprintDocument } from "@rickyzhangca/fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { resolveSidebarSelection } from "./sidebar-selection";
 import type { SidebarSource } from "./sidebar-tree";

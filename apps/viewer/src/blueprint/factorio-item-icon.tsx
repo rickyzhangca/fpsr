@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { viewerAssets as assets } from "@/shell/viewer-assets";
-import { resolveIconFrameId, type FrameMeta, type RenderDb } from "fpsr";
-import { bakeEntityInfoSilhouette, entityInfoSilhouettePadPx } from "fpsr/canvas";
+import { resolveIconFrameId, type FrameMeta, type RenderDb } from "@rickyzhangca/fpsr";
+import { bakeEntityInfoSilhouette, entityInfoSilhouettePadPx } from "@rickyzhangca/fpsr/canvas";
 import { useEffect, useState, type CSSProperties } from "react";
 /** Alt-mode entity-info silhouette defaults (see `icon-silhouette.ts`). */
 const ALT_MODE_SILHOUETTE_DILATE_RADIUS = 12;

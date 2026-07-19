@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import type { BlueprintIconVariant, Icon } from "fpsr";
+import type { BlueprintIconVariant, Icon } from "@rickyzhangca/fpsr";
 import { CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { BlueprintIcons, type BlueprintNestedCover } from "./blueprint-icons";

@@ -1,4 +1,4 @@
-import type { RenderMeasurement } from "fpsr";
+import type { RenderMeasurement } from "@rickyzhangca/fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import {
   selectPreviewPixelsPerTile,

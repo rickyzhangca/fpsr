@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { type CanvasLike, createRenderer } from "fpsr";
-import { localAssets } from "fpsr/node";
+import { type CanvasLike, createRenderer } from "@rickyzhangca/fpsr";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 import { Canvas } from "skia-canvas";

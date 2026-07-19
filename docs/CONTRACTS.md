@@ -112,8 +112,8 @@ listBlueprints(doc: BlueprintDocument): BlueprintRef[]; // flattened book tree
 selectBlueprint(doc: BlueprintDocument, path?: number[]): Blueprint; // default: active_index chain
 
 // planning — pure, needs render-db but no images
-planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList; // from "fpsr/planner"
-resolve(bp, db, opts?): { entities: ResolvedEntity[]; warnings: string[] }; // from "fpsr/planner"
+planDrawList(bp: Blueprint, db: RenderDb, opts?: PlanOptions): DrawList; // from "@rickyzhangca/fpsr/planner"
+resolve(bp, db, opts?): { entities: ResolvedEntity[]; warnings: string[] }; // from "@rickyzhangca/fpsr/planner"
 analyzePlan(bp: Blueprint, drawList: DrawList, db: RenderDb): PlanDiagnostics;
 countBlueprintComponents(bp: Blueprint, db: RenderDb): BlueprintComponentCount[]; // migrates 1.x names first
 
@@ -130,8 +130,8 @@ const out = await r.render(docOrBp, {
 
 // asset sources
 cdnAssets(baseUrl: string): AssetSource;      // browser+node fetch
-localAssets(dir: string): AssetSource;        // node only, subpath export "fpsr/node"
-// Subpaths: "fpsr/planner", "fpsr/canvas", "fpsr/render-db"
+localAssets(dir: string): AssetSource;        // node only, subpath export "@rickyzhangca/fpsr/node"
+// Subpaths: "@rickyzhangca/fpsr/planner", "@rickyzhangca/fpsr/canvas", "@rickyzhangca/fpsr/render-db"
 ```
 
 `AssetSource` contract:
@@ -166,7 +166,7 @@ Amendments ratified during M1 (binding):
 - `PlanOptions` no longer includes `background` (backend/renderer concern) or
   mutable `profileOut`; use `planDrawListWithOptions({ profile: true })` or the
   renderer's `profile` flag. The renderer may use an internal planner entry with
-  `profileOut`; that type is not part of `fpsr/planner`.
+  `profileOut`; that type is not part of `@rickyzhangca/fpsr/planner`.
 - `PlanOptions.altMode` emits only blueprint-derived entity info: recipes,
   configured filters/requests/items, static display-panel icons (not circuit
   message parameters), splitter priorities, and quality badges. It does not

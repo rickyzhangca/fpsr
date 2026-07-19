@@ -1,7 +1,7 @@
 import { encodedBookByteSize, formatByteSize } from "@/blueprint/blueprint-meta";
 import { CopyableBlueprintIcons } from "@/blueprint/copyable-blueprint-icons";
 import { FactorioRichText } from "@/blueprint/factorio-rich-text";
-import { blueprintBookCover, encode, type BlueprintBook } from "fpsr";
+import { blueprintBookCover, encode, type BlueprintBook } from "@rickyzhangca/fpsr";
 
 export const BookSummary = ({
   book,

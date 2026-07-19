@@ -1,4 +1,4 @@
-import type { Blueprint, BlueprintDocument, BlueprintEntity, Icon, Position, RenderDb } from "fpsr";
+import type { Blueprint, BlueprintDocument, BlueprintEntity, Icon, Position, RenderDb } from "@rickyzhangca/fpsr";
 import { BASE_GAME_BOOK_SPEC, BASE_GAME_VERSION } from "../base-game-book-spec.js";
 import type { EntityPose } from "../entity-poses.js";
 import type { SuiteCaseBounds, SuiteLattice, SuitePlacement } from "../suite-layout.js";

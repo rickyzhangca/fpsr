@@ -1,6 +1,6 @@
 /**
  * Generate decode fixture .txt files from JSON literals via encode().
- * Run: pnpm -F fpsr fixtures
+ * Run: pnpm -F @rickyzhangca/fpsr fixtures
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

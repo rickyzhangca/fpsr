@@ -31,7 +31,7 @@ export type {
   WireAnchorSet,
   WireConnectorGraphics,
   WireConnectorLayerName,
-} from "fpsr/render-db";
+} from "@rickyzhangca/fpsr/render-db";
 
 /** Loose Factorio sprite / animation table from data-raw-dump.json. */
 export interface RawSprite {

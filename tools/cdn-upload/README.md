@@ -66,5 +66,5 @@ security key in a `VITE_` environment variable.
 Uploaded sprites and atlases are **Wube Software property**. Keep the CDN
 **private and non-redistributive** — do not expose a public download endpoint or
 mirror the assets for third parties. The same stance applies to this repository;
-see the root [README](../../README.md) licensing section. End users of `fpsr`
+see the root [README](../../README.md) licensing section. End users of `@rickyzhangca/fpsr`
 should generate assets from their own Factorio installation via `@fpsr/pipeline`.

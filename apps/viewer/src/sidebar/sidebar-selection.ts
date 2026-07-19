@@ -1,4 +1,4 @@
-import type { BookTreeItemKind, Icon } from "fpsr";
+import type { BookTreeItemKind, Icon } from "@rickyzhangca/fpsr";
 import {
   docToSidebarItems,
   selectionId,

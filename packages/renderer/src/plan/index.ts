@@ -231,7 +231,7 @@ export function planDrawListWithOptions(
 
 /**
  * @internal Renderer hot-path planner that may fill a mutable `profileOut` sink.
- * Not part of the stable `fpsr/planner` API.
+ * Not part of the stable `@rickyzhangca/fpsr/planner` API.
  */
 export function planDrawListInternal(
   bp: Blueprint,

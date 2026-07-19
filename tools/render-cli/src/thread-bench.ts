@@ -5,8 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { Canvas } from "skia-canvas";
-import { createRenderer, decode, type CanvasLike, type RenderOptions } from "fpsr";
-import { localAssets } from "fpsr/node";
+import { createRenderer, decode, type CanvasLike, type RenderOptions } from "@rickyzhangca/fpsr";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");

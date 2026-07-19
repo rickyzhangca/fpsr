@@ -8,7 +8,7 @@ them to canvas in the browser or Node.js.
 
 | Path                 | Package                     | Purpose                                                                           |
 | -------------------- | --------------------------- | --------------------------------------------------------------------------------- |
-| `packages/renderer`  | [`fpsr`](packages/renderer) | Core library (npm) — decode/encode, resolver, draw-list planner, Canvas2D backend |
+| `packages/renderer`  | [`@rickyzhangca/fpsr`](packages/renderer) | Core library (npm) — decode/encode, resolver, draw-list planner, Canvas2D backend |
 | `apps/viewer`        | `@fpsr/viewer`              | GUI for pasting, inspecting, previewing, and exporting blueprint strings          |
 | `tools/pipeline`     | `@fpsr/pipeline`            | Offline asset extraction from a local Factorio install → `assets-out/<version>/`  |
 | `tools/cdn-upload`   | `@fpsr/cdn-upload`          | Upload pipeline assets to private BunnyCDN Storage                                |
@@ -45,7 +45,7 @@ Supported Factorio install (version detected from game metadata)
 1. **Pipeline** extracts sprites and metadata from your licensed game install.
 2. **Assets** land in `assets-out/<game-version>/` (gitignored) and optionally on a
    private CDN.
-3. **Renderer** (`fpsr`) decodes blueprint strings and paints them using those assets.
+3. **Renderer** (`@rickyzhangca/fpsr`) decodes blueprint strings and paints them using those assets.
 4. **Viewer / golden-tests / ground-truth** close the loop: inspect output in the
    browser, catch local PNG regressions, and compare against the real game through
    the CLI visual suites during development.
@@ -95,7 +95,7 @@ vp install
 **Wube Software Ltd.** They are:
 
 - never committed to this repository (see `assets-out/` in `.gitignore`),
-- never bundled in the `fpsr` npm package, and
+- never bundled in the `@rickyzhangca/fpsr` npm package, and
 - never intended for public redistribution.
 
 **Test fixtures** — a distilled **metadata-only** render database

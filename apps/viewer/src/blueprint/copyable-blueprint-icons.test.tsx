@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { encode, type Blueprint, type BlueprintBook } from "fpsr";
+import { encode, type Blueprint, type BlueprintBook } from "@rickyzhangca/fpsr";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";

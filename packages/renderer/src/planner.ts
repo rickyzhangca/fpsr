@@ -1,5 +1,5 @@
 /**
- * Planner / resolve / draw-list subpath: `fpsr/planner`.
+ * Planner / resolve / draw-list subpath: `@rickyzhangca/fpsr/planner`.
  */
 
 export {

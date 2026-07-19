@@ -1,4 +1,4 @@
-import { BLUEPRINT_ADAPTERS, decodeVersion, type Blueprint } from "fpsr";
+import { BLUEPRINT_ADAPTERS, decodeVersion, type Blueprint } from "@rickyzhangca/fpsr";
 
 const ADAPTER_LABELS: Record<string, string> = {
   "scale-legacy-directions": "Legacy directions",

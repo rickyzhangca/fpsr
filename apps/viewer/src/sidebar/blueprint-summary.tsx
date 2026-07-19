@@ -9,7 +9,7 @@ import { CopyableBlueprintIcons } from "@/blueprint/copyable-blueprint-icons";
 import { FactorioRichText } from "@/blueprint/factorio-rich-text";
 import { Button } from "@/components/ui/button";
 import { summaryExpandedAtom } from "@/shell/viewer-preferences";
-import { encode, type Blueprint } from "fpsr";
+import { encode, type Blueprint } from "@rickyzhangca/fpsr";
 import { useAtom } from "jotai";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 

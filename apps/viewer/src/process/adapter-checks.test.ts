@@ -1,4 +1,4 @@
-import { BLUEPRINT_ADAPTERS, type Blueprint, type BlueprintEntity, decodeVersion } from "fpsr";
+import { BLUEPRINT_ADAPTERS, type Blueprint, type BlueprintEntity, decodeVersion } from "@rickyzhangca/fpsr";
 import { describe, expect, it } from "vite-plus/test";
 import { getAdapterChecks } from "./adapter-checks";
 

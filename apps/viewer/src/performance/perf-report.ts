@@ -1,4 +1,4 @@
-import type { AssetEvent, DecodeStats, RenderProfile } from "fpsr";
+import type { AssetEvent, DecodeStats, RenderProfile } from "@rickyzhangca/fpsr";
 export interface PerfReportBlueprint {
   entityCount: number;
   tileCount: number;

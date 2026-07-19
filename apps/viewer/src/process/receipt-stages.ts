@@ -1,4 +1,4 @@
-import { decodeVersion, type Blueprint, type DecodeStats } from "fpsr";
+import { decodeVersion, type Blueprint, type DecodeStats } from "@rickyzhangca/fpsr";
 import type { AdapterCheck } from "./adapter-checks";
 import type { PerfReport } from "@/performance/perf-report";
 import type { PlanDiagnostics, UnsupportedBlueprintContent } from "./plan-diagnostics";

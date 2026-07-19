@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { Canvas } from "skia-canvas";
-import { createRenderer, decode } from "fpsr";
-import { localAssets } from "fpsr/node";
+import { createRenderer, decode } from "@rickyzhangca/fpsr";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 
 const doc = decode(workerData.source);
 const canvas = new Canvas(1, 1);

@@ -1,4 +1,4 @@
-import type { AssetSource, AssetTier, BlueprintDocument, FrameMeta, RenderDb } from "fpsr";
+import type { AssetSource, AssetTier, BlueprintDocument, FrameMeta, RenderDb } from "@rickyzhangca/fpsr";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createTiledPreviewTierPlanCache } from "./tiled-preview-plan";
 

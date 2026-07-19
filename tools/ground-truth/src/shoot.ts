@@ -1,4 +1,4 @@
-import { decode, selectBlueprint } from "fpsr";
+import { decode, selectBlueprint } from "@rickyzhangca/fpsr";
 import { formatShotView, planShotView } from "./frame.js";
 import { copyToFixtures, launchAndCapture } from "./launch.js";
 import { ASSETS_DIR, FACTORIO_BIN, GAME_VERSION, GROUND_TRUTH_OUT } from "./paths.js";

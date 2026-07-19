@@ -3,7 +3,7 @@ import {
   planBlueprintIcons,
   type BlueprintIconVariant,
   type Icon,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import { FactorioItemIcon } from "./factorio-item-icon";
 export type { BlueprintIconVariant };
 

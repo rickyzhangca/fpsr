@@ -16,8 +16,8 @@
     "format": "vp fmt"
   },
   "dependencies": {
-    "fpsr": "workspace:*",
-    "skia-canvas": "^2.0.2"
+    "skia-canvas": "^2.0.2",
+    "@rickyzhangca/fpsr": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -6,9 +6,9 @@ import type {
   Icon,
   RenderDb,
   Tile,
-} from "fpsr";
-import { planDrawList } from "fpsr/planner";
-import type { EntityRenderDef } from "fpsr/render-db";
+} from "@rickyzhangca/fpsr";
+import { planDrawList } from "@rickyzhangca/fpsr/planner";
+import type { EntityRenderDef } from "@rickyzhangca/fpsr/render-db";
 
 export const BLUEPRINT_VERSION = 2 * 2 ** 48 + 1 * 2 ** 32 + 11 * 2 ** 16;
 export const CASES_PER_ROW = 4;

@@ -1,10 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type CanvasLike, createRenderer, decode, selectBlueprint } from "fpsr";
-import type { RenderDb } from "fpsr";
-import { planDrawList, resolve } from "fpsr/planner";
-import { localAssets } from "fpsr/node";
+import { type CanvasLike, createRenderer, decode, selectBlueprint } from "@rickyzhangca/fpsr";
+import type { RenderDb } from "@rickyzhangca/fpsr";
+import { planDrawList, resolve } from "@rickyzhangca/fpsr/planner";
+import { localAssets } from "@rickyzhangca/fpsr/node";
 import { Canvas } from "skia-canvas";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

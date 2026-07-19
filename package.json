@@ -7,7 +7,7 @@
     "build": "vp run -F './packages/*' -F './apps/*' -F './tools/*' build",
     "test": "vp run -F './packages/*' -F './apps/*' -F './tools/*' --concurrency-limit 1 test",
     "lint": "vp lint --deny-warnings",
-    "typecheck": "pnpm -F fpsr build && vp run -F './packages/*' -F './apps/*' -F './tools/*' typecheck",
+    "typecheck": "pnpm -F @rickyzhangca/fpsr build && vp run -F './packages/*' -F './apps/*' -F './tools/*' typecheck",
     "format": "vp fmt",
     "check": "node scripts/check-filenames.mjs && node scripts/check-module-size.mjs && vp fmt --check && pnpm lint && pnpm typecheck",
     "dev": "vp dev apps/viewer",

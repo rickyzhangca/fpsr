@@ -1,5 +1,5 @@
 /**
- * Render database type surface: `fpsr/render-db`.
+ * Render database type surface: `@rickyzhangca/fpsr/render-db`.
  */
 
 export type {

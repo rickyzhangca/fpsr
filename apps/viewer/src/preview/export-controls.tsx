@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { trackEvent } from "@/shell/analytics";
-import { stripRichText, type Blueprint } from "fpsr";
+import { stripRichText, type Blueprint } from "@rickyzhangca/fpsr";
 import { toast } from "sonner";
 import { EXPORT_OPTIONS, exportFormatLabel, formatExportSize, type ExportFormat } from "./format";
 

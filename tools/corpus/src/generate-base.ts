@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { encode, type RenderDb } from "fpsr";
+import { encode, type RenderDb } from "@rickyzhangca/fpsr";
 import { buildBaseSuite } from "./base-suite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

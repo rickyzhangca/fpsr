@@ -10,8 +10,8 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
-      "fpsr": ["./dist/index.d.ts"],
-      "fpsr/*": ["./dist/*.d.ts"]
+      "@rickyzhangca/fpsr": ["./dist/index.d.ts"],
+      "@rickyzhangca/fpsr/*": ["./dist/*.d.ts"]
     }
   },
   "include": ["scripts/node-decls-check.ts"],

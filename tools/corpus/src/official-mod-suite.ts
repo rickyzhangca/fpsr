@@ -6,8 +6,8 @@ import {
   type DrawListBounds,
   type RenderDb,
   type Tile,
-} from "fpsr";
-import { planDrawList } from "fpsr/planner";
+} from "@rickyzhangca/fpsr";
+import { planDrawList } from "@rickyzhangca/fpsr/planner";
 import { BASE_ENTITY_NAMES, BASE_GAME_VERSION, BASE_TILE_NAMES } from "./base-game-book-spec.js";
 import { poseCellId, posesForEntity, type EntityPose } from "./entity-poses.js";
 import {

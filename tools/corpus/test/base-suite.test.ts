@@ -5,8 +5,8 @@ import {
   type BlueprintBook,
   type Icon,
   type RenderDb,
-} from "fpsr";
-import { planDrawList } from "fpsr/planner";
+} from "@rickyzhangca/fpsr";
+import { planDrawList } from "@rickyzhangca/fpsr/planner";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

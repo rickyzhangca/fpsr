@@ -10,7 +10,7 @@ import {
   selectBook,
   selectDeconstructionPlanner,
   selectUpgradePlanner,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import esnSqueegeeBp from "../../../../fixtures/demos/esn-squeegee.bp.txt?raw";
 import nauvisMidGameBp from "../../../../fixtures/demos/nauvis-mid-game.bp.txt?raw";
 import redrumBookBp from "../../../../fixtures/demos/redrum-book.bp.txt?raw";

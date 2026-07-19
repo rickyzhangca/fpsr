@@ -9,7 +9,7 @@ import {
   type RenderOptions,
   type RenderProfile,
   type TileFrame,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import type { PreviewTilePixelsPerTile } from "./preview-tiles";
 import {
   type PreviewRenderProgress,

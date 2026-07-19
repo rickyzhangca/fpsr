@@ -1,4 +1,4 @@
-import type { RenderMeasurement, TileFrame } from "fpsr";
+import type { RenderMeasurement, TileFrame } from "@rickyzhangca/fpsr";
 
 export const FULL_PREVIEW_PIXELS_PER_TILE = 64;
 export const PREVIEW_TILE_BITMAP_PIXELS = 512;

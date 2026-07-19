@@ -1,4 +1,4 @@
-import type { RenderDb } from "fpsr";
+import type { RenderDb } from "@rickyzhangca/fpsr";
 import { baseGameRootBookSpec, type BaseGamePageSpec } from "../base-game-book-spec.js";
 import { CARDINAL_DIRECTIONS, DIRECTIONS_16 } from "../entity-poses.js";
 import { CASES_PER_ROW, chunk, itemIcons } from "../suite-layout.js";

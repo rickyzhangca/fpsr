@@ -1,5 +1,5 @@
 /**
- * Node-only asset helpers. Import from "fpsr/node", not from the main entry.
+ * Node-only asset helpers. Import from "@rickyzhangca/fpsr/node", not from the main entry.
  *
  * Requires the optional peer dependency `skia-canvas` for Image decoding.
  */

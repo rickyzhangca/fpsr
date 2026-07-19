@@ -1,4 +1,4 @@
-import { decode } from "fpsr";
+import { decode } from "@rickyzhangca/fpsr";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";

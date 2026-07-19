@@ -57,6 +57,9 @@ importers:
       '@headless-tree/react':
         specifier: ^1.7.0
         version: 1.7.0(@headless-tree/core@1.7.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@rickyzhangca/fpsr':
+        specifier: workspace:*
+        version: link:../../packages/renderer
       '@shikijs/langs':
         specifier: ^4.3.1
         version: 4.3.1
@@ -69,9 +72,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      fpsr:
-        specifier: workspace:*
-        version: link:../../packages/renderer
       idb:
         specifier: ^8.0.3
         version: 8.0.3
@@ -192,7 +192,7 @@ importers:
 
   tools/corpus:
     dependencies:
-      fpsr:
+      '@rickyzhangca/fpsr':
         specifier: workspace:*
         version: link:../../packages/renderer
       skia-canvas:
@@ -217,7 +217,7 @@ importers:
 
   tools/golden-tests:
     dependencies:
-      fpsr:
+      '@rickyzhangca/fpsr':
         specifier: workspace:*
         version: link:../../packages/renderer
       pixelmatch:
@@ -257,7 +257,7 @@ importers:
 
   tools/ground-truth:
     dependencies:
-      fpsr:
+      '@rickyzhangca/fpsr':
         specifier: workspace:*
         version: link:../../packages/renderer
       pixelmatch:
@@ -294,7 +294,7 @@ importers:
 
   tools/pipeline:
     dependencies:
-      fpsr:
+      '@rickyzhangca/fpsr':
         specifier: workspace:*
         version: link:../../packages/renderer
       sharp:
@@ -319,7 +319,7 @@ importers:
 
   tools/render-cli:
     dependencies:
-      fpsr:
+      '@rickyzhangca/fpsr':
         specifier: workspace:*
         version: link:../../packages/renderer
       skia-canvas:

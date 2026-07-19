@@ -10,8 +10,8 @@ import {
   selectBlueprint,
   selectDeconstructionPlanner,
   selectUpgradePlanner,
-} from "fpsr";
-import { planDrawList } from "fpsr/planner";
+} from "@rickyzhangca/fpsr";
+import { planDrawList } from "@rickyzhangca/fpsr/planner";
 
 export interface TiledPreviewTierPlan {
   db: RenderDb;

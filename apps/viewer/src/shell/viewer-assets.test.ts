@@ -1,4 +1,4 @@
-import type { AssetSource } from "fpsr";
+import type { AssetSource } from "@rickyzhangca/fpsr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 const mocks = vi.hoisted(() => {
   const loadRenderDb = vi.fn<AssetSource["loadRenderDb"]>();
@@ -8,11 +8,11 @@ const mocks = vi.hoisted(() => {
     loadRenderDb,
     loadAtlasImage,
     dispose,
-    cdnAssets: vi.fn<typeof import("fpsr").cdnAssets>(),
+    cdnAssets: vi.fn<typeof import("@rickyzhangca/fpsr").cdnAssets>(),
   };
 });
-vi.mock("fpsr", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("fpsr")>();
+vi.mock("@rickyzhangca/fpsr", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@rickyzhangca/fpsr")>();
   mocks.cdnAssets.mockImplementation(() => ({
     loadRenderDb: (...args) => mocks.loadRenderDb(...args),
     loadAtlasImage: (...args) => mocks.loadAtlasImage(...args),

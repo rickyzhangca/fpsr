@@ -1,6 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { viewerAssets } from "@/shell/viewer-assets";
-import { countBlueprintComponents, type Blueprint, type RenderDb } from "fpsr";
+import { countBlueprintComponents, type Blueprint, type RenderDb } from "@rickyzhangca/fpsr";
 import { useEffect, useState } from "react";
 import { FactorioItemIcon } from "./factorio-item-icon";
 

@@ -40,7 +40,7 @@ import { resolveSidebarSelection } from "@/sidebar/sidebar-selection";
 import { SidebarSelectionTrigger } from "@/sidebar/sidebar-selection-trigger";
 import { type SidebarSelectableKind, type SidebarSource } from "@/sidebar/sidebar-tree";
 import { UpgradePlannerSummary } from "@/sidebar/upgrade-planner-summary";
-import { BlueprintDecodeError, type DecodeStats, decodeWithStats } from "fpsr";
+import { BlueprintDecodeError, type DecodeStats, decodeWithStats } from "@rickyzhangca/fpsr";
 import { useAtom } from "jotai";
 import { InfoIcon } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";

@@ -11,12 +11,12 @@ import type {
   RenderOptions,
   Renderer,
   TiledPngOptions,
-} from "fpsr";
-import type { AssetSource } from "fpsr";
-import type { localAssets } from "fpsr/node";
-import type { planDrawList, planDrawListWithOptions, resolve } from "fpsr/planner";
-import type { executeDrawList } from "fpsr/canvas";
-import type { FrameId, RenderDb } from "fpsr/render-db";
+} from "@rickyzhangca/fpsr";
+import type { AssetSource } from "@rickyzhangca/fpsr";
+import type { localAssets } from "@rickyzhangca/fpsr/node";
+import type { planDrawList, planDrawListWithOptions, resolve } from "@rickyzhangca/fpsr/planner";
+import type { executeDrawList } from "@rickyzhangca/fpsr/canvas";
+import type { FrameId, RenderDb } from "@rickyzhangca/fpsr/render-db";
 
 type Assert<T extends true> = T;
 type DoesNotHaveKey<T, K extends PropertyKey> = K extends keyof T ? false : true;

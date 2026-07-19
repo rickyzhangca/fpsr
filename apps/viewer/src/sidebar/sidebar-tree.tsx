@@ -18,7 +18,7 @@ import {
   type BlueprintDocument,
   type BookTreeItemKind,
   type Icon,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import { useAtom } from "jotai";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 const INDENT_PX = 12;

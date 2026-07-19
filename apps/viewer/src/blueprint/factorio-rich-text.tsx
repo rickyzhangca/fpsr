@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { parseRichText, richTextIconKeys, richTextIconQuality, type RichTextToken } from "fpsr";
+import { parseRichText, richTextIconKeys, richTextIconQuality, type RichTextToken } from "@rickyzhangca/fpsr";
 import { FactorioItemIcon } from "./factorio-item-icon";
 const SIZE_PX = {
   lg: 20,

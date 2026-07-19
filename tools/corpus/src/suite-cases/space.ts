@@ -1,4 +1,4 @@
-import type { RenderDb } from "fpsr";
+import type { RenderDb } from "@rickyzhangca/fpsr";
 import { baseGameRootBookSpec } from "../base-game-book-spec.js";
 import { buildFlatSpecGroup, entitySubsetCases, namespaceCases, pageEntities } from "./builders.js";
 import type { CaseSpec, GroupDraft } from "./types.js";

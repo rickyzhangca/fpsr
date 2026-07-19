@@ -5,7 +5,7 @@
  * Camera framing comes from fpsr planDrawList bounds (same as golden renders).
  * Quit any running Factorio instance first (user-data lock).
  */
-import { decode, encode, selectBlueprint } from "fpsr";
+import { decode, encode, selectBlueprint } from "@rickyzhangca/fpsr";
 import { readFileSync } from "node:fs";
 import { access, mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import path from "node:path";

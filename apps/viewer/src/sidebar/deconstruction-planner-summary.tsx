@@ -1,7 +1,7 @@
 import { formatByteSize, formatGameVersion } from "@/blueprint/blueprint-meta";
 import { CopyableBlueprintIcons } from "@/blueprint/copyable-blueprint-icons";
 import { FactorioRichText } from "@/blueprint/factorio-rich-text";
-import { asDeconstructionPlanner, deconstructionPlannerIcons, encode } from "fpsr";
+import { asDeconstructionPlanner, deconstructionPlannerIcons, encode } from "@rickyzhangca/fpsr";
 
 export const DeconstructionPlannerSummary = ({
   planner,

@@ -7,7 +7,7 @@ import {
   type RenderProfile,
   createRenderer,
   decodeWithStats,
-} from "fpsr";
+} from "@rickyzhangca/fpsr";
 import { writeFile } from "node:fs/promises";
 import { Canvas } from "skia-canvas";
 import { assertAssetsDir, localAssets } from "./assets.js";
