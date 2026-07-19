@@ -7,4 +7,7 @@ export default defineConfig({
     owner: "rickyzhangca",
     repo: "fpsr",
   },
+  deployment: {
+    site: "https://fpsr-docs.fprints.xyz",
+  },
 });
