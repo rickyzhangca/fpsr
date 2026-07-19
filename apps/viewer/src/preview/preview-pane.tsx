@@ -13,7 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PerfReport } from "@/performance/perf-report";
-import type { AssetOrigin } from "@/shell/asset-config";
+import { canUseLocalAssets, type AssetOrigin } from "@/shell/asset-config";
 import { setViewerAssetOrigin, viewerAssets } from "@/shell/viewer-assets";
 import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
 import {
@@ -143,6 +143,7 @@ export const PreviewPane = ({
     setPreviewPreferences((previous) => ({ ...previous, showBackground: value }));
   };
   const setUseCdnAssets = (value: boolean) => {
+    if (!canUseLocalAssets()) return;
     setPreviewPreferences((previous) => ({ ...previous, useCdnAssets: value }));
   };
   const setBackgroundSelection = (mode: PreviewBackgroundMode, planet?: string) => {
@@ -152,7 +153,9 @@ export const PreviewPane = ({
       ...(planet != null ? { orbitPlanet: planet } : {}),
     }));
   };
-  const assetOrigin: AssetOrigin = useCdnAssets ? "cdn" : "local";
+  const localAssetsAvailable = canUseLocalAssets();
+  const effectiveUseCdnAssets = localAssetsAvailable ? useCdnAssets : true;
+  const assetOrigin: AssetOrigin = effectiveUseCdnAssets ? "cdn" : "local";
   const [orbitPlanets, setOrbitPlanets] = useState<string[]>([...DEFAULT_ORBIT_PLANETS]);
   const [terrainModes, setTerrainModes] = useState<string[]>([...TERRAIN_BACKGROUND_MODES]);
   const [loading, setLoading] = useState(false);
@@ -656,8 +659,8 @@ export const PreviewPane = ({
           <Switch
             size="sm"
             id="cdn-assets"
-            checked={useCdnAssets}
-            disabled={loading || measuringFull || exportPending}
+            checked={effectiveUseCdnAssets}
+            disabled={!localAssetsAvailable || loading || measuringFull || exportPending}
             onCheckedChange={(checked) => {
               setLoading(true);
               setUseCdnAssets(checked);
@@ -678,8 +681,9 @@ export const PreviewPane = ({
                 <InfoIcon className="size-3.5" />
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-sm text-pretty">
-                When enabled, atlases and the render database load from the BunnyCDN pull zone. When
-                disabled, they load from the local Vite `/assets` server (`assets-out`).
+                {localAssetsAvailable
+                  ? "When enabled, atlases and the render database load from the BunnyCDN."
+                  : "Deployed builds always load atlases and the render database from the BunnyCDN."}
               </TooltipContent>
             </Tooltip>
           </Label>

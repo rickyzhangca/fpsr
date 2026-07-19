@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit",
     "format": "vp fmt"
   },
+  "dependencies": {
+    "@fpsr/pipeline": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:",

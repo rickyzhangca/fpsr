@@ -1,3 +1,5 @@
+import { canUseLocalAssets, defaultUseCdnAssets } from "./asset-config";
+
 export type ViewerTab = "preview" | "process" | "performance";
 
 export type PreviewBackgroundMode =
@@ -108,8 +110,12 @@ export const normalizePreviewPreferences = (value: unknown): PreviewPreferences 
     altMode: value.altMode,
     showCoords: value.showCoords,
     showBackground,
-    // Missing field (older prefs) defaults to local assets.
-    useCdnAssets: isBoolean(value.useCdnAssets) ? value.useCdnAssets : false,
+    // Missing field (older prefs) defaults to local on dev, CDN when deployed.
+    useCdnAssets: canUseLocalAssets()
+      ? isBoolean(value.useCdnAssets)
+        ? value.useCdnAssets
+        : false
+      : true,
     backgroundMode,
     orbitPlanet,
   };
@@ -159,7 +165,7 @@ export const DEFAULT_PREVIEW_PREFERENCES: PreviewPreferences = {
   altMode: true,
   showCoords: false,
   showBackground: true,
-  useCdnAssets: false,
+  useCdnAssets: defaultUseCdnAssets(),
   backgroundMode: "auto",
   orbitPlanet: "nauvis",
 };

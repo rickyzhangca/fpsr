@@ -177,6 +177,32 @@ describe("viewer preferences", () => {
     unsubscribe2();
   });
 
+  it("forces CDN assets on deployed hosts even when local was persisted", () => {
+    const originalHostname = window.location.hostname;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, hostname: "fpsr.fprints.xyz" },
+    });
+
+    localStorage.setItem(
+      VIEWER_PREFERENCE_KEYS.preview,
+      JSON.stringify({
+        ...DEFAULT_PREVIEW_PREFERENCES,
+        useCdnAssets: false,
+      }),
+    );
+
+    const store = createStore();
+    const unsubscribe = store.sub(previewPreferencesAtom, () => {});
+    expect(store.get(previewPreferencesAtom).useCdnAssets).toBe(true);
+    unsubscribe();
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, hostname: originalHostname },
+    });
+  });
+
   it("falls back to Preview when the removed Compare tab was persisted", () => {
     localStorage.setItem(VIEWER_PREFERENCE_KEYS.activeTab, JSON.stringify("compare"));
 

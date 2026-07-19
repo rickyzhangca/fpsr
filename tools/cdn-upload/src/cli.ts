@@ -1,21 +1,21 @@
 #!/usr/bin/env tsx
 
-import { readFile, readdir, stat } from "node:fs/promises";
+import {
+  type AssetManifestV2,
+  verifyAssetBundle,
+} from "@fpsr/pipeline";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const DEFAULT_DIR = path.join(REPO_ROOT, "assets-out/2.1.11");
+const DEFAULT_STORAGE_ZONE = "fpsr";
+const DEFAULT_CONCURRENCY = 6;
+const MAX_UPLOAD_ATTEMPTS = 4;
 
-interface Manifest {
-  schema: 2;
-  gameVersion: string;
-  renderDb: { file: string; sha256: string };
-  atlases: { file: string; sha256: string }[];
-}
-
-interface UploadFile {
+export interface UploadFile {
   relativePath: string;
   absolutePath: string;
   size: number;
@@ -24,9 +24,10 @@ interface UploadFile {
 interface CliOptions {
   dir: string;
   dryRun: boolean;
+  concurrency: number;
 }
 
-interface BunnyConfig {
+export interface BunnyConfig {
   zone: string;
   host: string;
   apiKey: string;
@@ -34,7 +35,7 @@ interface BunnyConfig {
 
 function usage(): string {
   return [
-    "Usage: pnpm -F @fpsr/cdn-upload run upload -- [--dir <assets-dir>] [--dry-run]",
+    "Usage: pnpm -F @fpsr/cdn-upload run upload -- [--dir <assets-dir>] [--dry-run] [--concurrency <n>]",
     "",
     "Upload a pipeline asset directory to BunnyCDN Storage.",
     "Remote layout: /{gameVersion}/{filename} (gameVersion from manifest.json).",
@@ -42,11 +43,13 @@ function usage(): string {
     "Options:",
     "  --dir <path>   Asset directory (default: assets-out/2.1.11 from repo root)",
     "  --dry-run      List files and sizes without uploading",
+    `  --concurrency  Parallel content uploads (default: ${DEFAULT_CONCURRENCY}, max: 16)`,
     "",
     "Environment:",
-    "  BUNNY_STORAGE_ZONE   Storage zone name (required unless --dry-run)",
+    `  BUNNY_STORAGE_ZONE   Storage zone name (default: ${DEFAULT_STORAGE_ZONE})`,
     "  BUNNY_STORAGE_HOST   Storage host (default: storage.bunnycdn.com)",
-    "  BUNNY_API_KEY        Storage API key (required unless --dry-run)",
+    "  BUNNY_STORAGE_PASSWORD  Storage zone password (required unless --dry-run)",
+    "  BUNNY_API_KEY        Legacy alias for BUNNY_STORAGE_PASSWORD",
   ].join("\n");
 }
 
@@ -54,6 +57,7 @@ function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     dir: DEFAULT_DIR,
     dryRun: false,
+    concurrency: DEFAULT_CONCURRENCY,
   };
 
   const rest = [...argv];
@@ -68,11 +72,20 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === "--dir") {
       const raw = rest.shift();
       if (!raw) throw new Error("--dir requires a path");
-      opts.dir = path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+      opts.dir = resolveAssetsDir(raw);
       continue;
     }
     if (arg === "--dry-run") {
       opts.dryRun = true;
+      continue;
+    }
+    if (arg === "--concurrency") {
+      const raw = rest.shift();
+      const concurrency = Number(raw);
+      if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 16) {
+        throw new Error("--concurrency must be an integer between 1 and 16");
+      }
+      opts.concurrency = concurrency;
       continue;
     }
 
@@ -80,6 +93,10 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return opts;
+}
+
+export function resolveAssetsDir(raw: string): string {
+  return path.isAbsolute(raw) ? raw : path.resolve(REPO_ROOT, raw);
 }
 
 function formatBytes(bytes: number): string {
@@ -96,25 +113,23 @@ export function contentTypeFor(filename: string): string {
 }
 
 function readBunnyConfig(dryRun: boolean): BunnyConfig | null {
-  const zone = process.env.BUNNY_STORAGE_ZONE?.trim();
+  const zone = process.env.BUNNY_STORAGE_ZONE?.trim() || DEFAULT_STORAGE_ZONE;
   const host = process.env.BUNNY_STORAGE_HOST?.trim() || "storage.bunnycdn.com";
-  const apiKey = process.env.BUNNY_API_KEY?.trim();
+  const apiKey =
+    process.env.BUNNY_STORAGE_PASSWORD?.trim() || process.env.BUNNY_API_KEY?.trim();
 
-  const missing: string[] = [];
-  if (!zone) missing.push("BUNNY_STORAGE_ZONE");
-  if (!apiKey) missing.push("BUNNY_API_KEY");
-
-  if (!zone || !apiKey) {
+  if (!apiKey) {
     if (dryRun) return null;
     throw new Error(
-      `Missing required environment variable(s): ${missing.join(", ")}\nSet them before uploading, or pass --dry-run to preview files only.`,
+      "Missing BUNNY_STORAGE_PASSWORD (or legacy BUNNY_API_KEY).\n" +
+        "Set the Storage Zone password before uploading, or pass --dry-run to preview files only.",
     );
   }
 
   return { zone, host, apiKey };
 }
 
-async function readManifest(dir: string): Promise<Manifest> {
+async function readManifest(dir: string): Promise<AssetManifestV2> {
   const manifestPath = path.join(dir, "manifest.json");
   let raw: string;
   try {
@@ -123,8 +138,8 @@ async function readManifest(dir: string): Promise<Manifest> {
     throw new Error(`manifest.json not found in ${dir}`);
   }
 
-  const manifest = JSON.parse(raw) as Manifest;
-  if (manifest.schema !== 2) {
+  const manifest = JSON.parse(raw) as AssetManifestV2;
+  if (manifest.schema !== 2 || !manifest.tiers?.["1x"] || !manifest.tiers?.["2x"]) {
     throw new Error(`manifest.json in ${dir} is not schema 2`);
   }
   if (!manifest.gameVersion || typeof manifest.gameVersion !== "string") {
@@ -133,16 +148,38 @@ async function readManifest(dir: string): Promise<Manifest> {
   return manifest;
 }
 
-export async function collectFiles(dir: string): Promise<UploadFile[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files: UploadFile[] = [];
+function assertSafeFilename(filename: string): void {
+  if (
+    !filename ||
+    path.isAbsolute(filename) ||
+    filename !== path.basename(filename) ||
+    filename === "." ||
+    filename === ".."
+  ) {
+    throw new Error(`Unsafe asset filename in manifest: ${filename}`);
+  }
+}
 
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    const absolutePath = path.join(dir, entry.name);
-    const info = await stat(absolutePath);
+export async function collectFiles(
+  dir: string,
+  manifest?: AssetManifestV2,
+): Promise<UploadFile[]> {
+  const resolvedManifest = manifest ?? (await readManifest(dir));
+  const referenced = new Set<string>();
+  for (const tier of ["1x", "2x"] as const) {
+    const descriptor = resolvedManifest.tiers[tier];
+    referenced.add(descriptor.renderDb.file);
+    for (const atlas of descriptor.atlases) referenced.add(atlas.file);
+  }
+
+  const files: UploadFile[] = [];
+  for (const relativePath of [...referenced, "manifest.json"]) {
+    assertSafeFilename(relativePath);
+    const absolutePath = path.join(dir, relativePath);
+    const info = await stat(absolutePath).catch(() => null);
+    if (!info?.isFile()) throw new Error(`Referenced asset not found: ${absolutePath}`);
     files.push({
-      relativePath: entry.name,
+      relativePath,
       absolutePath,
       size: info.size,
     });
@@ -156,36 +193,86 @@ export async function collectFiles(dir: string): Promise<UploadFile[]> {
   return files;
 }
 
-function remoteUrl(host: string, zone: string, version: string, filename: string): string {
+export function remoteUrl(host: string, zone: string, version: string, filename: string): string {
   const encoded = filename.split("/").map(encodeURIComponent).join("/");
   return `https://${host}/${zone}/${version}/${encoded}`;
 }
 
-async function uploadFile(config: BunnyConfig, version: string, file: UploadFile): Promise<void> {
+type UploadRuntime = {
+  fetchImpl?: typeof fetch;
+  wait?: (milliseconds: number) => Promise<void>;
+  maxAttempts?: number;
+};
+
+export async function uploadFile(
+  config: BunnyConfig,
+  version: string,
+  file: UploadFile,
+  runtime: UploadRuntime = {},
+): Promise<void> {
   const url = remoteUrl(config.host, config.zone, version, file.relativePath);
   const body = await readFile(file.absolutePath);
-  const response = await fetch(url, {
-    method: "PUT",
-    headers: {
-      AccessKey: config.apiKey,
-      "Content-Type": contentTypeFor(file.relativePath),
-    },
-    body,
-  });
+  const fetchImpl = runtime.fetchImpl ?? fetch;
+  const wait = runtime.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const maxAttempts = runtime.maxAttempts ?? MAX_UPLOAD_ATTEMPTS;
 
-  if (!response.ok) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        method: "PUT",
+        headers: {
+          AccessKey: config.apiKey,
+          "Content-Type": contentTypeFor(file.relativePath),
+        },
+        body,
+      });
+    } catch (error) {
+      if (attempt === maxAttempts) throw error;
+      await wait(250 * 2 ** (attempt - 1));
+      continue;
+    }
+
+    if (response.ok) return;
     const detail = await response.text().catch(() => "");
-    throw new Error(
+    const error = new Error(
       `Upload failed for ${file.relativePath}: HTTP ${response.status} ${response.statusText}${detail ? `\n${detail}` : ""}`,
     );
+    const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+    if (!retryable || attempt === maxAttempts) throw error;
+    await wait(250 * 2 ** (attempt - 1));
   }
+}
+
+async function uploadContentFiles(
+  config: BunnyConfig,
+  version: string,
+  files: UploadFile[],
+  concurrency: number,
+): Promise<void> {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, files.length) }, async () => {
+    while (cursor < files.length) {
+      const index = cursor++;
+      const file = files[index]!;
+      process.stdout.write(
+        `[${index + 1}/${files.length + 1}] uploading ${file.relativePath} (${formatBytes(file.size)})... `,
+      );
+      await uploadFile(config, version, file);
+      console.log("done");
+    }
+  });
+  await Promise.all(workers);
 }
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
-  const config = readBunnyConfig(opts.dryRun);
   const manifest = await readManifest(opts.dir);
-  const files = await collectFiles(opts.dir);
+  process.stdout.write("verify:  checking hashes, dimensions, and frame references... ");
+  await verifyAssetBundle(opts.dir);
+  console.log("ok");
+  const files = await collectFiles(opts.dir, manifest);
+  const config = readBunnyConfig(opts.dryRun);
 
   if (files.length === 0) {
     throw new Error(`No files found in ${opts.dir}`);
@@ -201,39 +288,35 @@ async function main(): Promise<void> {
     console.log(`  host:    ${config.host}`);
     console.log(`  zone:    ${config.zone}`);
   } else {
-    console.log("  host:    (skipped — env not set)");
-    console.log("  zone:    (skipped — env not set)");
+    console.log("  host:    storage.bunnycdn.com");
+    console.log(`  zone:    ${process.env.BUNNY_STORAGE_ZONE?.trim() || DEFAULT_STORAGE_ZONE}`);
   }
   console.log(`  files:   ${files.length} (${formatBytes(totalBytes)} total)`);
   console.log("");
 
-  for (const [index, file] of files.entries()) {
-    const prefix = `[${index + 1}/${files.length}]`;
-    const remote = config
-      ? remoteUrl(config.host, config.zone, manifest.gameVersion, file.relativePath)
-      : `/${manifest.gameVersion}/${file.relativePath}`;
-
-    if (opts.dryRun) {
-      console.log(`${prefix} ${file.relativePath}  ${formatBytes(file.size)}  -> ${remote}`);
-      continue;
-    }
-
-    if (!config) {
-      throw new Error("BunnyCDN credentials are required for upload");
-    }
-
-    process.stdout.write(
-      `${prefix} uploading ${file.relativePath} (${formatBytes(file.size)})... `,
-    );
-    await uploadFile(config, manifest.gameVersion, file);
-    console.log("done");
-  }
-
   if (opts.dryRun) {
+    for (const [index, file] of files.entries()) {
+      const prefix = `[${index + 1}/${files.length}]`;
+      const remote = config
+        ? remoteUrl(config.host, config.zone, manifest.gameVersion, file.relativePath)
+        : `/${manifest.gameVersion}/${file.relativePath}`;
+      console.log(`${prefix} ${file.relativePath}  ${formatBytes(file.size)}  -> ${remote}`);
+    }
     console.log("\nDry run complete — no files uploaded.");
-  } else {
-    console.log(`\nUploaded ${files.length} file(s) to /${manifest.gameVersion}/`);
+    return;
   }
+
+  if (!config) throw new Error("BunnyCDN credentials are required for upload");
+  const manifestFile = files.find((file) => file.relativePath === "manifest.json");
+  if (!manifestFile) throw new Error("Upload set is missing manifest.json");
+  const contentFiles = files.filter((file) => file !== manifestFile);
+  await uploadContentFiles(config, manifest.gameVersion, contentFiles, opts.concurrency);
+  process.stdout.write(
+    `[${files.length}/${files.length}] publishing manifest.json (${formatBytes(manifestFile.size)})... `,
+  );
+  await uploadFile(config, manifest.gameVersion, manifestFile);
+  console.log("done");
+  console.log(`\nUploaded ${files.length} file(s) to /${manifest.gameVersion}/`);
 }
 
 const entryUrl = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
