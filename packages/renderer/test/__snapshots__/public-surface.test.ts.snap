@@ -1,0 +1,112 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`public export surface > freezes value exports for . > . 1`] = `
+[
+  "AssetDensityMismatchError",
+  "BLUEPRINT_ADAPTERS",
+  "BLUEPRINT_ICON_TILE_SIZE",
+  "BlueprintDecodeError",
+  "BlueprintSelectError",
+  "DECONSTRUCTION_ENTITY_FILTER_SLOT_COUNT",
+  "DECONSTRUCTION_TILE_FILTER_SLOT_COUNT",
+  "FPSR_TEXT_FONT_FALLBACK",
+  "FPSR_TEXT_FONT_FAMILY",
+  "UPGRADE_PLANNER_SLOT_COUNT",
+  "UnknownTerrainBackgroundError",
+  "asDeconstructionPlanner",
+  "asUpgradePlanner",
+  "blueprintBookCover",
+  "blueprintBookCoverIcons",
+  "blueprintIconSignalCenter",
+  "blueprintIconSignalScale",
+  "blueprintIconSignalSizePx",
+  "blueprintIconSignalYOffsetPx",
+  "buildBookTree",
+  "cdnAssets",
+  "computeTileFrame",
+  "countBlueprintComponents",
+  "createRenderer",
+  "decode",
+  "decodeVersion",
+  "decodeWithStats",
+  "deconstructionEntityFilterMode",
+  "deconstructionEntityFilters",
+  "deconstructionPlannerIcons",
+  "deconstructionTileFilterMode",
+  "deconstructionTileFilters",
+  "deconstructionTileSelectionMode",
+  "deconstructionTreesAndRocksOnly",
+  "encode",
+  "filledBlueprintIcons",
+  "formatDeconstructionFilterMode",
+  "formatDeconstructionTileSelectionMode",
+  "fpsrTextFontCss",
+  "legacyItemsObjectToInsertPlans",
+  "listBlueprints",
+  "measureTileFrame",
+  "migrateDocumentTo2x",
+  "migrateTo2x",
+  "parseRichText",
+  "planBlueprintIcons",
+  "resolveActivePath",
+  "resolveIconFrameId",
+  "richTextIconKeys",
+  "richTextIconQuality",
+  "selectBlueprint",
+  "selectBook",
+  "selectDeconstructionPlanner",
+  "selectUpgradePlanner",
+  "stripRichText",
+  "upgradePlannerIcons",
+  "upgradePlannerMappers",
+]
+`;
+
+exports[`public export surface > freezes value exports for ./canvas > ./canvas 1`] = `
+[
+  "ENTITY_INFO_SILHOUETTE_BLUR_PX",
+  "ENTITY_INFO_SILHOUETTE_RADIUS_PX",
+  "bakeEntityInfoSilhouette",
+  "blitWithTileCheckerboard",
+  "drawCoordinateOverlay",
+  "drawSpaceBackground",
+  "drawSpacePlanet",
+  "drawTerrainBackground",
+  "drawTileCheckerboard",
+  "entityInfoSilhouettePadPx",
+  "executeDrawList",
+  "nowMs",
+  "perfMark",
+  "perfMeasure",
+]
+`;
+
+exports[`public export surface > freezes value exports for ./node > ./node 1`] = `
+[
+  "localAssets",
+]
+`;
+
+exports[`public export surface > freezes value exports for ./planner > ./planner 1`] = `
+[
+  "DECONSTRUCTION_PLANNER_COLUMNS",
+  "FACTORIO_RENDER_LAYERS",
+  "RENDER_LAYERS",
+  "UPGRADE_PLANNER_COLUMNS",
+  "analyzePlan",
+  "compareDrawCmd",
+  "drawListForTile",
+  "planDeconstructionPlannerDrawList",
+  "planDrawList",
+  "planDrawListWithOptions",
+  "planUpgradePlannerDrawList",
+  "resolve",
+  "serializeDrawList",
+]
+`;
+
+exports[`public export surface > freezes value exports for ./unstable-prepared-viewport > ./unstable-prepared-viewport 1`] = `
+[
+  "renderPreparedViewport",
+]
+`;

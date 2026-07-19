@@ -6,6 +6,7 @@
  * - `@rickyzhangca/fpsr/canvas` — Canvas2D execution and backgrounds
  * - `@rickyzhangca/fpsr/render-db` — RenderDb / frame types
  * - `@rickyzhangca/fpsr/node` — filesystem asset source (Node only)
+ * - `@rickyzhangca/fpsr/unstable-prepared-viewport` — experimental prepared paint
  */
 
 export {
@@ -64,12 +65,6 @@ export type {
   DeconstructionTileFilter,
   DeconstructionTileSelectionMode,
 } from "./deconstruction-planner.js";
-
-export {
-  DECONSTRUCTION_PLANNER_COLUMNS,
-  planDeconstructionPlannerDrawList,
-} from "./plan/deconstruction-planner.js";
-export { planUpgradePlannerDrawList, UPGRADE_PLANNER_COLUMNS } from "./plan/upgrade-planner.js";
 
 export { FPSR_TEXT_FONT_FALLBACK, FPSR_TEXT_FONT_FAMILY, fpsrTextFontCss } from "./text-font.js";
 
@@ -136,13 +131,10 @@ export type {
 export { computeTileFrame } from "./frame.js";
 export type { TileFrame } from "./frame.js";
 
-export { createStreamingPngEncoder } from "./png-stream.js";
-export type { StreamingPngEncoder } from "./png-stream.js";
 export {
   AssetDensityMismatchError,
   createRenderer,
   measureTileFrame,
-  resolveSpacePlanetFrameId,
   UnknownTerrainBackgroundError,
 } from "./renderer.js";
 export type {
