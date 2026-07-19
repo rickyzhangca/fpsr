@@ -128,4 +128,67 @@ describe("cargo-bay connections", () => {
     emitCargoBayConnections(bp, db, true, commands);
     expect(commands.length).toBeGreaterThan(0);
   });
+
+  it("emits bridge crossings at 4-way cargo-bay junctions only", () => {
+    const db = loadFixtureDb();
+    const bay = db.entities["cargo-bay"];
+    if (!bay?.data?.cargoBayConnectionsPlatform && !bay?.data?.cargoBayConnections) {
+      return;
+    }
+    const connections = bay.data.cargoBayConnectionsPlatform ?? bay.data.cargoBayConnections!;
+    if (connections.bridges.crossing.length === 0) return;
+
+    const twoByTwo: Blueprint = {
+      item: "blueprint",
+      version: 281479276527616,
+      entities: [
+        { entity_number: 1, name: "cargo-bay", position: { x: 0, y: 0 } },
+        { entity_number: 2, name: "cargo-bay", position: { x: 4, y: 0 } },
+        { entity_number: 3, name: "cargo-bay", position: { x: 0, y: 4 } },
+        { entity_number: 4, name: "cargo-bay", position: { x: 4, y: 4 } },
+      ],
+      tiles: [{ name: "space-platform-foundation", position: { x: 0, y: 0 } }],
+    };
+    const line: Blueprint = {
+      item: "blueprint",
+      version: 281479276527616,
+      entities: [
+        { entity_number: 1, name: "cargo-bay", position: { x: 0, y: 0 } },
+        { entity_number: 2, name: "cargo-bay", position: { x: 4, y: 0 } },
+      ],
+      tiles: [{ name: "space-platform-foundation", position: { x: 0, y: 0 } }],
+    };
+    const ell: Blueprint = {
+      item: "blueprint",
+      version: 281479276527616,
+      entities: [
+        { entity_number: 1, name: "cargo-bay", position: { x: 0, y: 0 } },
+        { entity_number: 2, name: "cargo-bay", position: { x: 4, y: 0 } },
+        { entity_number: 3, name: "cargo-bay", position: { x: 0, y: 4 } },
+      ],
+      tiles: [{ name: "space-platform-foundation", position: { x: 0, y: 0 } }],
+    };
+
+    const lineCmds: ReturnType<typeof planDrawList>["commands"] = [];
+    const ellCmds: typeof lineCmds = [];
+    const gridCmds: typeof lineCmds = [];
+    emitCargoBayConnections(line, db, true, lineCmds);
+    emitCargoBayConnections(ell, db, true, ellCmds);
+    emitCargoBayConnections(twoByTwo, db, true, gridCmds);
+
+    // 2x2 adds crossing layers over line+vertical bridges; L-shape must not.
+    expect(gridCmds.length).toBeGreaterThan(lineCmds.length);
+    expect(ellCmds.length).toBeLessThan(gridCmds.length);
+    // Crossing is authored near the 4-bay junction at world (2, 2).
+    const nearJunction = gridCmds.filter(
+      (c) =>
+        c.kind === "sprite" &&
+        c.x + c.w > 1.5 &&
+        c.x < 2.5 &&
+        c.y + c.h > 1.5 &&
+        c.y < 2.5 &&
+        (c.sub ?? 0) >= 10_000,
+    );
+    expect(nearJunction.length).toBeGreaterThan(0);
+  });
 });

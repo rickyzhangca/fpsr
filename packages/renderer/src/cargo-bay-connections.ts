@@ -268,23 +268,54 @@ export function emitCargoBayConnections(
   }
 
   // Bridges between orthogonally adjacent connectable pairs.
+  const hBridges: SharedEdge[] = [];
+  const vBridges: SharedEdge[] = [];
   for (let i = 0; i < connectables.length; i++) {
     for (let j = i + 1; j < connectables.length; j++) {
-      const a = connectables[i]!;
-      const b = connectables[j]!;
-      emitBridgePair(a, b, db, commands, () => {
+      const emitted = emitBridgePair(connectables[i]!, connectables[j]!, db, commands, () => {
         const s = sub;
         sub += 20;
         return s;
       });
+      if (emitted) {
+        if (emitted.axis === "h") hBridges.push(emitted);
+        else vBridges.push(emitted);
+      }
+    }
+  }
+
+  // Place bridge_crossing where H and V bridges meet and all four quadrants
+  // are occupied (a true 4-way junction — not an L-corner).
+  const crossingCells = connRef.bridges.crossing;
+  if (crossingCells.length > 0) {
+    const covered = (tx: number, ty: number): boolean =>
+      connectables.some((c) => tx >= c.minX && tx <= c.maxX && ty >= c.minY && ty <= c.maxY);
+    const crossingPoints = new Map<string, { x: number; y: number }>();
+    for (const h of hBridges) {
+      for (const v of vBridges) {
+        const cx = h.midX;
+        const cy = v.midY;
+        if (cy < h.y0 || cy > h.y1 + 1) continue;
+        if (cx < v.x0 || cx > v.x1 + 1) continue;
+        if (
+          !covered(cx - 1, cy - 1) ||
+          !covered(cx, cy - 1) ||
+          !covered(cx - 1, cy) ||
+          !covered(cx, cy)
+        ) {
+          continue;
+        }
+        crossingPoints.set(tileKey(cx, cy), { x: cx, y: cy });
+      }
+    }
+    for (const { x, y } of crossingPoints.values()) {
+      const cell = crossingCells[hashTile(Math.floor(x), Math.floor(y)) % crossingCells.length]!;
+      sub = emitCell(cell, x, y, db, connectables[0]!.entity.entity_number, sub, y, x, commands);
     }
   }
 }
 
-function sharedEdge(
-  a: ConnectableInfo,
-  b: ConnectableInfo,
-): {
+interface SharedEdge {
   axis: "h" | "v";
   x0: number;
   x1: number;
@@ -292,7 +323,9 @@ function sharedEdge(
   y1: number;
   midX: number;
   midY: number;
-} | null {
+}
+
+function sharedEdge(a: ConnectableInfo, b: ConnectableInfo): SharedEdge | null {
   // Horizontal adjacency: a's right + 1 == b's left (or swap)
   if (a.maxX + 1 === b.minX || b.maxX + 1 === a.minX) {
     const left = a.maxX + 1 === b.minX ? a : b;
@@ -324,9 +357,9 @@ function emitBridgePair(
   db: RenderDb,
   commands: DrawCmd[],
   nextSub: () => number,
-): void {
+): SharedEdge | null {
   const edge = sharedEdge(a, b);
-  if (!edge) return;
+  if (!edge) return null;
   const span = edge.axis === "h" ? edge.y1 - edge.y0 + 1 : edge.x1 - edge.x0 + 1;
   const bridges = a.connections.bridges;
   const wide = span >= 4;
@@ -338,7 +371,7 @@ function emitBridgePair(
       : wide
         ? bridges.verticalWide
         : bridges.verticalNarrow;
-  if (cells.length === 0) return;
+  if (cells.length === 0) return null;
   const cell = cells[hashTile(Math.floor(edge.midX), Math.floor(edge.midY)) % cells.length]!;
   const sortY = Math.max(
     a.entity.position.y + a.def.collisionBox[1][1],
@@ -356,9 +389,7 @@ function emitBridgePair(
     sortX,
     commands,
   );
-
-  // Crossing when both H and V neighbors exist is handled by multiple pair calls;
-  // additionally place crossing when the shared corner has 4-way occupancy.
+  return edge;
 }
 
 /** @internal exported for tests */
