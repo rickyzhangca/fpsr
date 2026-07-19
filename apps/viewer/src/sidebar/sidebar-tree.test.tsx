@@ -9,7 +9,7 @@ vi.mock("@/blueprint/blueprint-icons", () => ({
 vi.mock("@/blueprint/factorio-item-icon", () => ({
   FactorioItemIcon: () => <span data-testid="item-icon" />,
 }));
-import { SidebarTree } from "./sidebar-tree";
+import { SidebarTree, type SidebarSelectableKind } from "./sidebar-tree";
 describe("SidebarTree render progress", () => {
   let host: HTMLDivElement;
   beforeEach(() => {
@@ -43,7 +43,9 @@ describe("SidebarTree render progress", () => {
             value: 47,
             label: "Loading assets 2/5",
           }}
-          onSelect={vi.fn<(sourceId: string, path: number[], kind: "book" | "blueprint") => void>()}
+          onSelect={
+            vi.fn<(sourceId: string, path: number[], kind: SidebarSelectableKind) => void>()
+          }
         />,
       );
     });
@@ -67,13 +69,52 @@ describe("SidebarTree render progress", () => {
             label: "Complete",
             durationMs: 1234,
           }}
-          onSelect={vi.fn<(sourceId: string, path: number[], kind: "book" | "blueprint") => void>()}
+          onSelect={
+            vi.fn<(sourceId: string, path: number[], kind: SidebarSelectableKind) => void>()
+          }
         />,
       );
     });
     expect(host.querySelector('[role="progressbar"]')).toBeNull();
     expect(host.textContent).toContain("1.2 s");
     expect(host.querySelector('[data-slot="tree-item-status"]')?.className).toContain("h-3");
+    act(() => root.unmount());
+  });
+
+  it("selects upgrade planners and leaves deconstruction muted", () => {
+    const onSelect =
+      vi.fn<(sourceId: string, path: number[], kind: SidebarSelectableKind) => void>();
+    const upgradeDoc: BlueprintDocument = {
+      upgrade_planner: { item: "upgrade-planner", version: 0, settings: {} },
+    };
+    const deconDoc: BlueprintDocument = {
+      deconstruction_planner: { item: "deconstruction-planner", version: 0, settings: {} },
+    };
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        <SidebarTree
+          sectionId="custom"
+          sources={[
+            { id: "up", label: "Upgrade planner", doc: upgradeDoc },
+            { id: "decon", label: "Deconstruction planner", doc: deconDoc },
+          ]}
+          selectedSourceId="up"
+          selectedPath={null}
+          selectedKind="upgrade_planner"
+          onSelect={onSelect}
+        />,
+      );
+    });
+    const buttons = [...host.querySelectorAll('[data-slot="tree-item-button"]')];
+    const upgradeBtn = buttons.find((el) => el.textContent?.includes("Upgrade planner"));
+    const deconBtn = buttons.find((el) => el.textContent?.includes("Deconstruction planner"));
+    expect(upgradeBtn?.hasAttribute("data-muted")).toBe(false);
+    expect(deconBtn?.hasAttribute("data-muted")).toBe(true);
+    act(() => {
+      upgradeBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onSelect).toHaveBeenCalledWith("up", [], "upgrade_planner");
     act(() => root.unmount());
   });
 });

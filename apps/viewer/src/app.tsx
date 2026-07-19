@@ -20,8 +20,10 @@ import {
   initialSelection,
   resolveSelectedBlueprint,
   resolveSelectedBook,
+  resolveSelectedUpgradePlanner,
   resolveStoredSelection,
   SAMPLE_SOURCES,
+  selectionForDoc,
   sourceLabel,
   TEST_SOURCES,
   tryDecode,
@@ -35,7 +37,8 @@ import { SidebarPanels } from "@/sidebar/sidebar-panels";
 import { resolveSidebarSelection } from "@/sidebar/sidebar-selection";
 import { SidebarSelectionTrigger } from "@/sidebar/sidebar-selection-trigger";
 import { type SidebarSelectableKind, type SidebarSource } from "@/sidebar/sidebar-tree";
-import { BlueprintDecodeError, type DecodeStats, decodeWithStats, resolveActivePath } from "fpsr";
+import { UpgradePlannerSummary } from "@/sidebar/upgrade-planner-summary";
+import { BlueprintDecodeError, type DecodeStats, decodeWithStats } from "fpsr";
 import { useAtom } from "jotai";
 import { InfoIcon } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -146,6 +149,11 @@ export const App = () => {
   const activeDoc = activeSource?.doc ?? null;
   const selectedBook = resolveSelectedBook(activeDoc, selectedPath, selectedKind);
   const selectedBlueprint = resolveSelectedBlueprint(activeDoc, selectedPath, selectedKind);
+  const selectedUpgradePlanner = resolveSelectedUpgradePlanner(
+    activeDoc,
+    selectedPath,
+    selectedKind,
+  );
   useEffect(() => {
     setTileSize("—");
     setPerfReport(null);
@@ -171,11 +179,16 @@ export const App = () => {
       setCustomSources((prev) => [...prev, next]);
       setDecodeStatsBySource((prev) => ({ ...prev, [record.id]: stats }));
       selectionRevisionRef.current += 1;
+      const selection = selectionForDoc(decoded);
       setSelectedSourceId(record.id);
-      setSelectedPath(resolveActivePath(decoded));
-      setSelectedKind("blueprint");
+      setSelectedPath(selection.path);
+      setSelectedKind(selection.kind);
       trackEvent("blueprint_load", {
-        kind: decoded.blueprint_book ? "book" : "blueprint",
+        kind: decoded.blueprint_book
+          ? "book"
+          : decoded.upgrade_planner
+            ? "upgrade_planner"
+            : "blueprint",
       });
       toast.success("Blueprint added", { description: label });
       return true;
@@ -215,7 +228,7 @@ export const App = () => {
       !sameRenderPath(normalizedPath, selectedPath) ||
       kind !== selectedKind
     ) {
-      if (kind === "blueprint") {
+      if (kind === "blueprint" || kind === "upgrade_planner") {
         setRenderProgress({
           sourceId,
           path: normalizedPath,
@@ -229,7 +242,7 @@ export const App = () => {
     setSelectedSourceId(sourceId);
     setSelectedPath(normalizedPath);
     setSelectedKind(kind);
-    if (kind === "blueprint") {
+    if (kind === "blueprint" || kind === "upgrade_planner") {
       setSidebarOpen(false);
     }
   };
@@ -349,7 +362,15 @@ export const App = () => {
                 </>
               ) : (
                 <>
-                  {selectedBlueprint ? (
+                  {selectedUpgradePlanner ? (
+                    <UpgradePlannerSummary
+                      planner={selectedUpgradePlanner}
+                      sourceBytes={
+                        activeDoc?.upgrade_planner ? activeDecodeStats?.inputChars : undefined
+                      }
+                      sourceString={activeDoc?.upgrade_planner ? activeSource?.raw : undefined}
+                    />
+                  ) : selectedBlueprint ? (
                     <BlueprintSummary
                       blueprint={selectedBlueprint}
                       tileSize={tileSize}
@@ -362,68 +383,71 @@ export const App = () => {
                     </PaneMessage>
                   )}
 
-                  <Tabs
-                    value={tab}
-                    onValueChange={(value) => {
-                      if (!isViewerTab(value)) return;
-                      setTab(value);
-                      trackEvent("tab_switch", { tab: value });
-                    }}
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
-                  >
-                    <TabsList variant="line" className="mx-1 mt-1">
-                      <TabsTrigger value="preview">Preview</TabsTrigger>
-                      <TabsTrigger value="process">Process</TabsTrigger>
-                      <TabsTrigger value="performance">Performance</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent
-                      value="preview"
-                      keepMounted
-                      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                  {(selectedBlueprint || selectedUpgradePlanner) && (
+                    <Tabs
+                      value={tab}
+                      onValueChange={(value) => {
+                        if (!isViewerTab(value)) return;
+                        setTab(value);
+                        trackEvent("tab_switch", { tab: value });
+                      }}
+                      className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
                     >
-                      <PreviewPane
-                        doc={activeDoc}
-                        blueprint={selectedBlueprint}
-                        blueprintPath={selectedPath}
-                        decodeStats={activeDecodeStats}
-                        onTileSizeChange={setTileSize}
-                        onPerfReport={setPerfReport}
-                        onRenderProgress={onRenderProgress}
-                        onRenderError={setRenderError}
-                      />
-                    </TabsContent>
+                      <TabsList variant="line" className="mx-1 mt-1">
+                        <TabsTrigger value="preview">Preview</TabsTrigger>
+                        <TabsTrigger value="process">Process</TabsTrigger>
+                        <TabsTrigger value="performance">Performance</TabsTrigger>
+                      </TabsList>
 
-                    <TabsContent
-                      value="process"
-                      className="flex min-h-0 flex-1 flex-col overflow-hidden"
-                    >
-                      {tab === "process" && (
-                        <Suspense fallback={<LazyPaneFallback />}>
-                          <ProcessPane
-                            doc={activeDoc}
-                            blueprint={selectedBlueprint}
-                            blueprintPath={selectedPath}
-                            decodeStats={activeDecodeStats}
-                            perfReport={perfReport}
-                            renderProgress={selectedRenderProgress}
-                            renderError={renderError}
-                          />
-                        </Suspense>
-                      )}
-                    </TabsContent>
+                      <TabsContent
+                        value="preview"
+                        keepMounted
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                      >
+                        <PreviewPane
+                          doc={activeDoc}
+                          blueprint={selectedBlueprint}
+                          upgradePlanner={selectedUpgradePlanner}
+                          blueprintPath={selectedPath}
+                          decodeStats={activeDecodeStats}
+                          onTileSizeChange={setTileSize}
+                          onPerfReport={setPerfReport}
+                          onRenderProgress={onRenderProgress}
+                          onRenderError={setRenderError}
+                        />
+                      </TabsContent>
 
-                    <TabsContent
-                      value="performance"
-                      className="flex min-h-0 flex-1 flex-col overflow-hidden"
-                    >
-                      {tab === "performance" && (
-                        <Suspense fallback={<LazyPaneFallback />}>
-                          <PerformancePane report={perfReport} />
-                        </Suspense>
-                      )}
-                    </TabsContent>
-                  </Tabs>
+                      <TabsContent
+                        value="process"
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                      >
+                        {tab === "process" && (
+                          <Suspense fallback={<LazyPaneFallback />}>
+                            <ProcessPane
+                              doc={activeDoc}
+                              blueprint={selectedBlueprint}
+                              blueprintPath={selectedPath}
+                              decodeStats={activeDecodeStats}
+                              perfReport={perfReport}
+                              renderProgress={selectedRenderProgress}
+                              renderError={renderError}
+                            />
+                          </Suspense>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent
+                        value="performance"
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                      >
+                        {tab === "performance" && (
+                          <Suspense fallback={<LazyPaneFallback />}>
+                            <PerformancePane report={perfReport} />
+                          </Suspense>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  )}
                 </>
               )}
             </div>

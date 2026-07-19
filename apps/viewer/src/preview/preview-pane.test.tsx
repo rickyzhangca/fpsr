@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   clearPreview: vi.fn(),
   setPreviewAssetOrigin: vi.fn(async (origin: "local" | "cdn") => ({
     origin,
-    baseUrl: origin === "cdn" ? "https://fprints-data.b-cdn.net/2.1.11" : "/assets/2.1.11",
+    baseUrl: origin === "cdn" ? "https://fpsr.b-cdn.net/2.1.11" : "/assets/2.1.11",
   })),
   clipboardWrite: vi.fn(),
   createObjectURL: vi.fn(() => "blob:test-export"),
@@ -33,11 +33,22 @@ const mocks = vi.hoisted(() => ({
     },
   })),
   setViewerAssetOrigin: vi.fn(),
+  toastError: vi.fn(),
+  trackEvent: vi.fn(),
+}));
+vi.mock("@/shell/analytics", () => ({
+  trackEvent: (...args: unknown[]) => mocks.trackEvent(...args),
 }));
 class ClipboardItemMock {
   static supports = vi.fn(() => true);
   constructor(readonly items: Record<string, Blob>) {}
 }
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => mocks.toastError(...args),
+    success: vi.fn(),
+  },
+}));
 vi.mock("./preview-renderer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./preview-renderer")>();
   return {
@@ -115,9 +126,11 @@ describe("PreviewPane alt-mode toggle", () => {
     mocks.setPreviewAssetOrigin.mockClear();
     mocks.setPreviewAssetOrigin.mockImplementation(async (origin: "local" | "cdn") => ({
       origin,
-      baseUrl: origin === "cdn" ? "https://fprints-data.b-cdn.net/2.1.11" : "/assets/2.1.11",
+      baseUrl: origin === "cdn" ? "https://fpsr.b-cdn.net/2.1.11" : "/assets/2.1.11",
     }));
     mocks.setViewerAssetOrigin.mockClear();
+    mocks.toastError.mockReset();
+    mocks.trackEvent.mockReset();
     mocks.clipboardWrite.mockReset();
     mocks.createObjectURL.mockClear();
     mocks.revokeObjectURL.mockClear();
@@ -169,6 +182,32 @@ describe("PreviewPane alt-mode toggle", () => {
     vi.unstubAllGlobals();
     host.remove();
   });
+  it("tracks a skinny render_complete event on successful preview", async () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "Tracked",
+      entities: [
+        { entity_number: 1, name: "transport-belt", position: { x: 0.5, y: 0.5 } },
+        { entity_number: 2, name: "transport-belt", position: { x: 1.5, y: 0.5 } },
+      ],
+    };
+    const doc: BlueprintDocument = { blueprint };
+    const root = createRoot(host);
+    act(() => {
+      root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+    });
+    expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+    expect(mocks.trackEvent).toHaveBeenCalledWith("render_complete", {
+      kind: "blueprint",
+      wall_ms: 12,
+      entities: 2,
+    });
+    await act(async () => root.unmount());
+  });
   it("reports a CDN/render failure once without retrying on parent re-render", async () => {
     mocks.renderPreview.mockRejectedValue(new Error("Failed to fetch CDN manifest"));
     const blueprint: Blueprint = {
@@ -216,6 +255,46 @@ describe("PreviewPane alt-mode toggle", () => {
     });
     expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
     await act(async () => root.unmount());
+  });
+  it("toasts and reverts the CDN switch when switching asset origin fails", async () => {
+    const blueprint: Blueprint = {
+      item: "blueprint",
+      version: 0,
+      label: "CDN switch fail",
+      entities: [{ entity_number: 1, name: "transport-belt", position: { x: 0.5, y: 0.5 } }],
+    };
+    const doc: BlueprintDocument = { blueprint };
+    const root = createRoot(host);
+    try {
+      act(() => {
+        root.render(<PreviewPane doc={doc} blueprint={blueprint} blueprintPath={null} />);
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 180));
+      });
+      expect(mocks.renderPreview).toHaveBeenCalledTimes(1);
+      const cdnSwitch = host.querySelector<HTMLInputElement>("#cdn-assets");
+      expect(cdnSwitch).toBeTruthy();
+      expect(cdnSwitch?.checked).toBe(false);
+      mocks.renderPreview.mockRejectedValueOnce(new Error("Failed to fetch CDN manifest"));
+      act(() => {
+        cdnSwitch?.click();
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 180));
+      });
+      expect(mocks.toastError).toHaveBeenCalledWith("Failed to load CDN assets", {
+        description: "Assets not found",
+      });
+      expect(host.textContent).not.toContain("Assets missing");
+      expect(cdnSwitch?.checked).toBe(false);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 180));
+      });
+      expect(mocks.renderPreview.mock.calls.length).toBeGreaterThanOrEqual(3);
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
   it("rerenders when alt mode is toggled and exposes the latest result", async () => {
     const blueprint: Blueprint = {

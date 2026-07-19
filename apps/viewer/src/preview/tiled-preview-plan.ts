@@ -1,10 +1,13 @@
 import {
   type AssetSource,
   type AssetTier,
-  type Blueprint,
+  type BlueprintDocument,
   type DrawList,
   type RenderDb,
   type RenderOptions,
+  planUpgradePlannerDrawList,
+  selectBlueprint,
+  selectUpgradePlanner,
 } from "fpsr";
 import { planDrawList } from "fpsr/planner";
 
@@ -13,14 +16,32 @@ export interface TiledPreviewTierPlan {
   drawList: DrawList;
 }
 
+export interface TiledPreviewPlanOptions extends Pick<RenderOptions, "altMode" | "background"> {
+  blueprintPath?: number[];
+}
+
+function planDocumentForPreview(
+  doc: BlueprintDocument,
+  db: RenderDb,
+  options: TiledPreviewPlanOptions,
+): DrawList {
+  try {
+    const planner = selectUpgradePlanner(doc, options.blueprintPath);
+    return planUpgradePlannerDrawList(planner, db);
+  } catch {
+    const blueprint = selectBlueprint(doc, options.blueprintPath);
+    return planDrawList(blueprint, db, { altMode: options.altMode });
+  }
+}
+
 /**
  * Draw-list frame ids are local to an asset tier. Keep planning and painting
  * on the same render-db while deduplicating concurrent requests for that tier.
  */
 export const createTiledPreviewTierPlanCache = (
   assets: AssetSource,
-  blueprint: Blueprint,
-  options: Pick<RenderOptions, "altMode" | "background">,
+  doc: BlueprintDocument,
+  options: TiledPreviewPlanOptions,
 ): ((tier: AssetTier) => Promise<TiledPreviewTierPlan>) => {
   const plans = new Map<AssetTier, Promise<TiledPreviewTierPlan>>();
   return (tier) => {
@@ -30,9 +51,7 @@ export const createTiledPreviewTierPlanCache = (
         .loadRenderDb(tier)
         .then((db) => ({
           db,
-          drawList: planDrawList(blueprint, db, {
-            altMode: options.altMode,
-          }),
+          drawList: planDocumentForPreview(doc, db, options),
         }))
         .catch((error) => {
           plans.delete(tier);

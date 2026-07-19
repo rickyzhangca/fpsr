@@ -13,6 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PerfReport } from "@/performance/perf-report";
+import { trackEvent } from "@/shell/analytics";
 import { canUseLocalAssets, type AssetOrigin } from "@/shell/asset-config";
 import { setViewerAssetOrigin, viewerAssets } from "@/shell/viewer-assets";
 import { previewPreferencesAtom, type PreviewBackgroundMode } from "@/shell/viewer-preferences";
@@ -33,6 +34,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { toast } from "sonner";
 import {
   DEFAULT_ORBIT_PLANETS,
   STATIC_BACKGROUND_LABELS,
@@ -90,6 +92,7 @@ const adaptivePreviewSize = (viewport: { width: number; height: number }) => {
 export const PreviewPane = ({
   doc,
   blueprint,
+  upgradePlanner = null,
   blueprintPath,
   decodeStats,
   onTileSizeChange,
@@ -99,6 +102,8 @@ export const PreviewPane = ({
 }: {
   doc: BlueprintDocument | null;
   blueprint: Blueprint | null;
+  /** When set, renders the upgrade planner mapper grid instead of a blueprint. */
+  upgradePlanner?: Record<string, unknown> | null;
   blueprintPath: number[] | null;
   decodeStats?: DecodeStats | null;
   onTileSizeChange?: (tileSize: string) => void;
@@ -106,8 +111,11 @@ export const PreviewPane = ({
   onRenderProgress?: (progress: PreviewRenderProgress | null) => void;
   onRenderError?: (error: string | null) => void;
 }) => {
+  const hasRenderable = Boolean(blueprint || upgradePlanner);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderGenRef = useRef(0);
+  const lastSuccessfulAssetOriginRef = useRef<AssetOrigin | null>(null);
+  const revertingAssetOriginRef = useRef(false);
   const exportPromisesRef = useRef<{
     key: object;
     promises: Partial<Record<ExportFormat, Promise<Blob>>>;
@@ -156,6 +164,20 @@ export const PreviewPane = ({
   const localAssetsAvailable = canUseLocalAssets();
   const effectiveUseCdnAssets = localAssetsAvailable ? useCdnAssets : true;
   const assetOrigin: AssetOrigin = effectiveUseCdnAssets ? "cdn" : "local";
+  const revertFailedAssetOriginSwitch = (message: string): boolean => {
+    const previous = lastSuccessfulAssetOriginRef.current;
+    if (previous == null || previous === assetOrigin) return false;
+    if (revertingAssetOriginRef.current) return true;
+    revertingAssetOriginRef.current = true;
+    toast.error(
+      assetOrigin === "cdn" ? "Failed to load CDN assets" : "Failed to load local assets",
+      {
+        description: isMissingAssetsError(message) ? ASSETS_MISSING_HINT : message,
+      },
+    );
+    setUseCdnAssets(previous === "cdn");
+    return true;
+  };
   const [orbitPlanets, setOrbitPlanets] = useState<string[]>([...DEFAULT_ORBIT_PLANETS]);
   const [terrainModes, setTerrainModes] = useState<string[]>([...TERRAIN_BACKGROUND_MODES]);
   const [loading, setLoading] = useState(false);
@@ -261,12 +283,13 @@ export const PreviewPane = ({
   const tiledPreviewOptions = useMemo<WorkerTiledPreviewOptions>(
     () => ({
       blueprintPath: blueprintPath ?? undefined,
-      padTiles: 1,
+      // Upgrade planner draw lists already include 1-tile outer padding.
+      padTiles: upgradePlanner ? 0 : 1,
       altMode,
       background: renderBackground,
       showCoordinates: showCoords,
     }),
-    [blueprintPath, altMode, renderBackground, showCoords],
+    [blueprintPath, upgradePlanner, altMode, renderBackground, showCoords],
   );
   useEffect(() => {
     onTileSizeChangeRef.current?.(formatTileSize(lastResult));
@@ -369,7 +392,7 @@ export const PreviewPane = ({
   const downloadPendingLabel =
     !lastResult || loading ? "Rendering" : measuringFull ? "Measuring" : exportProgressLabel;
   useEffect(() => {
-    if (!doc || !blueprint) {
+    if (!doc || !hasRenderable) {
       setDimensions(null);
       setLastResult(null);
       setFullMeasurement(null);
@@ -419,6 +442,10 @@ export const PreviewPane = ({
             if (gen !== renderGenRef.current) return;
             const message =
               reason instanceof Error ? reason.message : "Failed to switch asset source";
+            if (revertFailedAssetOriginSwitch(message)) {
+              finishRender(false);
+              return;
+            }
             setError(message);
             onRenderErrorRef.current?.(message);
             finishRender(false);
@@ -446,24 +473,39 @@ export const PreviewPane = ({
                 wallMs: result.wallMs,
                 profile,
                 decode: decodeStats ?? undefined,
-                blueprint: {
-                  entityCount: blueprint.entities?.length ?? 0,
-                  tileCount: blueprint.tiles?.length ?? 0,
-                  wireCount: blueprint.wires?.length ?? 0,
-                  version: formatGameVersion(blueprint.version ?? 0),
-                  topComponents: countBlueprintComponents(blueprint, db).slice(0, 5),
-                },
+                blueprint: blueprint
+                  ? {
+                      entityCount: blueprint.entities?.length ?? 0,
+                      tileCount: blueprint.tiles?.length ?? 0,
+                      wireCount: blueprint.wires?.length ?? 0,
+                      version: formatGameVersion(blueprint.version ?? 0),
+                      topComponents: countBlueprintComponents(blueprint, db).slice(0, 5),
+                    }
+                  : {
+                      entityCount: 0,
+                      tileCount: 0,
+                      wireCount: 0,
+                      version: "—",
+                      topComponents: [],
+                    },
                 assetDetails: result.assetDetails,
                 sessionBytes: result.sessionBytes,
               };
               onPerfReportRef.current?.(report);
             }
+            lastSuccessfulAssetOriginRef.current = assetOrigin;
+            revertingAssetOriginRef.current = false;
             setDimensions({ width: result.width, height: result.height });
             setLastResult(result);
             onRenderProgressRef.current?.({
               value: 100,
               label: "Complete",
               durationMs: result.wallMs,
+            });
+            trackEvent("render_complete", {
+              kind: upgradePlanner ? "upgrade_planner" : "blueprint",
+              wall_ms: Math.round(result.wallMs),
+              entities: blueprint?.entities?.length ?? 0,
             });
             finishRender(true);
           } catch (e: unknown) {
@@ -473,6 +515,10 @@ export const PreviewPane = ({
             }
             if (gen !== renderGenRef.current) return;
             const message = e instanceof Error ? e.message : "Render failed";
+            if (revertFailedAssetOriginSwitch(message)) {
+              finishRender(false);
+              return;
+            }
             setAssetsMissing(isMissingAssetsError(message));
             setError(message);
             onRenderErrorRef.current?.(message);
@@ -490,7 +536,16 @@ export const PreviewPane = ({
       if (timer != null) window.clearTimeout(timer);
       controller.abort();
     };
-  }, [doc, blueprint, tiledPreviewOptions, showCoords, decodeStats, assetOrigin]);
+  }, [
+    doc,
+    blueprint,
+    upgradePlanner,
+    hasRenderable,
+    tiledPreviewOptions,
+    showCoords,
+    decodeStats,
+    assetOrigin,
+  ]);
   useEffect(() => {
     exportAbortRef.current?.abort();
     exportAbortRef.current = null;
@@ -525,6 +580,11 @@ export const PreviewPane = ({
       } catch (reason: unknown) {
         if (stale) return;
         const message = reason instanceof Error ? reason.message : "Size check failed";
+        if (revertFailedAssetOriginSwitch(message)) {
+          setMeasuringFull(false);
+          onRenderProgressRef.current?.(null);
+          return;
+        }
         setFullMeasurement(null);
         setMeasuringFull(false);
         setError(message);
@@ -583,9 +643,10 @@ export const PreviewPane = ({
   const handlePointerLeave = () => {
     setHoverTile(null);
   };
-  if (!doc || !blueprint) {
+  if (!doc || !hasRenderable) {
     return null;
   }
+  const isUpgradePlanner = Boolean(upgradePlanner);
   const frameDimensions = !limitTo4k && fullMeasurement ? fullMeasurement : dimensions;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -688,19 +749,21 @@ export const PreviewPane = ({
             </Tooltip>
           </Label>
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            size="sm"
-            id="alt-mode"
-            checked={altMode}
-            disabled={controlsDisabled}
-            onCheckedChange={(checked) => {
-              setLoading(true);
-              setAltMode(checked);
-            }}
-          />
-          <Label htmlFor="alt-mode">Alt mode</Label>
-        </div>
+        {!isUpgradePlanner && (
+          <div className="flex items-center gap-2">
+            <Switch
+              size="sm"
+              id="alt-mode"
+              checked={altMode}
+              disabled={controlsDisabled}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setAltMode(checked);
+              }}
+            />
+            <Label htmlFor="alt-mode">Alt mode</Label>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Switch
             size="sm"

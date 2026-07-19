@@ -1,4 +1,4 @@
-import type { AssetSource, AssetTier, Blueprint, FrameMeta, RenderDb } from "fpsr";
+import type { AssetSource, AssetTier, BlueprintDocument, FrameMeta, RenderDb } from "fpsr";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createTiledPreviewTierPlanCache } from "./tiled-preview-plan";
 
@@ -45,7 +45,11 @@ const dbForFrame = (entityFrame: number, density: 1 | 2): RenderDb => ({
     },
   },
   tiles: {},
-  icons: {},
+  icons: {
+    "entity/wooden-chest": 0,
+    "utility/missing-icon": 0,
+    "virtual-signal/right-arrow": 1,
+  },
 });
 
 describe("tiled preview tier planning", () => {
@@ -59,12 +63,14 @@ describe("tiled preview tier planning", () => {
       loadRenderDb,
       loadAtlasImage: vi.fn<() => Promise<CanvasImageSource>>(),
     };
-    const blueprint: Blueprint = {
-      item: "blueprint",
-      version: 0,
-      entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+    const doc: BlueprintDocument = {
+      blueprint: {
+        item: "blueprint",
+        version: 0,
+        entities: [{ entity_number: 1, name: "wooden-chest", position: { x: 0.5, y: 0.5 } }],
+      },
     };
-    const getTierPlan = createTiledPreviewTierPlanCache(assets, blueprint, {});
+    const getTierPlan = createTiledPreviewTierPlanCache(assets, doc, {});
 
     const [plan1x, plan2x, repeated1x] = await Promise.all([
       getTierPlan("1x"),
@@ -82,5 +88,41 @@ describe("tiled preview tier planning", () => {
     expect(spriteFrames(plan1x)).toContain(1);
     expect(spriteFrames(plan2x)).toContain(0);
     expect(loadRenderDb).toHaveBeenCalledTimes(2);
+  });
+
+  it("plans upgrade planner book entries without selecting a blueprint", async () => {
+    const db = dbForFrame(0, 2);
+    const assets: AssetSource = {
+      loadRenderDb: vi.fn(async () => db),
+      loadAtlasImage: vi.fn<() => Promise<CanvasImageSource>>(),
+    };
+    const doc: BlueprintDocument = {
+      blueprint_book: {
+        item: "blueprint-book",
+        version: 0,
+        active_index: 0,
+        blueprints: [
+          {
+            index: 0,
+            upgrade_planner: {
+              item: "upgrade-planner",
+              version: 0,
+              settings: {
+                mappers: [
+                  {
+                    index: 0,
+                    from: { type: "entity", name: "wooden-chest" },
+                    to: { type: "entity", name: "wooden-chest" },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    };
+    const getTierPlan = createTiledPreviewTierPlanCache(assets, doc, { blueprintPath: [0] });
+    const plan = await getTierPlan("2x");
+    expect(plan.drawList.commands.some((command) => command.kind === "icon")).toBe(true);
   });
 });

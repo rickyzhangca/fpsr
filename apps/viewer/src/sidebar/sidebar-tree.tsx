@@ -12,7 +12,13 @@ import {
 import { sidebarExpansionAtom, type SidebarSectionId } from "@/shell/viewer-preferences";
 import { hotkeysCoreFeature, selectionFeature, syncDataLoaderFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { buildBookTree, type BlueprintDocument, type BookTreeItemKind, type Icon } from "fpsr";
+import {
+  buildBookTree,
+  upgradePlannerIcons,
+  type BlueprintDocument,
+  type BookTreeItemKind,
+  type Icon,
+} from "fpsr";
 import { useAtom } from "jotai";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 const INDENT_PX = 12;
@@ -112,14 +118,31 @@ export const docToSidebarItems = (source: SidebarSource): Record<string, Sidebar
       },
     };
   }
-  // Planner-only or empty docs: show as muted non-selectable leaf.
+  if (source.doc.upgrade_planner) {
+    const planner = source.doc.upgrade_planner;
+    const label =
+      typeof planner.label === "string" && planner.label.length > 0 ? planner.label : source.label;
+    const icons = upgradePlannerIcons(planner);
+    return {
+      [source.id]: {
+        id: source.id,
+        sourceId: source.id,
+        path: [],
+        label,
+        kind: "upgrade_planner",
+        icons: icons.length > 0 ? icons : undefined,
+        children: [],
+      },
+    };
+  }
+  // Deconstruction planner-only docs: muted non-selectable leaf.
   return {
     [source.id]: {
       id: source.id,
       sourceId: source.id,
       path: [],
       label: source.label,
-      kind: source.doc.upgrade_planner ? "upgrade_planner" : "deconstruction_planner",
+      kind: "deconstruction_planner",
       children: [],
     },
   };
@@ -142,14 +165,8 @@ const buildSidebarItems = (sources: SidebarSource[]): Record<string, SidebarTree
   return items;
 };
 export const TreeItemKindIcon = ({ kind, icons }: { kind: BookTreeItemKind; icons?: Icon[] }) => {
-  if (kind === "blueprint" || kind === "book") {
-    return (
-      <BlueprintIcons
-        icons={icons}
-        size={36}
-        backgroundKey={kind === "book" ? "item/blueprint-book" : "item/blueprint"}
-      />
-    );
+  if (kind === "blueprint" || kind === "book" || kind === "upgrade_planner") {
+    return <BlueprintIcons icons={icons} size={36} backgroundKey={KIND_ICON_KEY[kind]} />;
   }
   return (
     <FactorioItemIcon
@@ -167,7 +184,7 @@ const formatRenderDuration = (durationMs: number): string => {
   const seconds = totalSeconds % 60;
   return `${minutes}m ${seconds}s`;
 };
-export type SidebarSelectableKind = "book" | "blueprint";
+export type SidebarSelectableKind = "book" | "blueprint" | "upgrade_planner";
 export const SidebarTree = ({
   sectionId,
   sources,
@@ -249,7 +266,7 @@ export const SidebarTree = ({
       const id = next[0];
       if (!id) return;
       const data = items[id];
-      if (data?.kind === "book" || data?.kind === "blueprint") {
+      if (data?.kind === "book" || data?.kind === "blueprint" || data?.kind === "upgrade_planner") {
         if (data.kind === "book") {
           setExpandedItems((prev) => (prev.includes(id) ? prev : [...prev, id]));
         }
@@ -282,7 +299,7 @@ export const SidebarTree = ({
         const progress = id === progressItemId ? renderProgress : null;
         const renderedDuration =
           progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
-        const isPlanner = data.kind === "upgrade_planner" || data.kind === "deconstruction_planner";
+        const isMuted = data.kind === "deconstruction_planner";
         return (
           <TreeItem key={id} className="w-max min-w-full">
             <TreeItemButton
@@ -290,7 +307,7 @@ export const SidebarTree = ({
               indent={item.getItemMeta().level * INDENT_PX}
               data-selected={item.isSelected() || undefined}
               data-focused={item.isFocused() || undefined}
-              data-muted={isPlanner || undefined}
+              data-muted={isMuted || undefined}
               className="w-max min-w-full"
             >
               <TreeItemIconSlot>

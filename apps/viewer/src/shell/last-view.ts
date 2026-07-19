@@ -20,7 +20,12 @@ export const readLastView = (): LastView | null => {
       parsed.path.every((index) => Number.isInteger(index) && index >= 0)
         ? parsed.path
         : null;
-    const kind: SidebarSelectableKind = parsed.kind === "book" ? "book" : "blueprint";
+    const kind: SidebarSelectableKind =
+      parsed.kind === "book"
+        ? "book"
+        : parsed.kind === "upgrade_planner"
+          ? "upgrade_planner"
+          : "blueprint";
     return { sourceId: parsed.sourceId, path, kind };
   } catch {
     return null;

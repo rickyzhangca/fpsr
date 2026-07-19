@@ -8,6 +8,7 @@ import {
   resolveActivePath,
   selectBlueprint,
   selectBook,
+  selectUpgradePlanner,
 } from "fpsr";
 import esnSqueegeeBp from "../../../../fixtures/demos/esn-squeegee.bp.txt?raw";
 import nauvisMidGameBp from "../../../../fixtures/demos/nauvis-mid-game.bp.txt?raw";
@@ -60,6 +61,11 @@ export const tryDecode = (
 export const sourceLabel = (doc: BlueprintDocument, fallback: string): string => {
   if (doc.blueprint?.label) return doc.blueprint.label;
   if (doc.blueprint_book?.label) return doc.blueprint_book.label;
+  if (typeof doc.upgrade_planner?.label === "string" && doc.upgrade_planner.label.length > 0) {
+    return doc.upgrade_planner.label;
+  }
+  if (doc.upgrade_planner) return "Upgrade planner";
+  if (doc.deconstruction_planner) return "Deconstruction planner";
   return fallback;
 };
 
@@ -88,6 +94,42 @@ export const resolveSelectedBlueprint = (
   } catch {
     return null;
   }
+};
+
+export const resolveSelectedUpgradePlanner = (
+  doc: BlueprintDocument | null,
+  path: number[] | null,
+  kind: SidebarSelectableKind,
+): Record<string, unknown> | null => {
+  if (!doc || kind !== "upgrade_planner") return null;
+  try {
+    return selectUpgradePlanner(doc, path ?? undefined);
+  } catch {
+    return null;
+  }
+};
+
+/** Initial selection after pasting/opening a decoded document. */
+export const selectionForDoc = (
+  doc: BlueprintDocument,
+): {
+  path: number[] | null;
+  kind: SidebarSelectableKind;
+} => {
+  if (doc.upgrade_planner) {
+    return { path: null, kind: "upgrade_planner" };
+  }
+  if (doc.blueprint_book) {
+    const path = resolveActivePath(doc);
+    if (!path) return { path: null, kind: "book" };
+    try {
+      selectUpgradePlanner(doc, path);
+      return { path, kind: "upgrade_planner" };
+    } catch {
+      return { path, kind: "blueprint" };
+    }
+  }
+  return { path: resolveActivePath(doc), kind: "blueprint" };
 };
 
 const decodeBuiltInSources = (
@@ -130,6 +172,7 @@ export const resolveStoredSelection = (
 } => {
   if (kind === "book") {
     if (!doc.blueprint_book) {
+      if (doc.upgrade_planner) return { path: null, kind: "upgrade_planner" };
       return { path: resolveActivePath(doc), kind: "blueprint" };
     }
     try {
@@ -138,6 +181,18 @@ export const resolveStoredSelection = (
     } catch {
       return { path: null, kind: "book" };
     }
+  }
+  if (kind === "upgrade_planner") {
+    try {
+      selectUpgradePlanner(doc, path ?? undefined);
+      return { path, kind: "upgrade_planner" };
+    } catch {
+      if (doc.upgrade_planner) return { path: null, kind: "upgrade_planner" };
+      return { path: resolveActivePath(doc), kind: "blueprint" };
+    }
+  }
+  if (doc.upgrade_planner && !doc.blueprint && !doc.blueprint_book) {
+    return { path: null, kind: "upgrade_planner" };
   }
   if (!doc.blueprint_book) return { path: null, kind: "blueprint" };
   try {
