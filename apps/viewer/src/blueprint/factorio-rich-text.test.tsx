@@ -2,6 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { FactorioRichText } from "./factorio-rich-text";
 vi.mock("./factorio-item-icon", () => ({
   FactorioItemIcon: ({
     iconKey,
@@ -23,7 +24,6 @@ vi.mock("./factorio-item-icon", () => ({
     );
   },
 }));
-import { FactorioRichText } from "./factorio-rich-text";
 describe("FactorioRichText", () => {
   let host: HTMLDivElement;
   beforeEach(() => {
@@ -59,6 +59,17 @@ describe("FactorioRichText", () => {
       root.render(<FactorioRichText fallback="No description" />);
     });
     expect(host.textContent).toBe("No description");
+    await act(async () => root.unmount());
+  });
+  it("uses block layout when truncating", async () => {
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<FactorioRichText text="Long blueprint title" className="truncate" />);
+    });
+    const span = host.querySelector("span");
+    expect(span?.className).toContain("truncate");
+    expect(span?.className).toContain("block");
+    expect(span?.className).toContain("min-w-0");
     await act(async () => root.unmount());
   });
 });

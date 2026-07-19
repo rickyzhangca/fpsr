@@ -181,7 +181,7 @@ describe("viewer preferences", () => {
     const originalHostname = window.location.hostname;
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { ...window.location, hostname: "fpsr.fprints.xyz" },
+      value: { hostname: "fpsr.fprints.xyz" },
     });
 
     localStorage.setItem(
@@ -199,7 +199,7 @@ describe("viewer preferences", () => {
 
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { ...window.location, hostname: originalHostname },
+      value: { hostname: originalHostname },
     });
   });
 

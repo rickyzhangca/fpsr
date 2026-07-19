@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
+import { encodedByteSize, formatByteSize } from "@/blueprint/blueprint-meta";
+import { VIEWER_PREFERENCE_KEYS } from "@/shell/viewer-preferences";
 import type { Blueprint } from "fpsr";
 import { createStore, Provider } from "jotai";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { encodedByteSize, formatByteSize } from "@/blueprint/blueprint-meta";
 import { BlueprintSummary } from "./blueprint-summary";
-import { VIEWER_PREFERENCE_KEYS } from "@/shell/viewer-preferences";
 vi.mock("@/blueprint/factorio-item-icon", () => ({
   FactorioItemIcon: ({ iconKey, quality }: { iconKey: string | string[]; quality?: string }) => {
     const key = Array.isArray(iconKey) ? iconKey[0] : iconKey;
@@ -229,12 +229,15 @@ describe("BlueprintSummary", () => {
       );
     });
     expect(host.querySelector('[aria-label="Expand summary"]')).toBeTruthy();
-    const title = host.querySelector("h2");
-    const description = host.querySelector("dd");
+    const title = host.querySelector("h2 span");
+    const description = host.querySelector("dd span");
     expect(title?.className).toContain("truncate");
     expect(description?.className).toContain("truncate");
-    expect(title?.parentElement?.className).toMatch(/min-w-0/);
-    expect(title?.parentElement?.className).toMatch(/overflow-hidden/);
+    expect(title?.parentElement?.parentElement?.className).toMatch(/min-w-0/);
+    expect(title?.parentElement?.parentElement?.className).toMatch(/overflow-hidden/);
+    const collapsedRow = title?.closest(".flex.items-center");
+    expect(collapsedRow?.className).toMatch(/max-w-full/);
+    expect(collapsedRow?.className).toMatch(/overflow-hidden/);
     act(() => root.unmount());
   });
 });

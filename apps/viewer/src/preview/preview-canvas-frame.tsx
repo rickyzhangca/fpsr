@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { cornerRadiiToCss, effectiveClipCornerRadii, type CornerRadii } from "./clip-corner-radii";
 import {
   PINCH_ZOOM_STEP,
   RUBBERBAND_DISTANCE,
@@ -13,6 +14,8 @@ import {
 } from "./pan-zoom";
 import type { TiledPreviewViewport } from "./preview-tiles";
 import { ViewerToolbar } from "./viewer-toolbar";
+
+const ZERO_RADII: CornerRadii = { tl: 0, tr: 0, br: 0, bl: 0 };
 
 export const PreviewCanvasFrame = ({
   className,
@@ -48,6 +51,10 @@ export const PreviewCanvasFrame = ({
     panX: number;
     panY: number;
   } | null>(null);
+  /** Plain wheel zooms only after the canvas is armed (clicked). Pinch always zooms. */
+  const wheelZoomArmedRef = useRef(false);
+  const [wheelZoomArmed, setWheelZoomArmed] = useState(false);
+  const [armedCornerRadii, setArmedCornerRadii] = useState<CornerRadii>(ZERO_RADII);
   const [fitKey, setFitKey] = useState<string | null>(null);
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -250,6 +257,8 @@ export const PreviewCanvasFrame = ({
       const target = event.target as HTMLElement | null;
       if (target?.closest("button, a, input, [data-no-pan]")) return;
       event.preventDefault();
+      wheelZoomArmedRef.current = true;
+      setWheelZoomArmed(true);
       dragRef.current = {
         pointerId: event.pointerId,
         x: event.clientX,
@@ -322,11 +331,15 @@ export const PreviewCanvasFrame = ({
   }, [ready, commitView]);
   // Native non-passive listeners: React's onWheel is passive, so preventDefault
   // cannot stop browser page-zoom on trackpad pinch / Safari gesture events.
+  //
+  // Mouse vs trackpad cannot be told apart from wheel events, so we use intent:
+  // - Pinch / ctrl+wheel → always zoom
+  // - Plain wheel → zoom only after the canvas was clicked (armed); otherwise scroll
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || !ready) return;
     const onWheel = (event: WheelEvent) => {
-      // Any wheel over the canvas zooms (mouse wheel and trackpad pinch/scroll).
+      if (!event.ctrlKey && !wheelZoomArmedRef.current) return;
       event.preventDefault();
       const shell = shellRef.current;
       if (!shell) return;
@@ -339,18 +352,58 @@ export const PreviewCanvasFrame = ({
     const preventGesture = (event: Event) => {
       event.preventDefault();
     };
+    const onPointerDownOutside = (event: PointerEvent) => {
+      const shell = shellRef.current;
+      if (!shell) return;
+      if (event.target instanceof Node && shell.contains(event.target)) return;
+      wheelZoomArmedRef.current = false;
+      setWheelZoomArmed(false);
+    };
     viewport.addEventListener("wheel", onWheel, { passive: false });
     // Safari pinch-zoom fires gesture* instead of (or in addition to) wheel.
     viewport.addEventListener("gesturestart", preventGesture);
     viewport.addEventListener("gesturechange", preventGesture);
     viewport.addEventListener("gestureend", preventGesture);
+    document.addEventListener("pointerdown", onPointerDownOutside, true);
     return () => {
       viewport.removeEventListener("wheel", onWheel);
       viewport.removeEventListener("gesturestart", preventGesture);
       viewport.removeEventListener("gesturechange", preventGesture);
       viewport.removeEventListener("gestureend", preventGesture);
+      document.removeEventListener("pointerdown", onPointerDownOutside, true);
     };
   }, [ready, applyZoomAt]);
+  // Match the armed focus border to any rounded clipping ancestor (e.g. main's rounded-xl).
+  useLayoutEffect(() => {
+    if (!wheelZoomArmed) {
+      setArmedCornerRadii(ZERO_RADII);
+      return;
+    }
+    const shell = shellRef.current;
+    if (!shell) return;
+    const sync = () => setArmedCornerRadii(effectiveClipCornerRadii(shell));
+    sync();
+    const parents: HTMLElement[] = [];
+    let node: HTMLElement | null = shell.parentElement;
+    while (node) {
+      parents.push(node);
+      node = node.parentElement;
+    }
+    window.addEventListener("resize", sync);
+    for (const parent of parents) {
+      parent.addEventListener("scroll", sync, { passive: true });
+    }
+    const observer = new ResizeObserver(sync);
+    observer.observe(shell);
+    for (const parent of parents) observer.observe(parent);
+    return () => {
+      window.removeEventListener("resize", sync);
+      for (const parent of parents) {
+        parent.removeEventListener("scroll", sync);
+      }
+      observer.disconnect();
+    };
+  }, [wheelZoomArmed]);
   const zoomBy = (delta: number) => {
     applyZoomAt(viewRef.current.zoom + delta, 0, 0);
   };
@@ -408,6 +461,13 @@ export const PreviewCanvasFrame = ({
         <div data-no-pan className="pointer-events-auto absolute bottom-3 right-3 z-10">
           {actions}
         </div>
+      )}
+      {wheelZoomArmed && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-20 border-2 border-ring"
+          style={{ borderRadius: cornerRadiiToCss(armedCornerRadii) }}
+        />
       )}
     </div>
   );

@@ -333,14 +333,14 @@ export const App = () => {
         </Suspense>
       )}
 
-      <div className="flex min-h-0 flex-col items-center md:p-2 px-2 pt-1 pb-1.5 gap-1 md:gap-2">
+      <div className="flex min-h-0 min-w-0 w-full max-w-full flex-col items-center md:p-2 px-2 pt-1 pb-1.5 gap-1 md:gap-2">
         <main className="flex-1 w-full flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card">
           <ScrollArea
             className="min-h-0 min-w-0 flex-1"
             viewportClassName="scroll-fade overflow-x-hidden"
-            contentClassName="h-full w-full min-w-0"
+            contentClassName="min-h-full min-w-0! flex flex-col w-full max-w-full"
           >
-            <div className="flex h-full min-h-[640px] w-full min-w-0 flex-col">
+            <div className="flex flex-1 min-h-[max(100%,640px)] w-full max-w-full min-w-0 flex-col">
               {selectedBook ? (
                 <>
                   <BookSummary
@@ -391,7 +391,7 @@ export const App = () => {
                         setTab(value);
                         trackEvent("tab_switch", { tab: value });
                       }}
-                      className="flex min-h-0 flex-1 flex-col overflow-hidden border-t"
+                      className="flex min-h-80 flex-1 flex-col overflow-hidden border-t"
                     >
                       <TabsList variant="line" className="mx-1 mt-1">
                         <TabsTrigger value="preview">Preview</TabsTrigger>

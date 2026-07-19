@@ -31,7 +31,7 @@ export const BlueprintSummary = ({
   const getBlueprintString = () => sourceString ?? encode({ blueprint });
 
   return (
-    <div className="relative min-w-0 shrink-0 overflow-hidden">
+    <div className="relative w-full max-w-full min-w-0 shrink-0 overflow-hidden">
       <Button
         type="button"
         variant="ghost"
@@ -50,10 +50,10 @@ export const BlueprintSummary = ({
 
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <div className="min-w-0">
-              <h2 className="font-medium text-lg text-foreground break-words">
+              <h2 className="break-words font-medium text-lg text-foreground">
                 <FactorioRichText text={blueprint.label} fallback="<Unnamed blueprint>" size="lg" />
               </h2>
-              <dd className="text-muted-foreground text-sm break-words">
+              <dd className="break-words text-muted-foreground text-sm">
                 <FactorioRichText
                   text={blueprint.description}
                   fallback="No description"
@@ -89,18 +89,29 @@ export const BlueprintSummary = ({
           </div>
         </div>
       ) : (
-        <div className="flex min-w-0 items-center gap-3 p-3 pr-12">
-          <CopyableBlueprintIcons
-            icons={blueprint.icons}
-            size={40}
-            getBlueprintString={getBlueprintString}
-          />
+        <div className="flex w-full max-w-full min-w-0 items-center gap-3 overflow-hidden p-3 pr-12">
+          <div className="shrink-0">
+            <CopyableBlueprintIcons
+              icons={blueprint.icons}
+              size={40}
+              getBlueprintString={getBlueprintString}
+            />
+          </div>
           <div className="min-w-0 flex-1 overflow-hidden">
-            <h2 className="truncate font-medium text-foreground">
-              <FactorioRichText text={blueprint.label} fallback="<Unnamed blueprint>" />
+            <h2 className="font-medium text-foreground">
+              <FactorioRichText
+                text={blueprint.label}
+                fallback="<Unnamed blueprint>"
+                className="truncate"
+              />
             </h2>
-            <dd className="truncate text-muted-foreground text-sm">
-              <FactorioRichText text={blueprint.description} fallback="No description" size="sm" />
+            <dd className="text-muted-foreground text-sm">
+              <FactorioRichText
+                text={blueprint.description}
+                fallback="No description"
+                size="sm"
+                className="truncate"
+              />
             </dd>
           </div>
         </div>

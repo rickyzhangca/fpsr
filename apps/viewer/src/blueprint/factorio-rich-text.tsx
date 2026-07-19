@@ -6,6 +6,10 @@ const SIZE_PX = {
   sm: 16,
   xs: 14,
 } as const;
+
+const rootClassName = (className?: string) =>
+  cn(className?.includes("truncate") ? "block min-w-0 max-w-full" : "inline", className);
+
 export const FactorioRichText = ({
   text,
   fallback,
@@ -20,12 +24,12 @@ export const FactorioRichText = ({
   const trimmed = text?.trim();
   if (!trimmed) {
     if (fallback === undefined) return null;
-    return <span className={className}>{fallback}</span>;
+    return <span className={rootClassName(className)}>{fallback}</span>;
   }
   const tokens = parseRichText(trimmed);
   const iconSize = SIZE_PX[size];
   return (
-    <span className={cn("inline", className)}>
+    <span className={rootClassName(className)}>
       {tokens.map((token, index) => (
         <RichTextTokenView key={`${index}-${tokenKey(token)}`} token={token} iconSize={iconSize} />
       ))}
