@@ -20,10 +20,12 @@ function bp2x(entities: Blueprint["entities"]): Blueprint {
 }
 
 describe("BLUEPRINT_ADAPTERS", () => {
-  it("registers scale-legacy-directions and items-object-to-array", () => {
+  it("registers direction, items, wires, and entity-rename adapters", () => {
     expect(BLUEPRINT_ADAPTERS.map((a) => a.id)).toEqual([
       "scale-legacy-directions",
       "items-object-to-array",
+      "connections-neighbours-to-wires",
+      "rename-legacy-entities",
     ]);
   });
 });
@@ -73,6 +75,51 @@ describe("migrateTo2x", () => {
     ]);
   });
 
+  it("converts 1.x connections and neighbours into top-level wires", () => {
+    const input = bp1x([
+      {
+        entity_number: 1,
+        name: "constant-combinator",
+        position: { x: 0.5, y: 0.5 },
+      },
+      {
+        entity_number: 2,
+        name: "decider-combinator",
+        position: { x: 1.5, y: 0.5 },
+        direction: 2,
+      },
+      {
+        entity_number: 3,
+        name: "small-electric-pole",
+        position: { x: 2.5, y: 0.5 },
+      },
+      {
+        entity_number: 4,
+        name: "small-electric-pole",
+        position: { x: 3.5, y: 0.5 },
+      },
+    ]);
+    (input.entities![0] as { connections: unknown }).connections = {
+      "1": { red: [{ entity_id: 2, circuit_id: 1 }] },
+    };
+    (input.entities![1] as { connections: unknown }).connections = {
+      "1": { red: [{ entity_id: 1 }] },
+      "2": { green: [{ entity_id: 1 }] },
+    };
+    (input.entities![2] as { neighbours: unknown }).neighbours = [4];
+    (input.entities![3] as { neighbours: unknown }).neighbours = [3];
+
+    const out = migrateTo2x(input);
+    expect(out.wires).toEqual(
+      expect.arrayContaining([
+        [1, 1, 2, 1], // red: constant → decider input
+        [1, 2, 2, 4], // green: constant → decider output
+        [3, 5, 4, 5], // copper neighbours
+      ]),
+    );
+    expect(out.wires).toHaveLength(3);
+  });
+
   it("is idempotent on already-migrated blueprints", () => {
     const once = migrateTo2x(
       bp1x([
@@ -97,6 +144,83 @@ describe("migrateTo2x", () => {
         position: { x: 0.5, y: 0.5 },
         direction: 4,
       },
+    ]);
+    expect(migrateTo2x(input)).toBe(input);
+  });
+
+  it("renames 1.x rails, logistic chests, and filter/stack inserters", () => {
+    const input = bp1x(
+      [
+        {
+          entity_number: 1,
+          name: "straight-rail",
+          position: { x: 0, y: 0 },
+          direction: 0,
+        },
+        {
+          entity_number: 2,
+          name: "curved-rail",
+          position: { x: 2, y: 0 },
+          direction: 0,
+        },
+        {
+          entity_number: 3,
+          name: "filter-inserter",
+          position: { x: 0.5, y: 0.5 },
+          direction: 2,
+        },
+        {
+          entity_number: 4,
+          name: "stack-inserter",
+          position: { x: 1.5, y: 0.5 },
+          direction: 2,
+        },
+        {
+          entity_number: 5,
+          name: "stack-filter-inserter",
+          position: { x: 2.5, y: 0.5 },
+          direction: 2,
+        },
+        {
+          entity_number: 6,
+          name: "logistic-chest-requester",
+          position: { x: 0.5, y: 1.5 },
+        },
+        {
+          entity_number: 7,
+          name: "logistic-chest-storage",
+          position: { x: 1.5, y: 1.5 },
+        },
+        {
+          entity_number: 8,
+          name: "iron-chest",
+          position: { x: 2.5, y: 1.5 },
+        },
+      ],
+      {
+        icons: [{ index: 1, signal: { type: "item", name: "curved-rail" } }],
+      },
+    );
+    const out = migrateTo2x(input);
+    expect(out.entities?.map((e) => e.name)).toEqual([
+      "legacy-straight-rail",
+      "legacy-curved-rail",
+      "fast-inserter",
+      "bulk-inserter",
+      "bulk-inserter",
+      "requester-chest",
+      "storage-chest",
+      "iron-chest",
+    ]);
+    expect(out.entities?.[2]?.direction).toBe(4);
+    expect(out.icons?.[0]?.signal?.name).toBe("legacy-curved-rail");
+  });
+
+  it("does not rename 2.x straight-rail / stack-inserter (new prototypes)", () => {
+    const input = bp2x([
+      { entity_number: 1, name: "straight-rail", position: { x: 0, y: 0 } },
+      { entity_number: 2, name: "stack-inserter", position: { x: 0.5, y: 0.5 } },
+      { entity_number: 3, name: "requester-chest", position: { x: 1.5, y: 0.5 } },
     ]);
     expect(migrateTo2x(input)).toBe(input);
   });

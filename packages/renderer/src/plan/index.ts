@@ -27,6 +27,7 @@ import {
   emitCombinatorDisplay,
 } from "./circuit-connectors.js";
 import { emitPipeCovers } from "./pipe-covers.js";
+import { emitSnapGrid } from "./snap-grid.js";
 import { planMaterialTileSprite, tileVariantHash } from "./tiles.js";
 import { unsupportedEntityCommand } from "./unsupported.js";
 import { emitTrainChains, emitWires } from "./wires.js";
@@ -445,6 +446,7 @@ export function planDrawListInternal(
   bounds = emitPipeCovers(bp, db, byNumber, commands, bounds);
   bounds = emitWires(bp, byNumber, poleDirs, beltVariations, commands, bounds);
   bounds = emitTrainChains(bp, byNumber, commands, bounds);
+  bounds = emitSnapGrid(bp, commands, bounds);
   const commandsBeforeConnections = commands.length;
   emitCargoBayConnections(bp, db, resolveContext.preferPlatformGraphics, commands);
   for (let i = commandsBeforeConnections; i < commands.length; i++) {

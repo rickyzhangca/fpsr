@@ -3,6 +3,8 @@ import { BLUEPRINT_ADAPTERS, decodeVersion, type Blueprint } from "fpsr";
 const ADAPTER_LABELS: Record<string, string> = {
   "scale-legacy-directions": "Legacy directions",
   "items-object-to-array": "Legacy item format",
+  "connections-neighbours-to-wires": "Legacy circuit wires",
+  "rename-legacy-entities": "Legacy entity names",
 };
 
 export type AdapterCheck = {

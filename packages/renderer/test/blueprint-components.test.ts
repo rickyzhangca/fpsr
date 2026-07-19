@@ -4,7 +4,11 @@ import type { Blueprint } from "../src/types/blueprint.js";
 import { makeMiniDb } from "./fixtures/mini-db.js";
 
 function bp(partial: Partial<Blueprint> = {}): Blueprint {
-  return { item: "blueprint", version: 0, ...partial };
+  return { item: "blueprint", version: 2 * 2 ** 48, ...partial };
+}
+
+function bp1x(partial: Partial<Blueprint> = {}): Blueprint {
+  return { item: "blueprint", version: 1 * 2 ** 48, ...partial };
 }
 
 describe("countBlueprintComponents", () => {
@@ -138,6 +142,30 @@ describe("countBlueprintComponents", () => {
       { name: "transport-belt", count: 2 },
       { name: "assembling-machine-2", count: 1 },
       { name: "inserter", count: 1 },
+    ]);
+  });
+
+  it("renames 1.x entities so component icons match 2.x item keys", () => {
+    expect(
+      countBlueprintComponents(
+        bp1x({
+          entities: [
+            { entity_number: 1, name: "curved-rail", position: { x: 0, y: 0 } },
+            { entity_number: 2, name: "straight-rail", position: { x: 1, y: 0 } },
+            { entity_number: 3, name: "filter-inserter", position: { x: 0.5, y: 0.5 } },
+            { entity_number: 4, name: "stack-inserter", position: { x: 1.5, y: 0.5 } },
+            { entity_number: 5, name: "logistic-chest-requester", position: { x: 2.5, y: 0.5 } },
+            { entity_number: 6, name: "logistic-chest-storage", position: { x: 3.5, y: 0.5 } },
+          ],
+        }),
+        db,
+      ),
+    ).toEqual([
+      { name: "rail", count: 2 },
+      { name: "bulk-inserter", count: 1 },
+      { name: "fast-inserter", count: 1 },
+      { name: "requester-chest", count: 1 },
+      { name: "storage-chest", count: 1 },
     ]);
   });
 });

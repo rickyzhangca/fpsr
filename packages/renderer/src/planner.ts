@@ -84,6 +84,8 @@ export type { WireColor } from "./wire-connectors.js";
 
 export { drawListForTile } from "./tiled-draw-list.js";
 
+export { planUpgradePlannerDrawList, UPGRADE_PLANNER_COLUMNS } from "./plan/upgrade-planner.js";
+
 export {
   compareDrawCmd,
   FACTORIO_RENDER_LAYERS,
@@ -96,6 +98,7 @@ export type {
   DrawListBounds,
   IconCmd,
   RectCmd,
+  SnapGridCmd,
   SpriteCmd,
   TrainChainCmd,
   WireCmd,

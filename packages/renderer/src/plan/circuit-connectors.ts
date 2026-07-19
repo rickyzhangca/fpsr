@@ -39,9 +39,13 @@ function combinatorDisplayKey(entity: BlueprintEntity, def: EntityRenderDef): st
   }
   if (def.protoType === "decider-combinator") {
     const conditions = behavior.decider_conditions as
-      | { conditions?: Record<string, unknown>[] }
+      | { conditions?: Record<string, unknown>[]; comparator?: unknown }
       | undefined;
-    const comparator = conditions?.conditions?.[0]?.comparator;
+    // 2.x nests conditions; 1.x keeps comparator on the root object.
+    const nested = conditions?.conditions?.[0]?.comparator;
+    const flat = conditions?.comparator;
+    const comparator =
+      typeof nested === "string" ? nested : typeof flat === "string" ? flat : undefined;
     if (typeof comparator !== "string") return undefined;
     return { "!=": "≠", "<=": "≤", ">=": "≥" }[comparator] ?? comparator;
   }
