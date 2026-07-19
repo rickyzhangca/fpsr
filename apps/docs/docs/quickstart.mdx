@@ -1,0 +1,44 @@
+---
+title: Quick start
+description: Render a Factorio blueprint string in the browser or Node.js.
+---
+
+## Browser
+
+```ts
+import { cdnAssets, createRenderer, decode } from "fpsr";
+
+const doc = decode(blueprintString);
+const renderer = await createRenderer({
+  assets: cdnAssets("https://your-cdn.example.com/2.1.11"),
+});
+
+const { canvas } = await renderer.render(doc);
+document.body.appendChild(canvas as HTMLCanvasElement);
+```
+
+`createRenderer` loads the render database once, plans the draw list, sizes a canvas from blueprint bounds, and paints atlas sprites. Pass `blueprintPath` when rendering a nested blueprint book entry.
+
+## Node.js
+
+```ts
+import { writeFile } from "node:fs/promises";
+import { Canvas } from "skia-canvas";
+import { createRenderer, decode } from "fpsr";
+import { localAssets } from "fpsr/node";
+
+const doc = decode(blueprintString);
+const renderer = await createRenderer({
+  assets: localAssets("assets-out/2.1.11"),
+  createCanvas: (w, h) => new Canvas(w, h),
+});
+
+const { toPngBuffer } = await renderer.render(doc);
+await writeFile("out.png", await toPngBuffer());
+```
+
+`localAssets` reads `manifest.json` and content-addressed render DB / atlas files from a pipeline output directory on disk.
+
+:::note
+Asset sources default to the `2x` tier. The render DB's `assetDensity` must match the selected tier or `createRenderer` throws `AssetDensityMismatchError`.
+:::

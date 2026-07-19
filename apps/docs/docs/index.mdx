@@ -1,0 +1,30 @@
+---
+title: Introduction
+description: Factorio 2.1.11 blueprint-string renderer for browser and Node.js.
+---
+
+**fpsr** decodes compressed Factorio blueprint strings, resolves connectivity-aware sprite variants (belts, pipes, walls, rails, trains, wires), plans a serializable draw list, and renders to Canvas2D in the browser or Node.js.
+
+It targets Factorio **2.1.11** exactly — vanilla plus Space Age, Elevated Rails, Quality, and Recycler content.
+
+## Pipeline
+
+```
+blueprint string
+  → decode
+  → migrate (1.x → 2.x when needed)
+  → resolve (connectivity)
+  → planDrawList
+  → Canvas2D (atlas sprites from your assets)
+```
+
+Sprite atlases and the render database are **not** shipped with the npm package. Generate them from a licensed Factorio install via `@fpsr/pipeline`, then load them with `cdnAssets` or `localAssets`.
+
+:::note
+Factorio game assets are property of Wube Software Ltd. and must not be redistributed. This project is not affiliated with or endorsed by Wube Software.
+:::
+
+## Next steps
+
+- [Install](/install) — add `fpsr` to your project
+- [Quick start](/quickstart) — render a blueprint in the browser or Node.js
