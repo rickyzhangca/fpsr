@@ -99,15 +99,15 @@ describe("migrateTo2x", () => {
         position: { x: 3.5, y: 0.5 },
       },
     ]);
-    (input.entities![0] as { connections: unknown }).connections = {
+    (input.entities![0] as unknown as { connections: unknown }).connections = {
       "1": { red: [{ entity_id: 2, circuit_id: 1 }] },
     };
-    (input.entities![1] as { connections: unknown }).connections = {
+    (input.entities![1] as unknown as { connections: unknown }).connections = {
       "1": { red: [{ entity_id: 1 }] },
       "2": { green: [{ entity_id: 1 }] },
     };
-    (input.entities![2] as { neighbours: unknown }).neighbours = [4];
-    (input.entities![3] as { neighbours: unknown }).neighbours = [3];
+    (input.entities![2] as unknown as { neighbours: unknown }).neighbours = [4];
+    (input.entities![3] as unknown as { neighbours: unknown }).neighbours = [3];
 
     const out = migrateTo2x(input);
     expect(out.wires).toEqual(

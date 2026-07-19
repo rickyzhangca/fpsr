@@ -1,6 +1,6 @@
 {
   "name": "fpsr",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Headless Factorio 2.1.11 blueprint string renderer for browser and Node.js",
   "keywords": [
     "blueprint",
@@ -14,6 +14,7 @@
     "url": "https://github.com/rickyzhangca/fpsr/issues"
   },
   "license": "MIT",
+  "author": "Ricky Zhang",
   "repository": {
     "type": "git",
     "url": "https://github.com/rickyzhangca/fpsr.git",
@@ -21,6 +22,7 @@
   },
   "files": [
     "dist",
+    "CHANGELOG.md",
     "LICENSE",
     "README.md"
   ],
@@ -53,6 +55,7 @@
   },
   "scripts": {
     "build": "vp pack",
+    "prepack": "pnpm run build",
     "test": "vp test run",
     "lint": "vp lint",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
@@ -77,5 +80,8 @@
     "skia-canvas": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

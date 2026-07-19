@@ -245,7 +245,7 @@ them on private infrastructure (`cdnAssets`) or load from disk (`localAssets`).
 
 ## Versioning
 
-- **npm package**: semver via Changesets.
+- **npm package**: semver; breaking changes may land in 0.x.
 - **Render database schema**: version `2` (see `RenderDb` in source).
 - **Game target**: Factorio **2.1.11** exactly (vanilla + Space Age + Elevated
   Rails + Quality).
