@@ -82,7 +82,7 @@ import {
   distillSimplePicture,
   layersFromSprite,
 } from "./shared/layers.js";
-import { clearPipeCoversCache, withFluidData } from "./shared/pipe.js";
+import { clearPipeCoversCache, distillFluidRecipes, withFluidData } from "./shared/pipe.js";
 import {
   distillAsteroidCollector,
   distillGraphicsSetPictureArray,
@@ -591,12 +591,16 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
   const staging = await mkdtemp(path.join(paths.assetsOut, `.tmp-${paths.install.version}-`));
   console.log("pack: deriving 1x frames…");
   const oneXFrames = await scaleRegisteredFrames(bank.list(), 0.5);
+  const fluidRecipes = distillFluidRecipes(raw.recipe as Record<string, unknown> | undefined);
   const tierDefinitions = () => ({
     entities: structuredClone(entities),
     tiles: structuredClone(tiles),
     terrainBackgrounds: structuredClone(terrainBackgrounds),
     ...(spaceBackground ? { spaceBackground: structuredClone(spaceBackground) } : {}),
     icons: structuredClone(icons),
+    ...(Object.keys(fluidRecipes).length > 0
+      ? { fluidRecipes: structuredClone(fluidRecipes) }
+      : {}),
   });
 
   console.log("pack: packing 1x atlases…");

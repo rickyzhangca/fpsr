@@ -1,4 +1,4 @@
-import { cardinalDirection } from "../resolve.js";
+import { activeFluidOffsets } from "../resolve/fluid-ports.js";
 import type { Blueprint, BlueprintEntity } from "../types/blueprint.js";
 import { type DrawCmd, type DrawList, RENDER_LAYERS, type SpriteCmd } from "../types/draw-list.js";
 import type {
@@ -33,7 +33,10 @@ function coverDirIndex(ox: number, oy: number): 0 | 1 | 2 | 3 {
   return oy > 0 ? 2 : 0;
 }
 
-/** True when the adjacent port tile has a pipe / pipe-to-ground / fluid entity. */
+/**
+ * True when the adjacent port tile has a pipe / pipe-to-ground / fluid entity
+ * with an *active* fluid port targeting this tile.
+ */
 function fluidPortOccupied(
   grid: Map<string, BlueprintEntity[]>,
   db: RenderDb,
@@ -47,7 +50,15 @@ function fluidPortOccupied(
     if (!nd) continue;
     if (nd.kind === "pipe") return true;
     if (nd.protoType === "pipe-to-ground" || n.name === "pipe-to-ground") return true;
-    if (nd.data?.fluidConnections) return true;
+    if (!nd.data?.fluidConnections) continue;
+    for (const [ox, oy] of activeFluidOffsets(n, nd, db)) {
+      if (
+        Math.abs(n.position.x + ox - pipeX) < 0.01 &&
+        Math.abs(n.position.y + oy - pipeY) < 0.01
+      ) {
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -89,6 +100,9 @@ function pushPipeCoverSprite(
  * Draw fluid-box pipe covers on each *unconnected* port's adjacent tile.
  * Factorio: `pipe_covers` are "the pictures to show when no FluidBox is
  * connected" — caps sealing open flanges (FBSR: `!isPipeConnected`).
+ *
+ * Assemblers with `fluidBoxesRequireFluidRecipe` only emit covers for ports
+ * activated by the current recipe's fluid ingredients/products.
  */
 export function emitPipeCovers(
   bp: Blueprint,
@@ -104,14 +118,12 @@ export function emitPipeCovers(
     // Pipes already draw their own joints; covers are for machine fluid-box flanges.
     if (def.kind === "pipe" || def.protoType === "pipe-to-ground") continue;
     const pc: PipeCoverGraphics | undefined = def.data?.pipeCovers;
-    const fc = def.data?.fluidConnections;
-    if (!pc?.covers || !fc) continue;
+    if (!pc?.covers || !def.data?.fluidConnections) continue;
 
-    const d = cardinalDirection(entity.direction ?? 0);
     // Match owning entity y-sort so covers composite with the machine cut.
     const sortY = entity.position.y + def.collisionBox[1][1];
     const sortX = entity.position.x;
-    for (const [ox, oy] of fc[String(d)] ?? []) {
+    for (const [ox, oy] of activeFluidOffsets(entity, def, db)) {
       const pipeX = entity.position.x + ox;
       const pipeY = entity.position.y + oy;
       // Cap only when nothing is connected on this port.

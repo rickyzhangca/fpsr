@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { type FrameBank } from "../../sprite.js";
 import { guessedLayer } from "../../render-layers.js";
+import { type FrameBank } from "../../sprite.js";
 import type { EntityRenderDef, SpriteVariant } from "../../types.js";
 import { withBeltConnectorGraphics, withBeltReaderGraphics } from "./belt-connectors.js";
 import { boxOf } from "./box.js";

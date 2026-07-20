@@ -1,5 +1,6 @@
 import type { BlueprintEntity } from "../types/blueprint.js";
 import type { RenderDb } from "../types/render-db.js";
+import { activeFluidOffsets } from "./fluid-ports.js";
 import {
   DIR_DELTA,
   type NeighborGrid,
@@ -67,7 +68,7 @@ export function heatPortConnected(
 
 /**
  * Map: pipe-tile-key → set of NESW sides ("n"|"e"|"s"|"w") that connect to a
- * non-pipe fluid entity via fluidConnections.
+ * non-pipe fluid entity via active fluidConnections.
  */
 export function buildFluidPipeSides(
   entities: BlueprintEntity[],
@@ -78,10 +79,8 @@ export function buildFluidPipeSides(
     const def = db.entities[entity.name];
     if (!def?.data?.fluidConnections) continue;
     if (def.kind === "pipe") continue;
-    const fc = def.data.fluidConnections;
-    const d = cardinalDirection(entity.direction);
     // Re-derive facing from offset: side = dominant axis from entity center to pipe tile.
-    for (const [ox, oy] of fc[String(d)] ?? []) {
+    for (const [ox, oy] of activeFluidOffsets(entity, def, db)) {
       const pipeX = entity.position.x + ox;
       const pipeY = entity.position.y + oy;
       const pk = posKey(pipeX, pipeY);
@@ -164,8 +163,7 @@ export function pipeMask(
         }
         const fc = nd.data?.fluidConnections;
         if (fc) {
-          const d = cardinalDirection(n.direction);
-          for (const [ox, oy] of fc[String(d)] ?? []) {
+          for (const [ox, oy] of activeFluidOffsets(n, nd, db)) {
             if (Math.abs(n.position.x + ox - x) < 0.01 && Math.abs(n.position.y + oy - y) < 0.01) {
               return true;
             }

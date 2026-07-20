@@ -260,6 +260,14 @@ describe("render-db contract", () => {
       scaleForMany: 1,
       renderLayer: "entity-info-icon",
     });
+    expect(db.entities["assembling-machine-2"]?.data?.fluidBoxesRequireFluidRecipe).toBe(true);
+    expect(db.entities["assembling-machine-2"]?.data?.fluidConnectionRoles?.["0"]).toEqual([
+      "input",
+      "output",
+    ]);
+    expect(db.entities["chemical-plant"]?.data?.fluidBoxesRequireFluidRecipe).toBeUndefined();
+    expect(db.fluidRecipes?.concrete).toEqual({ ingredients: true, products: false });
+    expect(db.fluidRecipes?.["iron-gear-wheel"]).toBeUndefined();
     expect(db.entities["fast-splitter"]?.iconDrawSpecification?.scale).toBe(0.5);
     expect(
       (

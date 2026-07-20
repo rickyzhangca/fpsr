@@ -15,6 +15,8 @@ export type {
   EntityRenderData,
   EntityRenderDef,
   FactorioRenderLayerName,
+  FluidConnectionRole,
+  FluidRecipeFlags,
   FpsrRenderLayerName,
   FrameId,
   FrameMeta,

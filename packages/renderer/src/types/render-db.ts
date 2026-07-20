@@ -249,6 +249,11 @@ export interface LayerGroup {
  *   runtime-tint masks (apply `entity.color` / `defaultColor` at plan time).
  * - `defaultColor`: prototype `color` for rolling stock when the blueprint omits it.
  * - `fluidConnections` / `heatConnections` / `tileSize` / … (see M2).
+ * - `fluidConnectionRoles`: parallel to `fluidConnections[dir]` — `"input"` /
+ *   `"output"` from each fluid box's `production_type` (recipe-gated covers).
+ * - `fluidBoxesRequireFluidRecipe`: when true, fluid ports only activate for
+ *   recipes listed in `RenderDb.fluidRecipes` (Factorio
+ *   `fluid_boxes_off_when_no_fluid_recipe`).
  * - `heatConnectionPatchGroupIndices`: graphics groups whose `connected` /
  *   `disconnected` variations correspond by index to `heatConnections` ports.
  * - `pipeCovers`: `{ covers: SpriteVariant[4], shadows?: SpriteVariant[4] }` —
@@ -363,9 +368,22 @@ export interface CargoBayConnections {
 }
 
 /** Stable, additive payload shared by the offline pipeline and runtime planner. */
+export type FluidConnectionRole = "input" | "output";
+
+/** Recipe uses fluid ingredients and/or products (for assembler fluid-box gating). */
+export interface FluidRecipeFlags {
+  ingredients: boolean;
+  products: boolean;
+}
+
 export interface EntityRenderData {
   tileSize?: [number, number];
   fluidConnections?: DirectionalConnectionMap;
+  /**
+   * Parallel to `fluidConnections[dir]` offsets: fluid-box `production_type`
+   * (`input` / `output`) used when `fluidBoxesRequireFluidRecipe` is set.
+   */
+  fluidConnectionRoles?: Record<string, FluidConnectionRole[]>;
   heatConnections?: DirectionalConnectionMap;
   heatConnectionPatchGroupIndices?: number[];
   fluidBoxesRequireFluidRecipe?: boolean;
@@ -542,6 +560,12 @@ export interface RenderDb {
   spaceBackground?: SpaceBackground;
   /** Icon frames by "type/name" (e.g. "item/iron-plate", "utility/unsupported-entity"). */
   icons: Record<string, FrameId>;
+  /**
+   * Recipes that use fluids (`type: "fluid"` in ingredients and/or results).
+   * Used with `EntityRenderData.fluidBoxesRequireFluidRecipe` to gate pipe covers
+   * and pipe joints on assembling machines.
+   */
+  fluidRecipes?: Record<string, FluidRecipeFlags>;
   /**
    * Optional on-map tile size for utility (and similar) icons whose Factorio Sprite
    * carries an explicit `scale`. Missing keys fall back to caller defaults.

@@ -74,17 +74,23 @@ export interface RawPipeConnection {
   connection_type?: string;
 }
 
-/**
- * Compute fluidConnections: entityDir → list of pipe-tile offsets (relative to
- * entity center) where a connecting pipe sits. Derived from prototype
- * pipe_connections by rotating position+direction.
- */
-export function computeFluidConnections(
-  p: Record<string, unknown>,
-): Record<string, [number, number][]> {
+export type FluidConnectionRole = "input" | "output";
+
+interface RawFluidConn extends RawPipeConnection {
+  role: FluidConnectionRole;
+}
+
+export interface FluidConnectionsResult {
+  connections: Record<string, [number, number][]>;
+  /** Parallel to `connections[dir]` — fluid-box production_type per offset. */
+  roles: Record<string, FluidConnectionRole[]>;
+}
+
+function collectFluidBoxes(p: Record<string, unknown>): Record<string, unknown>[] {
   const boxes: Record<string, unknown>[] = [];
-  if (p.fluid_box && typeof p.fluid_box === "object")
+  if (p.fluid_box && typeof p.fluid_box === "object") {
     boxes.push(p.fluid_box as Record<string, unknown>);
+  }
   if (p.output_fluid_box && typeof p.output_fluid_box === "object") {
     boxes.push(p.output_fluid_box as Record<string, unknown>);
   }
@@ -93,24 +99,44 @@ export function computeFluidConnections(
       if (b && typeof b === "object") boxes.push(b as Record<string, unknown>);
     }
   }
+  return boxes;
+}
 
-  const rawConns: RawPipeConnection[] = [];
+function boxProductionRole(box: Record<string, unknown>): FluidConnectionRole {
+  // Factorio FluidBox.production_type: "input" | "output" | "input-output" | "none".
+  // Treat anything other than explicit "output" as input for cover/joint gating.
+  return box.production_type === "output" ? "output" : "input";
+}
+
+/**
+ * Compute fluidConnections: entityDir → list of pipe-tile offsets (relative to
+ * entity center) where a connecting pipe sits. Derived from prototype
+ * pipe_connections by rotating position+direction. Also returns parallel
+ * production_type roles for recipe-gated assemblers.
+ */
+export function computeFluidConnections(p: Record<string, unknown>): FluidConnectionsResult {
+  const boxes = collectFluidBoxes(p);
+
+  const rawConns: RawFluidConn[] = [];
   for (const b of boxes) {
+    const role = boxProductionRole(b);
     const pcs = b.pipe_connections as RawPipeConnection[] | undefined;
     if (!pcs) continue;
     for (const c of pcs) {
       // Skip underground-only links (pipe-to-ground far side).
       if (c.connection_type === "underground") continue;
       if (!c.position || c.direction == null) continue;
-      rawConns.push(c);
+      rawConns.push({ ...c, role });
     }
   }
-  if (rawConns.length === 0) return {};
+  if (rawConns.length === 0) return { connections: {}, roles: {} };
 
-  const out: Record<string, [number, number][]> = {};
+  const connections: Record<string, [number, number][]> = {};
+  const roles: Record<string, FluidConnectionRole[]> = {};
   for (const ed of CARDINAL_DIRS) {
     const seen = new Set<string>();
     const list: [number, number][] = [];
+    const roleList: FluidConnectionRole[] = [];
     for (const c of rawConns) {
       const [px, py] = c.position as [number, number];
       const [rx, ry] = rotateOffset(px, py, ed);
@@ -126,10 +152,12 @@ export function computeFluidConnections(
       if (seen.has(key)) continue;
       seen.add(key);
       list.push([ox, oy]);
+      roleList.push(c.role);
     }
-    out[String(ed)] = list;
+    connections[String(ed)] = list;
+    roles[String(ed)] = roleList;
   }
-  return out;
+  return { connections, roles };
 }
 
 /** Heat connection pipe-tile offsets from heat_buffer / energy_source.connections. */
@@ -174,16 +202,49 @@ export function withFluidData(
   p: Record<string, unknown>,
   extra?: EntityRenderData,
 ): EntityRenderDef {
-  const fluidConnections = computeFluidConnections(p);
+  const { connections: fluidConnections, roles: fluidConnectionRoles } = computeFluidConnections(p);
   const heatConnections = computeHeatConnections(p);
   const data: EntityRenderData = { ...def.data, ...extra };
-  if (Object.keys(fluidConnections).length > 0) data.fluidConnections = fluidConnections;
+  if (Object.keys(fluidConnections).length > 0) {
+    data.fluidConnections = fluidConnections;
+    data.fluidConnectionRoles = fluidConnectionRoles;
+  }
   if (Object.keys(heatConnections).length > 0) data.heatConnections = heatConnections;
   if (p.fluid_boxes_off_when_no_fluid_recipe === true) {
     data.fluidBoxesRequireFluidRecipe = true;
   }
   if (Object.keys(data).length === 0) return def;
   return { ...def, data };
+}
+
+/** Recipes whose ingredients and/or results include `type: "fluid"`. */
+export function distillFluidRecipes(
+  recipes: Record<string, unknown> | undefined,
+): Record<string, { ingredients: boolean; products: boolean }> {
+  const out: Record<string, { ingredients: boolean; products: boolean }> = {};
+  if (!recipes) return out;
+  for (const [name, raw] of Object.entries(recipes)) {
+    if (!raw || typeof raw !== "object") continue;
+    const recipe = raw as { ingredients?: unknown; results?: unknown };
+    const ingredients = Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.some(
+          (entry) =>
+            entry != null &&
+            typeof entry === "object" &&
+            (entry as { type?: unknown }).type === "fluid",
+        )
+      : false;
+    const products = Array.isArray(recipe.results)
+      ? recipe.results.some(
+          (entry) =>
+            entry != null &&
+            typeof entry === "object" &&
+            (entry as { type?: unknown }).type === "fluid",
+        )
+      : false;
+    if (ingredients || products) out[name] = { ingredients, products };
+  }
+  return out;
 }
 
 /** Shared pipe-cover sheet cache (most fluid boxes use identical pipecoverspictures()). */
@@ -206,19 +267,7 @@ export function pipeCoversKey(covers: RawSprite): string {
 }
 
 export function firstPipeCoversSprite(p: Record<string, unknown>): RawSprite | undefined {
-  const boxes: Record<string, unknown>[] = [];
-  if (p.fluid_box && typeof p.fluid_box === "object") {
-    boxes.push(p.fluid_box as Record<string, unknown>);
-  }
-  if (p.output_fluid_box && typeof p.output_fluid_box === "object") {
-    boxes.push(p.output_fluid_box as Record<string, unknown>);
-  }
-  if (Array.isArray(p.fluid_boxes)) {
-    for (const b of p.fluid_boxes) {
-      if (b && typeof b === "object") boxes.push(b as Record<string, unknown>);
-    }
-  }
-  for (const b of boxes) {
+  for (const b of collectFluidBoxes(p)) {
     const pc = b.pipe_covers as RawSprite | undefined;
     if (pc && isSprite4Way(pc)) return pc;
   }
