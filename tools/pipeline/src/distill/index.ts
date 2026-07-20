@@ -18,12 +18,15 @@ import { UNSUPPORTED_ENTITY_PNG, getPipelinePaths } from "../paths.js";
 import { guessedLayer } from "../render-layers.js";
 import {
   FrameBank,
+  absorbFrameBank,
   clearImageCache,
   cropEntireFile,
   isSprite4Way,
+  remapFrameRefs,
   scaleRegisteredFrames,
 } from "../sprite.js";
 import type { DataRaw, EntityRenderDef, RawSprite, RenderDb, TileRenderDef } from "../types.js";
+import { defaultConcurrency, timed } from "../util.js";
 import { verifyAssetBundle } from "../verify.js";
 import { distillGate, distillRadar, distillTurret, distillVehicle, distillWall } from "./combat.js";
 import { entityKindForProtoType, routeEntityPrototype } from "./domains/index.js";
@@ -379,10 +382,17 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
   const paths = getPipelinePaths();
   clearPipeCoversCache();
   clearImageCache();
-  console.log("distill: loading data-raw-dump.json…");
-  const text = await readFile(paths.dumpPath, "utf8");
-  const raw = JSON.parse(text) as DataRaw;
-  console.log(`distill: parsed ${(text.length / 1e6).toFixed(1)} MB`);
+  const concurrency = defaultConcurrency();
+  console.log(`distill: concurrency ${concurrency}`);
+
+  const { text, raw } = await timed("load dump", async () => {
+    console.log("distill: loading data-raw-dump.json…");
+    const text = await readFile(paths.dumpPath, "utf8");
+    const raw = JSON.parse(text) as DataRaw;
+    console.log(`distill: parsed ${(text.length / 1e6).toFixed(1)} MB`);
+    return { text, raw };
+  });
+  void text;
 
   const bank = new FrameBank();
   const entities: Record<string, EntityRenderDef> = {};
@@ -390,54 +400,97 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
   const placeable = discoverPlaceableEntities(raw);
   console.log(`distill: discovered ${placeable.length} placeable entities`);
 
-  for (const { name, type, proto: p } of placeable) {
-    process.stdout.write(`  entity ${name} [${type}]…`);
-    const def = await distillEntity(bank, name, type, p, placeholders);
-    entities[name] = def;
-    const ph = placeholders.find((x) => x.name === name);
-    console.log(
-      ph ? ` PLACEHOLDER (${ph.reason})` : ` ok (${def.kind}, ${def.graphics.length} layer groups)`,
-    );
-  }
+  await timed("entities", async () => {
+    for (let offset = 0; offset < placeable.length; offset += concurrency) {
+      const batch = placeable.slice(offset, offset + concurrency);
+      const results = await Promise.all(
+        batch.map(async ({ name, type, proto: p }) => {
+          const local = new FrameBank();
+          const localPlaceholders: { name: string; reason: string }[] = [];
+          const def = await distillEntity(local, name, type, p, localPlaceholders);
+          return { name, type, def, local, localPlaceholders };
+        }),
+      );
+      for (const { name, type, def, local, localPlaceholders } of results) {
+        const remap = await absorbFrameBank(bank, local);
+        remapFrameRefs(def, remap);
+        entities[name] = def;
+        placeholders.push(...localPlaceholders);
+        const ph = localPlaceholders.find((x) => x.name === name);
+        console.log(
+          ph
+            ? `  entity ${name} [${type}] PLACEHOLDER (${ph.reason})`
+            : `  entity ${name} [${type}] ok (${def.kind}, ${def.graphics.length} layer groups)`,
+        );
+      }
+    }
+  });
 
   const tileNames = discoverPlaceableTiles(raw);
   const tilePlacingItems = discoverTilePlacingItems(raw);
   const tiles: Record<string, TileRenderDef> = {};
   const icons: Record<string, number> = {};
-  for (const name of tileNames) {
-    process.stdout.write(`  tile ${name}…`);
-    try {
-      const def = await distillTile(bank, raw, name);
-      const placingItem = tilePlacingItems[name];
-      if (placingItem) def.item = placingItem;
-      tiles[name] = def;
-      if (def.icon != null) icons[`tile/${name}`] = def.icon;
-      console.log(" ok");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.log(` SKIP (${msg})`);
-    }
-  }
 
-  process.stdout.write("  terrain backgrounds…");
-  const terrainBackgrounds = await distillTerrainBackgrounds(bank, raw);
-  const terrainSummary = Object.entries(terrainBackgrounds)
-    .map(([name, background]) => {
-      const count = [background, ...(background?.patches ?? [])].reduce(
-        (total, patch) => total + (patch?.frames.length ?? 0),
-        0,
+  await timed("tiles", async () => {
+    for (let offset = 0; offset < tileNames.length; offset += concurrency) {
+      const batch = tileNames.slice(offset, offset + concurrency);
+      const results = await Promise.all(
+        batch.map(async (name) => {
+          const local = new FrameBank();
+          try {
+            const def = await distillTile(local, raw, name);
+            return { name, def, local, error: undefined as string | undefined };
+          } catch (err) {
+            return {
+              name,
+              def: undefined as TileRenderDef | undefined,
+              local,
+              error: err instanceof Error ? err.message : String(err),
+            };
+          }
+        }),
       );
-      return `${name} ${count}`;
-    })
-    .join(", ");
-  console.log(` ok (${terrainSummary})`);
+      for (const { name, def, local, error } of results) {
+        if (error || !def) {
+          console.log(`  tile ${name} SKIP (${error})`);
+          continue;
+        }
+        const remap = await absorbFrameBank(bank, local);
+        remapFrameRefs(def, remap);
+        const placingItem = tilePlacingItems[name];
+        if (placingItem) def.item = placingItem;
+        tiles[name] = def;
+        if (def.icon != null) icons[`tile/${name}`] = def.icon;
+        console.log(`  tile ${name} ok`);
+      }
+    }
+  });
 
-  process.stdout.write("  space background…");
-  const spaceBackground = await distillSpaceBackground(bank, raw);
-  console.log(
-    spaceBackground
-      ? ` ok (starmap planets, ${Object.keys(spaceBackground.planets ?? {}).length} planets)`
-      : " SKIP (no starmap planets)",
+  const { terrainBackgrounds, spaceBackground } = await timed(
+    "terrain+space backgrounds",
+    async () => {
+      process.stdout.write("  terrain backgrounds…");
+      const terrainBackgrounds = await distillTerrainBackgrounds(bank, raw);
+      const terrainSummary = Object.entries(terrainBackgrounds)
+        .map(([name, background]) => {
+          const count = [background, ...(background?.patches ?? [])].reduce(
+            (total, patch) => total + (patch?.frames.length ?? 0),
+            0,
+          );
+          return `${name} ${count}`;
+        })
+        .join(", ");
+      console.log(` ok (${terrainSummary})`);
+
+      process.stdout.write("  space background…");
+      const spaceBackground = await distillSpaceBackground(bank, raw);
+      console.log(
+        spaceBackground
+          ? ` ok (starmap planets, ${Object.keys(spaceBackground.planets ?? {}).length} planets)`
+          : " SKIP (no starmap planets)",
+      );
+      return { terrainBackgrounds, spaceBackground };
+    },
   );
 
   const iconScales: Record<string, number> = {};
@@ -480,119 +533,132 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
     }
   }
 
-  const utility = raw["utility-sprites"]?.default as Record<string, RawSprite> | undefined;
-  for (const [key, field] of [
-    ["utility/entity-info-dark-background", "entity_info_dark_background"],
-    ["utility/missing-icon", "missing_icon"],
-    ["utility/filter-blacklist", "filter_blacklist"],
-    ["utility/indication-arrow", "indication_arrow"],
-    ["utility/fluid-indication-arrow", "fluid_indication_arrow"],
-    ["utility/fluid-indication-arrow-both-ways", "fluid_indication_arrow_both_ways"],
-  ] as const) {
-    const sprite = utility?.[field];
-    if (!sprite) continue;
-    try {
-      icons[key] = (await bank.addSprite(sprite)).frameId;
-      if (typeof sprite.scale === "number" && Number.isFinite(sprite.scale)) {
+  await timed("icons", async () => {
+    const utility = raw["utility-sprites"]?.default as Record<string, RawSprite> | undefined;
+    for (const [key, field] of [
+      ["utility/entity-info-dark-background", "entity_info_dark_background"],
+      ["utility/missing-icon", "missing_icon"],
+      ["utility/filter-blacklist", "filter_blacklist"],
+      ["utility/indication-arrow", "indication_arrow"],
+      ["utility/fluid-indication-arrow", "fluid_indication_arrow"],
+      ["utility/fluid-indication-arrow-both-ways", "fluid_indication_arrow_both_ways"],
+    ] as const) {
+      const sprite = utility?.[field];
+      if (!sprite) continue;
+      try {
+        icons[key] = (await bank.addSprite(sprite)).frameId;
+        if (typeof sprite.scale === "number" && Number.isFinite(sprite.scale)) {
+          iconScales[key] = sprite.scale;
+        }
+      } catch (err) {
+        console.log(`  icon ${key} MISSING (${err instanceof Error ? err.message : String(err)})`);
+      }
+    }
+
+    // Blueprint snap-to-grid cursor box (`utility-sprites.cursor_box.blueprint_snap_rectangle`).
+    // Full 1×1 box from cursor-boxes-32x32; L-corners from cursor-boxes.png (size tiers).
+    for (const [key, sprite] of [
+      [
+        "utility/blueprint-snap-full",
+        {
+          filename: "__core__/graphics/cursor-boxes-32x32.png",
+          width: 64,
+          height: 64,
+          x: 320,
+          y: 0,
+          scale: 0.5,
+        },
+      ],
+      [
+        "utility/blueprint-snap-corner-sm",
+        {
+          filename: "__core__/graphics/cursor-boxes.png",
+          width: 64,
+          height: 64,
+          x: 64,
+          y: 324,
+          scale: 0.5,
+        },
+      ],
+      [
+        "utility/blueprint-snap-corner-lg",
+        {
+          filename: "__core__/graphics/cursor-boxes.png",
+          width: 64,
+          height: 64,
+          x: 0,
+          y: 324,
+          scale: 0.5,
+        },
+      ],
+    ] as const) {
+      try {
+        icons[key] = (await bank.addSprite(sprite)).frameId;
         iconScales[key] = sprite.scale;
+        console.log(`  icon ${key} ok`);
+      } catch (err) {
+        console.log(`  icon ${key} MISSING (${err instanceof Error ? err.message : String(err)})`);
       }
-    } catch (err) {
-      console.log(`  icon ${key} MISSING (${err instanceof Error ? err.message : String(err)})`);
     }
-  }
 
-  // Blueprint snap-to-grid cursor box (`utility-sprites.cursor_box.blueprint_snap_rectangle`).
-  // Full 1×1 box from cursor-boxes-32x32; L-corners from cursor-boxes.png (size tiers).
-  for (const [key, sprite] of [
-    [
-      "utility/blueprint-snap-full",
-      {
-        filename: "__core__/graphics/cursor-boxes-32x32.png",
-        width: 64,
-        height: 64,
-        x: 320,
-        y: 0,
-        scale: 0.5,
-      },
-    ],
-    [
-      "utility/blueprint-snap-corner-sm",
-      {
-        filename: "__core__/graphics/cursor-boxes.png",
-        width: 64,
-        height: 64,
-        x: 64,
-        y: 324,
-        scale: 0.5,
-      },
-    ],
-    [
-      "utility/blueprint-snap-corner-lg",
-      {
-        filename: "__core__/graphics/cursor-boxes.png",
-        width: 64,
-        height: 64,
-        x: 0,
-        y: 324,
-        scale: 0.5,
-      },
-    ],
-  ] as const) {
+    // Item-request pin chrome (modules/fuel to insert). Not in utility-sprites; it is
+    // the item-request-proxy icon mip sheet — crop the first 64×64 mip only.
     try {
-      icons[key] = (await bank.addSprite(sprite)).frameId;
-      iconScales[key] = sprite.scale;
-      console.log(`  icon ${key} ok`);
+      icons["utility/item-request-slot"] = (
+        await bank.addSprite({
+          filename: "__core__/graphics/icons/mip/item-request-slot.png",
+          size: 64,
+        })
+      ).frameId;
+      console.log("  icon utility/item-request-slot ok");
     } catch (err) {
-      console.log(`  icon ${key} MISSING (${err instanceof Error ? err.message : String(err)})`);
+      console.log(
+        `  icon utility/item-request-slot MISSING (${err instanceof Error ? err.message : String(err)})`,
+      );
     }
-  }
 
-  // Item-request pin chrome (modules/fuel to insert). Not in utility-sprites; it is
-  // the item-request-proxy icon mip sheet — crop the first 64×64 mip only.
-  try {
-    icons["utility/item-request-slot"] = (
-      await bank.addSprite({
-        filename: "__core__/graphics/icons/mip/item-request-slot.png",
-        size: 64,
-      })
-    ).frameId;
-    console.log("  icon utility/item-request-slot ok");
-  } catch (err) {
-    console.log(
-      `  icon utility/item-request-slot MISSING (${err instanceof Error ? err.message : String(err)})`,
-    );
-  }
+    try {
+      const crop = await cropEntireFile(UNSUPPORTED_ENTITY_PNG);
+      icons["utility/unsupported-entity"] = await bank.add(crop);
+      console.log("  icon utility/unsupported-entity ok (fpsr asset)");
+    } catch (err) {
+      console.log(
+        `  icon utility/unsupported-entity MISSING (${err instanceof Error ? err.message : String(err)})`,
+      );
+    }
 
-  try {
-    const crop = await cropEntireFile(UNSUPPORTED_ENTITY_PNG);
-    icons["utility/unsupported-entity"] = await bank.add(crop);
-    console.log("  icon utility/unsupported-entity ok (fpsr asset)");
-  } catch (err) {
-    console.log(
-      `  icon utility/unsupported-entity MISSING (${err instanceof Error ? err.message : String(err)})`,
-    );
-  }
-
-  for (const job of iconJobs) {
-    if (icons[job.key] != null) continue;
-    process.stdout.write(`  icon ${job.key}…`);
-    const id = await distillIcon(bank, raw, job.cat, job.name, job.type);
-    if (id != null) {
-      icons[job.key] = id;
-      if (job.cat === "entity") {
-        const ent = entities[job.name];
-        if (ent) ent.icon = id;
+    const pending = iconJobs.filter((job) => icons[job.key] == null);
+    for (let offset = 0; offset < pending.length; offset += concurrency) {
+      const batch = pending.slice(offset, offset + concurrency);
+      const results = await Promise.all(
+        batch.map(async (job) => {
+          const local = new FrameBank();
+          const id = await distillIcon(local, raw, job.cat, job.name, job.type);
+          return { job, local, id };
+        }),
+      );
+      for (const { job, local, id } of results) {
+        if (id == null) {
+          console.log(`  icon ${job.key} MISSING`);
+          continue;
+        }
+        const remap = await absorbFrameBank(bank, local);
+        const globalId = remap.get(id);
+        if (globalId == null) throw new Error(`Missing icon remap for ${job.key}`);
+        icons[job.key] = globalId;
+        if (job.cat === "entity") {
+          const ent = entities[job.name];
+          if (ent) ent.icon = globalId;
+        }
+        console.log(`  icon ${job.key} ok`);
       }
-      console.log(" ok");
-    } else {
-      console.log(" MISSING");
     }
-  }
+  });
 
   await mkdir(paths.assetsOut, { recursive: true });
   const staging = await mkdtemp(path.join(paths.assetsOut, `.tmp-${paths.install.version}-`));
-  console.log("pack: deriving 1x frames…");
-  const oneXFrames = await scaleRegisteredFrames(bank.list(), 0.5);
+
+  const oneXFrames = await timed("derive 1x frames", () => scaleRegisteredFrames(bank.list(), 0.5));
   const fluidRecipes = distillFluidRecipes(raw.recipe as Record<string, unknown> | undefined);
   const tierDefinitions = () => ({
     entities: structuredClone(entities),
@@ -605,23 +671,27 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
       : {}),
   });
 
-  console.log("pack: packing 1x atlases…");
   const oneXDefinitions = tierDefinitions();
-  const packed1x = await packAtlases(oneXFrames, oneXDefinitions, staging, {
-    format: "webp",
-  }).catch(async (error) => {
-    await rm(staging, { recursive: true, force: true });
-    throw error;
-  });
+  const packed1x = await timed("pack 1x atlases", () =>
+    packAtlases(oneXFrames, oneXDefinitions, staging, {
+      format: "webp",
+      concurrency,
+    }).catch(async (error) => {
+      await rm(staging, { recursive: true, force: true });
+      throw error;
+    }),
+  );
 
-  console.log("pack: packing 2x atlases…");
   const twoXDefinitions = tierDefinitions();
-  const packed2x = await packAtlases(bank.list(), twoXDefinitions, staging, {
-    format: "webp",
-  }).catch(async (error) => {
-    await rm(staging, { recursive: true, force: true });
-    throw error;
-  });
+  const packed2x = await timed("pack 2x atlases", () =>
+    packAtlases(bank.list(), twoXDefinitions, staging, {
+      format: "webp",
+      concurrency,
+    }).catch(async (error) => {
+      await rm(staging, { recursive: true, force: true });
+      throw error;
+    }),
+  );
 
   const persistTier = async (
     density: 1 | 2,
@@ -741,11 +811,13 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
         `Re-run with --allow-bundle-growth if the increase is expected.`,
     );
   }
-  await verifyAssetBundle(staging).catch(async (error) => {
-    await rm(staging, { recursive: true, force: true });
-    throw error;
+  await timed("verify+publish", async () => {
+    await verifyAssetBundle(staging).catch(async (error) => {
+      await rm(staging, { recursive: true, force: true });
+      throw error;
+    });
+    await publishAtomic(staging, paths.versionOut);
   });
-  await publishAtomic(staging, paths.versionOut);
 
   console.log(
     `distill: done — ${report.entityCount} entities, ${report.tileCount} tiles, ${Object.keys(icons).length} icons, ` +

@@ -11,11 +11,14 @@ import type {
   TerrainBackgrounds,
   TileRenderDef,
 } from "./types.js";
+import { defaultConcurrency, mapPool } from "./util.js";
 
 export const ATLAS_MAX = 1024;
 /** Small icon pages avoid decoding megabytes of unrelated catalog icons. */
 export const ICON_ATLAS_MAX = 320;
 export const MAX_CLONED_PIXEL_RATIO = 1.25;
+/** Default lossless WebP effort — 4 is much faster than 6 with similar sizes. */
+export const DEFAULT_WEBP_EFFORT = 4;
 
 export interface PackedAtlas {
   file: string;
@@ -35,6 +38,10 @@ export interface PackUsageInput {
 
 export interface PackAtlasOptions {
   format?: "png" | "webp";
+  /** Lossless WebP effort 0–6 (default {@link DEFAULT_WEBP_EFFORT}). */
+  webpEffort?: number;
+  /** Max concurrent page encodes (default CPU-bounded). */
+  concurrency?: number;
 }
 
 export interface PackStats {
@@ -432,18 +439,17 @@ export async function packAtlases(
   const manifestAtlases: PackedAtlas[] = [];
   const frameMetas: FrameMeta[] = virtual.map((item) => ({ ...item.frame.meta }));
   const atlasByHash = new Map<string, number>();
+  const format = options.format ?? "png";
+  const webpEffort = options.webpEffort ?? DEFAULT_WEBP_EFFORT;
+  const concurrency = options.concurrency ?? defaultConcurrency();
 
-  for (let atlasIndex = 0; atlasIndex < pages.length; atlasIndex++) {
-    const page = pages[atlasIndex]!;
+  const encodedPages = await mapPool(pages, concurrency, async (page) => {
     const composites: sharp.OverlayOptions[] = [];
     for (const placement of page.placements) {
       if (placement.w > 0 && placement.h > 0) {
         composites.push({
-          input: await sharp(placement.rgba, {
-            raw: { width: placement.w, height: placement.h, channels: 4 },
-          })
-            .png()
-            .toBuffer(),
+          input: placement.rgba,
+          raw: { width: placement.w, height: placement.h, channels: 4 },
           left: placement.x,
           top: placement.y,
         });
@@ -458,11 +464,14 @@ export async function packAtlases(
         background: { r: 0, g: 0, b: 0, alpha: 0 },
       },
     }).composite(composites);
-    const format = options.format ?? "png";
-    const encoded =
-      format === "webp"
-        ? await image.webp({ lossless: true, effort: 6 }).toBuffer()
-        : await image.png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+    return format === "webp"
+      ? image.webp({ lossless: true, effort: webpEffort }).toBuffer()
+      : image.png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+  });
+
+  for (let atlasIndex = 0; atlasIndex < pages.length; atlasIndex++) {
+    const page = pages[atlasIndex]!;
+    const encoded = encodedPages[atlasIndex]!;
     const sha256 = createHash("sha256").update(encoded).digest("hex");
     const file = `atlas.${sha256}.${format}`;
     const existingAtlas = atlasByHash.get(sha256);

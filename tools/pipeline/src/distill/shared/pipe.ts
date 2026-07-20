@@ -321,14 +321,14 @@ export function distillFluidRecipes(
   return out;
 }
 
-/** Shared pipe-cover sheet cache (most fluid boxes use identical pipecoverspictures()). */
-export let pipeCoversCache:
-  | {
-      key: string;
-      covers: SpriteVariant[];
-      shadows?: SpriteVariant[];
-    }
-  | undefined;
+type PipeCoversCached = {
+  key: string;
+  covers: SpriteVariant[];
+  shadows?: SpriteVariant[];
+};
+
+/** Per-bank cache so parallel local FrameBanks never share foreign frame ids. */
+const pipeCoversByBank = new WeakMap<FrameBank, PipeCoversCached>();
 
 export function pipeCoversKey(covers: RawSprite): string {
   const dirs = dirs4(covers);
@@ -364,7 +364,8 @@ export async function withPipeCovers(
   if (!coversSprite) return def;
 
   const key = pipeCoversKey(coversSprite);
-  if (!pipeCoversCache || pipeCoversCache.key !== key) {
+  let cached = pipeCoversByBank.get(bank);
+  if (!cached || cached.key !== key) {
     const dirs = dirs4(coversSprite);
     const covers: SpriteVariant[] = [];
     const shadows: SpriteVariant[] = [];
@@ -384,11 +385,12 @@ export async function withPipeCovers(
       covers.push(cover);
       if (shadow) shadows.push(shadow);
     }
-    pipeCoversCache = {
+    cached = {
       key,
       covers,
       shadows: shadows.length === 4 ? shadows : undefined,
     };
+    pipeCoversByBank.set(bank, cached);
   }
 
   return {
@@ -396,13 +398,14 @@ export async function withPipeCovers(
     data: {
       ...def.data,
       pipeCovers: {
-        covers: pipeCoversCache.covers,
-        shadows: pipeCoversCache.shadows,
+        covers: cached.covers,
+        shadows: cached.shadows,
       },
     },
   };
 }
 
+/** WeakMap entries drop with their FrameBank; kept for distillAndPack call sites. */
 export function clearPipeCoversCache(): void {
-  pipeCoversCache = undefined;
+  // No module-level cache to clear; banks are discarded between runs.
 }

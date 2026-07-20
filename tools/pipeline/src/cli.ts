@@ -146,12 +146,17 @@ async function main(): Promise<void> {
   );
   const { dumpData } = await import("./dump.js");
   const { distillAndPack } = await import("./distill.js");
+  const { timed } = await import("./util.js");
+  const pipelineStart = performance.now();
   if (options.command === "dump" || options.command === "all") {
-    await dumpData({ force: options.force });
+    await timed("dump", () => dumpData({ force: options.force }));
   }
   if (options.command === "distill" || options.command === "pack" || options.command === "all") {
-    await distillAndPack({ allowBundleGrowth: options.allowBundleGrowth });
+    await timed("distill+pack", () =>
+      distillAndPack({ allowBundleGrowth: options.allowBundleGrowth }),
+    );
   }
+  console.log(`timing: pipeline total ${((performance.now() - pipelineStart) / 1000).toFixed(1)}s`);
 }
 
 main().catch((error: unknown) => {

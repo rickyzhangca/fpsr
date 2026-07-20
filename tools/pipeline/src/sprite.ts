@@ -191,16 +191,19 @@ function extractRaw(
   for (let row = 0; row < h; row++) {
     const srcY = y + row;
     if (srcY < 0 || srcY >= img.height) continue;
-    for (let col = 0; col < w; col++) {
-      const srcX = x + col;
-      if (srcX < 0 || srcX >= img.width) continue;
-      const si = (srcY * img.width + srcX) * 4;
-      const di = (row * w + col) * 4;
-      out[di] = img.data[si] ?? 0;
-      out[di + 1] = img.data[si + 1] ?? 0;
-      out[di + 2] = img.data[si + 2] ?? 0;
-      out[di + 3] = img.data[si + 3] ?? 0;
+    let srcX = x;
+    let dstCol = 0;
+    let copyCols = w;
+    if (srcX < 0) {
+      dstCol = -srcX;
+      copyCols -= dstCol;
+      srcX = 0;
     }
+    if (srcX + copyCols > img.width) copyCols = img.width - srcX;
+    if (copyCols <= 0) continue;
+    const si = (srcY * img.width + srcX) * 4;
+    const di = (row * w + dstCol) * 4;
+    img.data.copy(out, di, si, si + copyCols * 4);
   }
   return out;
 }
@@ -235,30 +238,18 @@ export async function trimRgba(
   }
   const tw = maxX - minX + 1;
   const th = maxY - minY + 1;
-  // Factorio 2.1.11 uses 1×1 __core__/graphics/empty.png leaves for unused
-  // circuit-connector parts. libvips rejects trim inputs smaller than 3×3;
-  // the manual bounds above are already authoritative for these tiny leaves.
-  if (w < 3 || h < 3) {
-    return {
-      rgba: extractRaw({ data: rgba, width: w, height: h }, minX, minY, tw, th),
-      tw,
-      th,
-      ox: minX,
-      oy: minY,
-    };
+  if (minX === 0 && minY === 0 && tw === w && th === h) {
+    return { rgba, tw, th, ox: 0, oy: 0 };
   }
-  const { data, info } = await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
-    .trim({ threshold })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  // sharp trim doesn't return offset in all versions via info; use recomputed bounds.
-  // Prefer recomputed trim for ox/oy; use sharp output pixels when sizes match.
-  if (info.width === tw && info.height === th) {
-    return { rgba: data, tw, th, ox: minX, oy: minY };
-  }
-  const trimmed = extractRaw({ data: rgba, width: w, height: h }, minX, minY, tw, th);
-  return { rgba: trimmed, tw, th, ox: minX, oy: minY };
+  // Bounds from the alpha scan are authoritative (including Factorio's 1×1
+  // __core__/graphics/empty.png leaves). Extract once — no sharp.trim pass.
+  return {
+    rgba: extractRaw({ data: rgba, width: w, height: h }, minX, minY, tw, th),
+    tw,
+    th,
+    ox: minX,
+    oy: minY,
+  };
 }
 
 /**
@@ -534,6 +525,93 @@ export class FrameBank {
 
   metas(): FrameMeta[] {
     return this.frames.map((f) => f.meta);
+  }
+}
+
+/**
+ * Copy frames from `source` into `target` in source id order.
+ * Returns old→new id map. Content-addressed dedup applies on `target`.
+ */
+export async function absorbFrameBank(
+  target: FrameBank,
+  source: FrameBank,
+): Promise<Map<number, number>> {
+  const remap = new Map<number, number>();
+  for (const frame of source.list()) {
+    const rgba = frame.rgba;
+    if (!rgba) throw new Error(`Frame ${frame.id} is missing pixels before absorb`);
+    const hash = createHash("sha256").update(rgba).digest("hex");
+    const newId = await target.add({
+      sw: frame.meta.sw,
+      sh: frame.meta.sh,
+      ox: frame.meta.ox,
+      oy: frame.meta.oy,
+      rgba,
+      tw: frame.meta.w,
+      th: frame.meta.h,
+      hash,
+    });
+    remap.set(frame.id, newId);
+  }
+  return remap;
+}
+
+/** Mutate every frame-id field through `remap` (variants, icons, tile sheets, etc.). */
+export function remapFrameRefs(
+  value: unknown,
+  remap: Map<number, number>,
+  seen = new Set<object>(),
+): void {
+  if (!value || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    for (const child of value) remapFrameRefs(child, remap, seen);
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  const remapId = (id: number, label: string): number => {
+    const next = remap.get(id);
+    if (next == null) throw new Error(`Missing frame remap for ${label}=${id}`);
+    return next;
+  };
+
+  if (typeof record.frame === "number" && Number.isInteger(record.frame)) {
+    record.frame = remapId(record.frame, "frame");
+  }
+  if (typeof record.icon === "number" && Number.isInteger(record.icon)) {
+    record.icon = remapId(record.icon, "icon");
+  }
+  if (typeof record.planetFrame === "number" && Number.isInteger(record.planetFrame)) {
+    record.planetFrame = remapId(record.planetFrame, "planetFrame");
+  }
+  if (typeof record.sheet === "number" && Number.isInteger(record.sheet)) {
+    record.sheet = remapId(record.sheet, "sheet");
+  }
+  if (Array.isArray(record.frames) && record.frames.every((x) => typeof x === "number")) {
+    record.frames = (record.frames as number[]).map((id, i) => remapId(id, `frames[${i}]`));
+  }
+  if (record.planets && typeof record.planets === "object" && !Array.isArray(record.planets)) {
+    const planets = record.planets as Record<string, unknown>;
+    for (const [name, id] of Object.entries(planets)) {
+      if (typeof id === "number") planets[name] = remapId(id, `planets.${name}`);
+    }
+  }
+
+  for (const [key, child] of Object.entries(record)) {
+    if (
+      key === "frame" ||
+      key === "icon" ||
+      key === "planetFrame" ||
+      key === "sheet" ||
+      key === "frames" ||
+      key === "planets"
+    ) {
+      continue;
+    }
+    remapFrameRefs(child, remap, seen);
   }
 }
 
