@@ -278,6 +278,16 @@ describe("render-db contract", () => {
       false,
       false,
     ]);
+    const am2Pics = db.entities["assembling-machine-2"]?.data?.pipePictures;
+    expect(am2Pics).toHaveLength(2);
+    expect(am2Pics?.[0]?.covers.filter(Boolean)).toHaveLength(4);
+    expect(am2Pics?.[1]?.covers.filter(Boolean)).toHaveLength(4);
+    expect(db.entities["assembling-machine-3"]?.data?.pipePictures).toHaveLength(2);
+    expect(db.entities.foundry?.data?.pipePictures).toBeUndefined();
+    const bioPics = db.entities.biochamber?.data?.pipePictures;
+    expect(bioPics?.length).toBeGreaterThanOrEqual(4);
+    // Distinct stubs for adjacent north-side ports.
+    expect(bioPics?.[0]?.covers[0]?.frame).not.toBe(bioPics?.[1]?.covers[0]?.frame);
     expect(db.entities["pump"]?.data?.fluidConnectionFlows?.["0"]).toEqual(["output", "input"]);
     expect(db.entities["pump"]?.data?.fluidConnectionHideInfo?.["0"]).toEqual([false, true]);
     expect(db.entities["boiler"]?.data?.fluidConnectionFlows?.["0"]?.[0]).toBe("input-output");

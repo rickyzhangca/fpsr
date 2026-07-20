@@ -1,5 +1,11 @@
 import { dirs4, isSprite4Way, leafLayers, round4, type FrameBank } from "../../sprite.js";
-import type { EntityRenderData, EntityRenderDef, RawSprite, SpriteVariant } from "../../types.js";
+import type {
+  EntityRenderData,
+  EntityRenderDef,
+  PipeCoverGraphics,
+  RawSprite,
+  SpriteVariant,
+} from "../../types.js";
 
 /** NESW bitmask "0000".."1111" → pipe picture key. */
 export const PIPE_MASK_KEYS: Record<string, string> = {
@@ -349,8 +355,26 @@ export function firstPipeCoversSprite(p: Record<string, unknown>): RawSprite | u
 }
 
 /**
+ * Factorio FluidBox.always_draw_covers: defaults to true when `pipe_picture`
+ * is absent, false when present (unless the prototype sets it explicitly).
+ */
+export function effectiveAlwaysDrawPipeCovers(p: Record<string, unknown>): boolean {
+  let anyBox = false;
+  for (const b of collectFluidBoxes(p)) {
+    anyBox = true;
+    if (b.always_draw_covers === true) return true;
+    if (b.always_draw_covers === false) continue;
+    const pp = b.pipe_picture;
+    const hasPicture = pp != null && typeof pp === "object" && isSprite4Way(pp as RawSprite);
+    if (!hasPicture) return true;
+  }
+  return !anyBox;
+}
+
+/**
  * Distill fluid-box pipe_covers (Sprite4Way) into data.pipeCovers.
- * Drawn by the planner on unconnected ports (Factorio caps open flanges).
+ * Drawn by the planner on unconnected ports (Factorio caps open flanges),
+ * or on all active ports when alwaysDrawPipeCovers is set.
  */
 export async function withPipeCovers(
   bank: FrameBank,
@@ -393,6 +417,7 @@ export async function withPipeCovers(
     pipeCoversByBank.set(bank, cached);
   }
 
+  const alwaysDraw = effectiveAlwaysDrawPipeCovers(p);
   return {
     ...def,
     data: {
@@ -401,6 +426,7 @@ export async function withPipeCovers(
         covers: cached.covers,
         shadows: cached.shadows,
       },
+      ...(alwaysDraw ? { alwaysDrawPipeCovers: true } : {}),
     },
   };
 }
@@ -408,4 +434,128 @@ export async function withPipeCovers(
 /** WeakMap entries drop with their FrameBank; kept for distillAndPack call sites. */
 export function clearPipeCoversCache(): void {
   // No module-level cache to clear; banks are discarded between runs.
+}
+
+type PipePicturesCached = Map<string, PipeCoverGraphics | null>;
+
+const pipePicturesByBank = new WeakMap<FrameBank, PipePicturesCached>();
+
+/**
+ * Bank one FluidBox.pipe_picture Sprite4Way into PipeCoverGraphics.
+ * Returns null when the picture is missing, empty, or has no usable leaves.
+ */
+async function distillPipePictureSprite4Way(
+  bank: FrameBank,
+  picture: unknown,
+): Promise<PipeCoverGraphics | null> {
+  if (!picture || typeof picture !== "object") return null;
+  const sprite = picture as RawSprite;
+  if (!isSprite4Way(sprite)) return null;
+
+  const key = pipeCoversKey(sprite);
+  let cache = pipePicturesByBank.get(bank);
+  if (!cache) {
+    cache = new Map();
+    pipePicturesByBank.set(bank, cache);
+  }
+  if (cache.has(key)) return cache.get(key) ?? null;
+
+  const dirSprites = [sprite.north, sprite.east, sprite.south, sprite.west];
+  const covers: (SpriteVariant | null)[] = [];
+  const shadows: (SpriteVariant | null)[] = [];
+  let any = false;
+  for (const dir of dirSprites) {
+    if (!dir || typeof dir !== "object") {
+      covers.push(null);
+      shadows.push(null);
+      continue;
+    }
+    const leaves = leafLayers(dir as RawSprite).filter(
+      (l) => !l.apply_runtime_tint && !l.draw_as_light,
+    );
+    let cover: SpriteVariant | undefined;
+    let shadow: SpriteVariant | undefined;
+    for (const leaf of leaves) {
+      const info = await bank.addSprite(leaf, 0, 0);
+      const v = bank.toVariant(info);
+      if (info.shadow) shadow = v;
+      else cover = v;
+    }
+    covers.push(cover ?? null);
+    shadows.push(shadow ?? null);
+    if (cover) any = true;
+  }
+
+  const result: PipeCoverGraphics | null = any
+    ? { covers, shadows: shadows.some((s) => s != null) ? shadows : undefined }
+    : null;
+  cache.set(key, result);
+  return result;
+}
+
+/**
+ * Distill FluidBox.pipe_picture (Sprite4Way) per fluid connection into
+ * data.pipePictures — parallel to fluidConnections indices (dir "0" order).
+ * Drawn by the planner on active ports at entity center (machine-side stubs).
+ */
+export async function withPipePictures(
+  bank: FrameBank,
+  def: EntityRenderDef,
+  p: Record<string, unknown>,
+): Promise<EntityRenderDef> {
+  if (def.kind === "pipe" || def.protoType === "pipe-to-ground") return def;
+  if (!def.data?.fluidConnections) return def;
+
+  type RawWithPicture = RawFluidConn & { picture: unknown };
+  const rawConns: RawWithPicture[] = [];
+  for (const b of collectFluidBoxes(p)) {
+    const pcs = b.pipe_connections as RawPipeConnection[] | undefined;
+    if (!pcs) continue;
+    const picture = b.pipe_picture;
+    for (const c of pcs) {
+      if (c.connection_type === "underground") continue;
+      if (!c.position || c.direction == null) continue;
+      rawConns.push({
+        ...c,
+        role: boxProductionRole(b),
+        flow: connectionFlow(c),
+        hideInfo: c.hide_connection_info === true,
+        picture,
+      });
+    }
+  }
+  if (rawConns.length === 0) return def;
+
+  // Same dir-0 walk + offset dedupe as computeFluidConnections.
+  const seen = new Set<string>();
+  const pictures: (PipeCoverGraphics | null)[] = [];
+  for (const c of rawConns) {
+    const [px, py] = c.position as [number, number];
+    const absDir = (((c.direction as number) % 16) + 16) % 16;
+    const snapped = (Math.round(absDir / 4) * 4) % 16;
+    const card = (
+      snapped === 0 || snapped === 4 || snapped === 8 || snapped === 12 ? snapped : 0
+    ) as 0 | 4 | 8 | 12;
+    const [dx, dy] = DIR_DELTA[card];
+    const ox = round4(px + dx);
+    const oy = round4(py + dy);
+    const key = `${ox},${oy}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pictures.push(await distillPipePictureSprite4Way(bank, c.picture));
+  }
+
+  if (pictures.every((pic) => pic == null)) return def;
+
+  return {
+    ...def,
+    data: {
+      ...def.data,
+      pipePictures: pictures,
+    },
+  };
+}
+
+export function clearPipePicturesCache(): void {
+  // WeakMap entries drop with their FrameBank.
 }

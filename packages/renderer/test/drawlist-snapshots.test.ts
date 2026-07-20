@@ -321,21 +321,19 @@ describe("drawlist snapshots (committed render-db)", () => {
     >[];
     const byEntity = (n: number) => coverCmds.filter((c) => c.entity === n);
 
-    // Tank S connected → no S cover; unconnected N/E/W get caps.
+    // No pipe_picture → always_draw_covers: covers emit on connected ports too.
     const tankFrames = new Set(byEntity(11).map((c) => c.frame));
     expect(tankFrames.has(nFrame!)).toBe(true);
     expect(tankFrames.has(eFrame!)).toBe(true);
     expect(tankFrames.has(wFrame!)).toBe(true);
-    expect(tankFrames.has(sFrame!)).toBe(false);
+    expect(tankFrames.has(sFrame!)).toBe(true);
 
-    // Boiler W+N connected → only E cover.
+    // Boiler has 3 fluid ports (W/E/N); always_draw keeps covers on connected ones.
     const boilerFrames = new Set(byEntity(1).map((c) => c.frame));
-    expect(boilerFrames.has(eFrame!)).toBe(true);
-    expect(boilerFrames.has(wFrame!)).toBe(false);
-    expect(boilerFrames.has(nFrame!)).toBe(false);
+    expect(boilerFrames.size).toBe(3);
 
-    // Pump both ports connected → no covers.
-    expect(byEntity(9)).toHaveLength(0);
+    // Pump both ports connected → always_draw_covers still emits N+S caps.
+    expect(byEntity(9)).toHaveLength(2);
 
     assertSnapshot("pipe-plant", list);
   });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   computeFluidConnections,
   distillFluidRecipes,
+  effectiveAlwaysDrawPipeCovers,
   fluidWorkingVisualisationGroupsFromBoxes,
 } from "../src/distill/shared/pipe.js";
 
@@ -137,5 +138,34 @@ describe("fluid recipe / connection roles distill", () => {
         { "input-pipe": [4] },
       ),
     ).toBeUndefined();
+  });
+
+  it("effectiveAlwaysDrawPipeCovers follows Factorio defaults", () => {
+    expect(
+      effectiveAlwaysDrawPipeCovers({
+        fluid_box: { pipe_covers: { north: {}, east: {}, south: {}, west: {} } },
+      }),
+    ).toBe(true);
+    expect(
+      effectiveAlwaysDrawPipeCovers({
+        fluid_boxes: [
+          {
+            pipe_picture: { north: { filename: "a" }, east: {}, south: {}, west: {} },
+            pipe_covers: { north: {}, east: {}, south: {}, west: {} },
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      effectiveAlwaysDrawPipeCovers({
+        fluid_boxes: [
+          {
+            always_draw_covers: true,
+            pipe_picture: { north: { filename: "a" }, east: {}, south: {}, west: {} },
+            pipe_covers: { north: {}, east: {}, south: {}, west: {} },
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });

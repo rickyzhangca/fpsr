@@ -4,7 +4,7 @@ import { type FrameBank } from "../../sprite.js";
 import type { EntityRenderDef, SpriteVariant } from "../../types.js";
 import { withBeltConnectorGraphics, withBeltReaderGraphics } from "./belt-connectors.js";
 import { boxOf } from "./box.js";
-import { withPipeCovers } from "./pipe.js";
+import { withPipeCovers, withPipePictures } from "./pipe.js";
 import { withCircuitConnectorGraphics, withWireAnchors } from "./wire.js";
 
 export async function addPlaceholderVariant(
@@ -74,5 +74,6 @@ export async function finalizeEntityDef(
   finalized = await withCircuitConnectorGraphics(bank, finalized, p);
   finalized = await withBeltConnectorGraphics(bank, finalized, p);
   finalized = await withBeltReaderGraphics(bank, finalized, p);
-  return withPipeCovers(bank, finalized, p);
+  finalized = await withPipeCovers(bank, finalized, p);
+  return withPipePictures(bank, finalized, p);
 }

@@ -23,6 +23,12 @@ function coverFrames(entityNumber: number, list: ReturnType<typeof planDrawList>
     .map((c) => (c.kind === "sprite" ? c.frame : -1));
 }
 
+function pictureFrames(entityNumber: number, list: ReturnType<typeof planDrawList>): number[] {
+  return list.commands
+    .filter((c) => c.kind === "sprite" && c.entity === entityNumber && c.sub === 71)
+    .map((c) => (c.kind === "sprite" ? c.frame : -1));
+}
+
 describe("assembler fluid-box recipe gating", () => {
   it("distills fluidRecipes and AM2 connection roles in the fixture DB", () => {
     expect(db.fluidRecipes?.concrete).toEqual({ ingredients: true, products: false });
@@ -218,5 +224,176 @@ describe("assembler fluid-box recipe gating", () => {
     const meltingGroups = melting.selections.map((s) => s.group);
     expect(meltingGroups).toContain(3);
     expect(meltingGroups).not.toContain(4);
+  });
+
+  it("pipe pictures: AM2 fixture has per-port stubs; foundry has none", () => {
+    const am2 = db.entities["assembling-machine-2"]!;
+    const pics = am2.data?.pipePictures;
+    expect(pics).toHaveLength(2);
+    expect(pics?.[0]?.covers.filter(Boolean)).toHaveLength(4);
+    expect(pics?.[1]?.covers.filter(Boolean)).toHaveLength(4);
+    // Same Sprite4Way on both boxes → shared frame ids.
+    expect(pics?.[0]?.covers[0]?.frame).toBe(pics?.[1]?.covers[0]?.frame);
+    expect(db.entities.foundry?.data?.pipePictures).toBeUndefined();
+  });
+
+  it("pipe pictures: recipe-gated; still drawn when a pipe is connected", () => {
+    const none = planDrawList(
+      bp([{ entity_number: 1, name: "assembling-machine-2", position: { x: 0.5, y: 0.5 } }]),
+      db,
+    );
+    expect(pictureFrames(1, none)).toHaveLength(0);
+
+    const gear = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "assembling-machine-2",
+          position: { x: 0.5, y: 0.5 },
+          recipe: "iron-gear-wheel",
+        },
+      ]),
+      db,
+    );
+    expect(pictureFrames(1, gear)).toHaveLength(0);
+
+    const concrete = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "assembling-machine-2",
+          position: { x: 0.5, y: 0.5 },
+          recipe: "concrete",
+        },
+      ]),
+      db,
+    );
+    expect(pictureFrames(1, concrete)).toHaveLength(1);
+    expect(coverFrames(1, concrete)).toHaveLength(1);
+
+    // North port uses the north Sprite4Way leaf (pipe-N), not south.
+    const am2 = db.entities["assembling-machine-2"]!;
+    const northLeaf = am2.data?.pipePictures?.[0]?.covers[0];
+    const southLeaf = am2.data?.pipePictures?.[0]?.covers[2];
+    expect(northLeaf?.frame).toBeDefined();
+    expect(pictureFrames(1, concrete)[0]).toBe(northLeaf!.frame);
+    expect(pictureFrames(1, concrete)[0]).not.toBe(southLeaf!.frame);
+
+    // Pipe-tile draw: stub near the north opening (y≈-1.5).
+    const stub = concrete.commands.find(
+      (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 71,
+    );
+    expect(stub?.kind).toBe("sprite");
+    if (stub?.kind === "sprite") {
+      const midY = stub.y + stub.h / 2;
+      expect(midY).toBeLessThan(-0.5);
+      expect(midY).toBeGreaterThan(-2);
+    }
+
+    // Output-only / both-fluid recipe: south port gets pipe-S at the south tile.
+    const acid = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "assembling-machine-2",
+          position: { x: 0.5, y: 0.5 },
+          recipe: "sulfuric-acid",
+        },
+      ]),
+      db,
+    );
+    expect(pictureFrames(1, acid)).toHaveLength(2);
+    expect(pictureFrames(1, acid)).toContain(southLeaf!.frame);
+    const southStub = acid.commands.find(
+      (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 71 && c.frame === southLeaf!.frame,
+    );
+    expect(southStub?.kind).toBe("sprite");
+    if (southStub?.kind === "sprite") {
+      const midY = southStub.y + southStub.h / 2;
+      expect(midY).toBeGreaterThan(1);
+      expect(midY).toBeLessThan(2.5);
+    }
+
+    const connected = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "assembling-machine-2",
+          position: { x: 0.5, y: 0.5 },
+          recipe: "concrete",
+        },
+        { entity_number: 2, name: "pipe", position: { x: 0.5, y: -1.5 } },
+      ]),
+      db,
+    );
+    // Stub remains; cover suppressed when pipe occupies the port.
+    expect(pictureFrames(1, connected)).toHaveLength(1);
+    expect(coverFrames(1, connected)).toHaveLength(0);
+  });
+
+  it("pipe covers: pump always draws north cover above pipe, under pump body", () => {
+    // Factorio default: always_draw_covers=true when no pipe_picture (pump art is pre-cropped).
+    // Covers y-sort at the pipe tile so north caps don't paint over the bellows.
+    const pump = db.entities.pump!;
+    expect(pump.data?.pipePictures).toBeUndefined();
+
+    const list = planDrawList(
+      bp([
+        { entity_number: 1, name: "pump", position: { x: 0.5, y: 0.5 }, direction: 0 },
+        { entity_number: 2, name: "pipe", position: { x: 0.5, y: -1.0 } },
+      ]),
+      db,
+    );
+    const northCover = list.commands.find(
+      (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 81 && c.y + c.h / 2 < 0,
+    );
+    expect(northCover?.kind).toBe("sprite");
+    const pipe = list.commands.find(
+      (c) => c.kind === "sprite" && c.entity === 2 && !c.shadow && c.sub !== 80 && c.sub !== 81,
+    );
+    const body = list.commands.find(
+      (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 0 && !c.shadow,
+    );
+    expect(pipe?.kind).toBe("sprite");
+    expect(body?.kind).toBe("sprite");
+    if (northCover?.kind === "sprite" && pipe?.kind === "sprite" && body?.kind === "sprite") {
+      expect(northCover.sortY).toBeGreaterThan(pipe.sortY);
+      expect(northCover.sortY).toBeLessThan(body.sortY);
+    }
+  });
+
+  it("pipe pictures: cryogenic plant pipe-tile + facing cancels to entity center", () => {
+    const cryo = db.entities["cryogenic-plant"]!;
+    const westLeaf = cryo.data?.pipePictures?.[1]?.covers[3];
+    const eastLeaf = cryo.data?.pipePictures?.[1]?.covers[1];
+    expect(westLeaf?.shift[0]).toBeGreaterThan(2);
+    expect(eastLeaf?.shift[0]).toBeLessThan(-2);
+
+    // Entity facing east: inputs on west (facing 12), center input has pipe_picture.
+    expect(db.fluidRecipes?.lithium).toEqual({ ingredients: true, products: false });
+    const list = planDrawList(
+      bp([
+        {
+          entity_number: 1,
+          name: "cryogenic-plant",
+          position: { x: 0.5, y: 0.5 },
+          direction: 4,
+          recipe: "lithium",
+        },
+      ]),
+      db,
+    );
+    const stubs = list.commands.filter(
+      (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 71,
+    );
+    expect(stubs.length).toBeGreaterThan(0);
+    // West leaf at pipe tile (-3,0) + shift +3 → sprite center near entity center (x≈0.5).
+    expect(pictureFrames(1, list)).toContain(westLeaf!.frame);
+    for (const stub of stubs) {
+      if (stub.kind !== "sprite") continue;
+      const midX = stub.x + stub.w / 2;
+      // Must not sit several tiles west of the plant (old opposite+center bug).
+      expect(Math.abs(midX - 0.5)).toBeLessThan(1.5);
+    }
   });
 });

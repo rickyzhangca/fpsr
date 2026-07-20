@@ -102,6 +102,57 @@ export function activeFluidPorts(
 }
 
 /**
+ * Pipe-tile offsets that are currently active for this entity's fluid boxes,
+ * with connection indices parallel to `fluidConnections` / `pipePictures`.
+ * Includes openings with `hide_connection_info` (covers/joints/pictures still apply).
+ */
+export function activeFluidOffsetEntries(
+  entity: BlueprintEntity,
+  def: EntityRenderDef,
+  db: RenderDb,
+): { index: number; offset: [number, number] }[] {
+  const fc = def.data?.fluidConnections;
+  if (!fc) return [];
+  const d = cardinalDirection(entity.direction ?? 0);
+  const dirKey = String(d);
+  const offsets = fc[dirKey] ?? [];
+  if (offsets.length === 0) return [];
+
+  const roles: FluidConnectionRole[] | undefined = def.data?.fluidConnectionRoles?.[dirKey];
+
+  let indices: number[];
+  if (!def.data?.fluidBoxesRequireFluidRecipe) {
+    indices = offsets.map((_, i) => i);
+  } else {
+    const recipe = entity.recipe;
+    if (!recipe) return [];
+    const flags: FluidRecipeFlags | undefined = db.fluidRecipes?.[recipe];
+    if (!flags || (!flags.ingredients && !flags.products)) return [];
+
+    if (!roles || roles.length !== offsets.length) {
+      // Roles missing (older DB): any fluid recipe activates all ports.
+      indices = offsets.map((_, i) => i);
+    } else {
+      indices = [];
+      for (let i = 0; i < offsets.length; i++) {
+        const role = roles[i];
+        if (!role) continue;
+        if (role === "input" && flags.ingredients) indices.push(i);
+        else if (role === "output" && flags.products) indices.push(i);
+      }
+    }
+  }
+
+  const out: { index: number; offset: [number, number] }[] = [];
+  for (const i of indices) {
+    const offset = offsets[i];
+    if (!offset) continue;
+    out.push({ index: i, offset });
+  }
+  return out;
+}
+
+/**
  * Pipe-tile offsets that are currently active for this entity's fluid boxes.
  * Includes openings with `hide_connection_info` (covers/joints still apply).
  */
@@ -110,35 +161,7 @@ export function activeFluidOffsets(
   def: EntityRenderDef,
   db: RenderDb,
 ): [number, number][] {
-  const fc = def.data?.fluidConnections;
-  if (!fc) return [];
-  const d = cardinalDirection(entity.direction ?? 0);
-  const dirKey = String(d);
-  const offsets = fc[dirKey] ?? [];
-  if (offsets.length === 0) return [];
-
-  if (!def.data?.fluidBoxesRequireFluidRecipe) return offsets;
-
-  const recipe = entity.recipe;
-  if (!recipe) return [];
-  const flags: FluidRecipeFlags | undefined = db.fluidRecipes?.[recipe];
-  if (!flags || (!flags.ingredients && !flags.products)) return [];
-
-  const roles: FluidConnectionRole[] | undefined = def.data.fluidConnectionRoles?.[dirKey];
-  if (!roles || roles.length !== offsets.length) {
-    // Roles missing (older DB): any fluid recipe activates all ports.
-    return offsets;
-  }
-
-  const out: [number, number][] = [];
-  for (let i = 0; i < offsets.length; i++) {
-    const role = roles[i];
-    const offset = offsets[i];
-    if (!role || !offset) continue;
-    if (role === "input" && flags.ingredients) out.push(offset);
-    else if (role === "output" && flags.products) out.push(offset);
-  }
-  return out;
+  return activeFluidOffsetEntries(entity, def, db).map((e) => e.offset);
 }
 
 /** True when this entity has at least one active fluid port for the current recipe. */

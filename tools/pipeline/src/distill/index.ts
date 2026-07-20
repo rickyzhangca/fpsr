@@ -85,7 +85,12 @@ import {
   distillSimplePicture,
   layersFromSprite,
 } from "./shared/layers.js";
-import { clearPipeCoversCache, distillFluidRecipes, withFluidData } from "./shared/pipe.js";
+import {
+  clearPipeCoversCache,
+  clearPipePicturesCache,
+  distillFluidRecipes,
+  withFluidData,
+} from "./shared/pipe.js";
 import {
   distillAsteroidCollector,
   distillGraphicsSetPictureArray,
@@ -381,6 +386,7 @@ export interface DistillAndPackOptions {
 export async function distillAndPack(options: DistillAndPackOptions = {}): Promise<RenderDb> {
   const paths = getPipelinePaths();
   clearPipeCoversCache();
+  clearPipePicturesCache();
   clearImageCache();
   const concurrency = defaultConcurrency();
   console.log(`distill: concurrency ${concurrency}`);

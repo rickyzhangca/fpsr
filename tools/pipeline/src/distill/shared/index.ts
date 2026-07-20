@@ -22,10 +22,12 @@ export {
 export {
   CARDINAL_DIRS,
   clearPipeCoversCache,
+  clearPipePicturesCache,
   computeFluidConnections,
   computeHeatConnections,
   DIR_DELTA,
   distillFluidRecipes,
+  effectiveAlwaysDrawPipeCovers,
   fluidWorkingVisualisationGroupsFromBoxes,
   HEAT_PIPE_MASK_KEYS,
   PIPE_MASK_KEYS,
@@ -33,6 +35,7 @@ export {
   rotateOffset,
   withFluidData,
   withPipeCovers,
+  withPipePictures,
 } from "./pipe.js";
 export {
   computeWireAnchors,

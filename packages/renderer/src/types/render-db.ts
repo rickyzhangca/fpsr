@@ -261,8 +261,18 @@ export interface LayerGroup {
  * - `heatConnectionPatchGroupIndices`: graphics groups whose `connected` /
  *   `disconnected` variations correspond by index to `heatConnections` ports.
  * - `pipeCovers`: `{ covers: SpriteVariant[4], shadows?: SpriteVariant[4] }` —
- *   fluid-box pipe covers (N/E/S/W). Planner draws a cover on each *unconnected*
- *   port's adjacent tile (Factorio: pictures when no FluidBox is connected).
+ *   fluid-box pipe covers (N/E/S/W). Planner draws on each active port's
+ *   adjacent tile when unconnected, or always when `alwaysDrawPipeCovers`
+ *   (Factorio `FluidBox.always_draw_covers`, defaulting to true when the
+ *   entity has no `pipe_picture`).
+ * - `alwaysDrawPipeCovers`: when true, emit covers even if a pipe occupies the
+ *   port (pump / chemical-plant; also cryo boxes that set the prototype flag).
+ * - `pipePictures`: parallel to `fluidConnections` indices — per-port
+ *   `FluidBox.pipe_picture` Sprite4Way (machine-side stubs / face plates).
+ *   Planner draws on each *active* port (recipe-gated when
+ *   `fluidBoxesRequireFluidRecipe`); Sprite4Way index matches the connection
+ *   facing; drawn at the pipe-tile like covers (baked shifts apply); independent
+ *   of whether a pipe is connected.
  * - `cargoBayConnections` / `cargoBayConnectionsPlatform`: Factorio 2.1
  *   `CargoBayConnections` (tileset + bridges) for hub / cargo-bay / landing-pad.
  *   Body graphics may also expose a `platform` variant key beside `default`.
@@ -419,6 +429,18 @@ export interface EntityRenderData {
     output?: number[];
   };
   pipeCovers?: PipeCoverGraphics;
+  /**
+   * Factorio `FluidBox.always_draw_covers` (effective). When true, pipe covers
+   * draw even on occupied ports. Defaults to true when no `pipe_picture` is
+   * present on the entity's fluid boxes.
+   */
+  alwaysDrawPipeCovers?: boolean;
+  /**
+   * Parallel to `fluidConnections` indices (dir `"0"` order): per-port
+   * `FluidBox.pipe_picture` Sprite4Way. Null when that box has no usable art
+   * (e.g. foundry uses working visualisations instead).
+   */
+  pipePictures?: (PipeCoverGraphics | null)[];
   wireAnchors?: WireAnchorMap;
   wireAnchorsOutput?: WireAnchorMap;
   wireConnectorGraphics?: WireConnectorGraphics;
