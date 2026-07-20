@@ -284,11 +284,10 @@ describe("assembler fluid-box recipe gating", () => {
       (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 71,
     );
     expect(stub?.kind).toBe("sprite");
-    if (stub?.kind === "sprite") {
-      const midY = stub.y + stub.h / 2;
-      expect(midY).toBeLessThan(-0.5);
-      expect(midY).toBeGreaterThan(-2);
-    }
+    const stubSprite = stub as Extract<NonNullable<typeof stub>, { kind: "sprite" }>;
+    const midY = stubSprite.y + stubSprite.h / 2;
+    expect(midY).toBeLessThan(-0.5);
+    expect(midY).toBeGreaterThan(-2);
 
     // Output-only / both-fluid recipe: south port gets pipe-S at the south tile.
     const acid = planDrawList(
@@ -308,11 +307,10 @@ describe("assembler fluid-box recipe gating", () => {
       (c) => c.kind === "sprite" && c.entity === 1 && c.sub === 71 && c.frame === southLeaf!.frame,
     );
     expect(southStub?.kind).toBe("sprite");
-    if (southStub?.kind === "sprite") {
-      const midY = southStub.y + southStub.h / 2;
-      expect(midY).toBeGreaterThan(1);
-      expect(midY).toBeLessThan(2.5);
-    }
+    const southStubSprite = southStub as Extract<NonNullable<typeof southStub>, { kind: "sprite" }>;
+    const southMidY = southStubSprite.y + southStubSprite.h / 2;
+    expect(southMidY).toBeGreaterThan(1);
+    expect(southMidY).toBeLessThan(2.5);
 
     const connected = planDrawList(
       bp([
@@ -356,10 +354,11 @@ describe("assembler fluid-box recipe gating", () => {
     );
     expect(pipe?.kind).toBe("sprite");
     expect(body?.kind).toBe("sprite");
-    if (northCover?.kind === "sprite" && pipe?.kind === "sprite" && body?.kind === "sprite") {
-      expect(northCover.sortY).toBeGreaterThan(pipe.sortY);
-      expect(northCover.sortY).toBeLessThan(body.sortY);
-    }
+    const coverSprite = northCover as Extract<NonNullable<typeof northCover>, { kind: "sprite" }>;
+    const pipeSprite = pipe as Extract<NonNullable<typeof pipe>, { kind: "sprite" }>;
+    const bodySprite = body as Extract<NonNullable<typeof body>, { kind: "sprite" }>;
+    expect(coverSprite.sortY).toBeGreaterThan(pipeSprite.sortY);
+    expect(coverSprite.sortY).toBeLessThan(bodySprite.sortY);
   });
 
   it("pipe pictures: cryogenic plant pipe-tile + facing cancels to entity center", () => {

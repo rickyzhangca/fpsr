@@ -6,7 +6,7 @@ export async function mapPool<T, R>(
   concurrency: number,
   fn: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const results = Array.from({ length: items.length }) as R[];
   let next = 0;
   const limit = Math.max(1, Math.min(concurrency, Math.max(1, items.length)));
 
