@@ -21,12 +21,13 @@ import {
   type ResolvedEntity,
   createResolveContext,
 } from "./context.js";
+import { isFluidWorkingVisualisationGroupActive } from "./fluid-ports.js";
 import {
   buildHeatPipeSides,
   buildHeatPortGrid,
+  heatPipeMask,
   heatPortConnected,
   heatPortDirection,
-  heatPipeMask,
   pipeMask,
 } from "./pipes.js";
 import {
@@ -56,8 +57,6 @@ export {
   BELT_START_INDEX,
   BELT_STRAIGHT_INDEX,
   UG_STRUCTURE_INDEX,
-  type BeltOccupant,
-  type BeltReaderSlot,
   beltCircuitConnectorFrame,
   beltCircuitConnectorVariation,
   beltConnectorBackPatchIndex,
@@ -67,14 +66,16 @@ export {
   isBeltCircuitInputEnabled,
   isBeltCircuitOutputEnabled,
   undergroundStructureIndex,
+  type BeltOccupant,
+  type BeltReaderSlot,
 } from "./belts.js";
 export {
+  blueprintPrefersPlatformGraphics,
+  createResolveContext,
   type LayerSelection,
   type ResolveContext,
   type ResolveOptions,
   type ResolvedEntity,
-  blueprintPrefersPlatformGraphics,
-  createResolveContext,
 } from "./context.js";
 export { cardinalDirection, dir16ToIndex, rotateOffset } from "./shared.js";
 export {
@@ -197,6 +198,10 @@ export function resolveWithContext(
     for (let group = 0; group < def.graphics.length; group++) {
       const layerGroup = def.graphics[group];
       if (!layerGroup) continue;
+
+      if (!isFluidWorkingVisualisationGroupActive(entity, def, db, group)) {
+        continue;
+      }
 
       if (def.data?.heatConnectionPatchGroupIndices?.includes(group)) {
         const d = cardinalDirection(entity.direction);

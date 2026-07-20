@@ -175,4 +175,48 @@ describe("assembler fluid-box recipe gating", () => {
     // South side of pipe faces the assembler.
     expect(pipe?.selections[0]?.variantKey).toBe("0010");
   });
+
+  it("foundry: no recipe / non-fluid recipe hides pipe WV groups", () => {
+    const foundry = db.entities.foundry!;
+    expect(foundry.data?.fluidWorkingVisualisationGroups).toEqual({
+      input: [4],
+      output: [3],
+    });
+    const base: BlueprintEntity = {
+      entity_number: 1,
+      name: "foundry",
+      position: { x: 0.5, y: 0.5 },
+      direction: 0,
+    };
+    const none = resolve(bp([base]), db).entities[0]!;
+    expect(none.selections.map((s) => s.group)).not.toContain(3);
+    expect(none.selections.map((s) => s.group)).not.toContain(4);
+
+    const gear = resolve(bp([{ ...base, recipe: "iron-gear-wheel" }]), db).entities[0]!;
+    expect(gear.selections.map((s) => s.group)).not.toContain(3);
+    expect(gear.selections.map((s) => s.group)).not.toContain(4);
+  });
+
+  it("foundry: casting-iron shows input pipes only; molten-iron-from-lava shows both", () => {
+    const base: BlueprintEntity = {
+      entity_number: 1,
+      name: "foundry",
+      position: { x: 0.5, y: 0.5 },
+      direction: 0,
+    };
+    const casting = resolve(bp([{ ...base, recipe: "casting-iron" }]), db).entities[0]!;
+    const castingGroups = casting.selections.map((s) => s.group);
+    expect(castingGroups).toContain(4);
+    expect(castingGroups).not.toContain(3);
+
+    const lava = resolve(bp([{ ...base, recipe: "molten-iron-from-lava" }]), db).entities[0]!;
+    const lavaGroups = lava.selections.map((s) => s.group);
+    expect(lavaGroups).toContain(3);
+    expect(lavaGroups).toContain(4);
+
+    const melting = resolve(bp([{ ...base, recipe: "ice-melting" }]), db).entities[0]!;
+    const meltingGroups = melting.selections.map((s) => s.group);
+    expect(meltingGroups).toContain(3);
+    expect(meltingGroups).not.toContain(4);
+  });
 });

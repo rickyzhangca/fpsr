@@ -149,3 +149,45 @@ export function hasActiveFluidPorts(
 ): boolean {
   return activeFluidOffsets(entity, def, db).length > 0;
 }
+
+/**
+ * Fluid-box production roles that are active for the current recipe.
+ * Used to gate foundry-style pipe working visualisations.
+ */
+export function activeFluidRoles(
+  entity: BlueprintEntity,
+  def: EntityRenderDef,
+  db: RenderDb,
+): Set<FluidConnectionRole> {
+  const roles = new Set<FluidConnectionRole>();
+  if (!def.data?.fluidBoxesRequireFluidRecipe) {
+    roles.add("input");
+    roles.add("output");
+    return roles;
+  }
+  const recipe = entity.recipe;
+  if (!recipe) return roles;
+  const flags: FluidRecipeFlags | undefined = db.fluidRecipes?.[recipe];
+  if (!flags) return roles;
+  if (flags.ingredients) roles.add("input");
+  if (flags.products) roles.add("output");
+  return roles;
+}
+
+/** Whether a graphics group gated by fluidWorkingVisualisationGroups should draw. */
+export function isFluidWorkingVisualisationGroupActive(
+  entity: BlueprintEntity,
+  def: EntityRenderDef,
+  db: RenderDb,
+  group: number,
+): boolean {
+  const gated = def.data?.fluidWorkingVisualisationGroups;
+  if (!gated) return true;
+  const inInput = gated.input?.includes(group) === true;
+  const inOutput = gated.output?.includes(group) === true;
+  if (!inInput && !inOutput) return true;
+  const active = activeFluidRoles(entity, def, db);
+  if (inInput && active.has("input")) return true;
+  if (inOutput && active.has("output")) return true;
+  return false;
+}

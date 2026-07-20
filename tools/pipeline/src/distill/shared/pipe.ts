@@ -263,6 +263,34 @@ export function withFluidData(
   return { ...def, data };
 }
 
+/**
+ * Map FluidBox `enable_working_visualisations` names to graphics group indices
+ * produced for those named idle WVs, keyed by fluid-box production_type role.
+ */
+export function fluidWorkingVisualisationGroupsFromBoxes(
+  p: Record<string, unknown>,
+  namedGroupIndices: Record<string, number[]>,
+): EntityRenderData["fluidWorkingVisualisationGroups"] | undefined {
+  if (Object.keys(namedGroupIndices).length === 0) return undefined;
+  const input = new Set<number>();
+  const output = new Set<number>();
+  for (const box of collectFluidBoxes(p)) {
+    const names = box.enable_working_visualisations;
+    if (!Array.isArray(names) || names.length === 0) continue;
+    const role = boxProductionRole(box);
+    const target = role === "output" ? output : input;
+    for (const name of names) {
+      if (typeof name !== "string") continue;
+      for (const index of namedGroupIndices[name] ?? []) target.add(index);
+    }
+  }
+  if (input.size === 0 && output.size === 0) return undefined;
+  const out: NonNullable<EntityRenderData["fluidWorkingVisualisationGroups"]> = {};
+  if (input.size > 0) out.input = [...input].sort((a, b) => a - b);
+  if (output.size > 0) out.output = [...output].sort((a, b) => a - b);
+  return out;
+}
+
 /** Recipes whose ingredients and/or results include `type: "fluid"`. */
 export function distillFluidRecipes(
   recipes: Record<string, unknown> | undefined,

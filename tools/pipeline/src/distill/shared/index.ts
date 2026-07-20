@@ -26,6 +26,7 @@ export {
   computeHeatConnections,
   DIR_DELTA,
   distillFluidRecipes,
+  fluidWorkingVisualisationGroupsFromBoxes,
   HEAT_PIPE_MASK_KEYS,
   PIPE_MASK_KEYS,
   PIPE_WINDOW_BACKGROUND_KEYS,

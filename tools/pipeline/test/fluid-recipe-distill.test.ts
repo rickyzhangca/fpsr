@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { computeFluidConnections, distillFluidRecipes } from "../src/distill/shared/pipe.js";
+import {
+  computeFluidConnections,
+  distillFluidRecipes,
+  fluidWorkingVisualisationGroupsFromBoxes,
+} from "../src/distill/shared/pipe.js";
 
 describe("fluid recipe / connection roles distill", () => {
   it("distillFluidRecipes flags ingredient vs product fluids", () => {
@@ -96,5 +100,42 @@ describe("fluid recipe / connection roles distill", () => {
       },
     });
     expect(flows["0"]).toEqual(["input-output", "input-output"]);
+  });
+
+  it("fluidWorkingVisualisationGroupsFromBoxes maps enable_working_visualisations to roles", () => {
+    const groups = fluidWorkingVisualisationGroupsFromBoxes(
+      {
+        fluid_boxes: [
+          {
+            production_type: "input",
+            enable_working_visualisations: ["input-pipe"],
+            pipe_connections: [{ position: [-1, 2], direction: 8 }],
+          },
+          {
+            production_type: "input",
+            enable_working_visualisations: ["input-pipe"],
+            pipe_connections: [{ position: [1, 2], direction: 8 }],
+          },
+          {
+            production_type: "output",
+            enable_working_visualisations: ["output-pipe"],
+            pipe_connections: [{ position: [-1, -2], direction: 0 }],
+          },
+          {
+            production_type: "output",
+            enable_working_visualisations: ["output-pipe"],
+            pipe_connections: [{ position: [1, -2], direction: 0 }],
+          },
+        ],
+      },
+      { "output-pipe": [3], "input-pipe": [4] },
+    );
+    expect(groups).toEqual({ input: [4], output: [3] });
+    expect(
+      fluidWorkingVisualisationGroupsFromBoxes(
+        { fluid_boxes: [{ production_type: "input", pipe_connections: [] }] },
+        { "input-pipe": [4] },
+      ),
+    ).toBeUndefined();
   });
 });

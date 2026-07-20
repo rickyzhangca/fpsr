@@ -1,5 +1,5 @@
-import { isSprite4Way, leafLayers, round4, type FrameBank } from "../sprite.js";
 import { fpsrLayer, guessedLayer, officialLayer } from "../render-layers.js";
+import { isSprite4Way, leafLayers, round4, type FrameBank } from "../sprite.js";
 import type {
   EntityRenderDef,
   LayerGroup,
@@ -17,7 +17,12 @@ import {
   skipIdleDecorativeLeaf,
   type WorkingVisualisation,
 } from "./shared/layers.js";
-import { HEAT_PIPE_MASK_KEYS, withFluidData, type RawPipeConnection } from "./shared/pipe.js";
+import {
+  HEAT_PIPE_MASK_KEYS,
+  fluidWorkingVisualisationGroupsFromBoxes,
+  withFluidData,
+  type RawPipeConnection,
+} from "./shared/pipe.js";
 
 export async function distillMiningDrill(
   bank: FrameBank,
@@ -73,8 +78,17 @@ export async function distillAssembler(
       frame: 0,
     })),
   );
-  await appendIdleWorkingVisualisations(bank, groups, gs?.working_visualisations);
-  return withFluidData(baseEntity("assembler", protoType, p, groups), p);
+  const namedWvGroups = await appendIdleWorkingVisualisations(
+    bank,
+    groups,
+    gs?.working_visualisations,
+  );
+  const fluidWvGroups = fluidWorkingVisualisationGroupsFromBoxes(p, namedWvGroups);
+  return withFluidData(
+    baseEntity("assembler", protoType, p, groups),
+    p,
+    fluidWvGroups ? { fluidWorkingVisualisationGroups: fluidWvGroups } : undefined,
+  );
 }
 
 /**

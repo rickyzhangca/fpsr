@@ -267,6 +267,9 @@ export async function distillDirection4Animation(
 
 export interface WorkingVisualisation {
   always_draw?: boolean;
+  /** When set, FluidBox.enable_working_visualisations can toggle this WV. */
+  name?: string;
+  enabled_by_name?: boolean;
   apply_tint?: string;
   apply_recipe_tint?: string;
   render_layer?: string;
@@ -360,15 +363,27 @@ export async function layersFromWorkingVisualisation(
   return [];
 }
 
+/**
+ * Append idle always_draw working visualisations. Returns a map of WV `name`
+ * → graphics group indices added for that visualisation (for fluid-box
+ * `enable_working_visualisations` gating).
+ */
 export async function appendIdleWorkingVisualisations(
   bank: FrameBank,
   groups: LayerGroup[],
   workingVisualisations: WorkingVisualisation[] | undefined,
-): Promise<void> {
+): Promise<Record<string, number[]>> {
+  const namedGroupIndices: Record<string, number[]> = {};
   for (const wv of workingVisualisations ?? []) {
     if (!includeWorkingVisualisationForIdle(wv)) continue;
+    const start = groups.length;
     groups.push(...(await layersFromWorkingVisualisation(bank, wv)));
+    const name = typeof wv.name === "string" && wv.name.length > 0 ? wv.name : undefined;
+    if (!name || groups.length <= start) continue;
+    const indices = namedGroupIndices[name] ?? (namedGroupIndices[name] = []);
+    for (let i = start; i < groups.length; i++) indices.push(i);
   }
+  return namedGroupIndices;
 }
 
 /**

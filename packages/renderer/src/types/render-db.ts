@@ -254,6 +254,10 @@ export interface LayerGroup {
  * - `fluidBoxesRequireFluidRecipe`: when true, fluid ports only activate for
  *   recipes listed in `RenderDb.fluidRecipes` (Factorio
  *   `fluid_boxes_off_when_no_fluid_recipe`).
+ * - `fluidWorkingVisualisationGroups`: graphics groups from named working
+ *   visualisations enabled by FluidBox `enable_working_visualisations`
+ *   (e.g. foundry input/output pipe stubs). Resolve skips them unless the
+ *   matching fluid role is active for the recipe.
  * - `heatConnectionPatchGroupIndices`: graphics groups whose `connected` /
  *   `disconnected` variations correspond by index to `heatConnections` ports.
  * - `pipeCovers`: `{ covers: SpriteVariant[4], shadows?: SpriteVariant[4] }` —
@@ -405,6 +409,15 @@ export interface EntityRenderData {
   heatConnections?: DirectionalConnectionMap;
   heatConnectionPatchGroupIndices?: number[];
   fluidBoxesRequireFluidRecipe?: boolean;
+  /**
+   * Graphics group indices from working visualisations linked via fluid-box
+   * `enable_working_visualisations` (Factorio). Drawn only when that fluid
+   * role is active for the current recipe (foundry pipe stubs).
+   */
+  fluidWorkingVisualisationGroups?: {
+    input?: number[];
+    output?: number[];
+  };
   pipeCovers?: PipeCoverGraphics;
   wireAnchors?: WireAnchorMap;
   wireAnchorsOutput?: WireAnchorMap;

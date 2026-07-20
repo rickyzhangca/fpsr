@@ -524,6 +524,14 @@ describe("render-db contract", () => {
     // Base animation plus always_draw input/output pipe direction layers.
     expect(foundry?.graphics.length).toBeGreaterThan(3);
     expect(foundry?.graphics.some((group) => group.indexing === "direction4")).toBe(true);
+    expect(foundry?.data?.fluidWorkingVisualisationGroups).toEqual({
+      input: [4],
+      output: [3],
+    });
+    expect(plant?.data?.fluidWorkingVisualisationGroups).toBeUndefined();
+    expect(
+      db.entities["assembling-machine-2"]?.data?.fluidWorkingVisualisationGroups,
+    ).toBeUndefined();
   });
 
   it("fills fusion-reactor neighbour-port cutouts with idle connection patches", async () => {
