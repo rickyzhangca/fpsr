@@ -430,4 +430,193 @@ describe("alt-mode planner", () => {
     expect(arrow.x).toBeCloseTo(-0.25);
     expect(arrow.y).toBeCloseTo(0.5);
   });
+
+  it("renders blue fluid-indication arrows at active openings with flow rotation", () => {
+    const { db } = fixture();
+    Object.assign(db.icons, {
+      "utility/fluid-indication-arrow": 5,
+      "utility/fluid-indication-arrow-both-ways": 6,
+    });
+    db.iconScales = {
+      ...db.iconScales,
+      "utility/fluid-indication-arrow": 0.5,
+      "utility/fluid-indication-arrow-both-ways": 0.5,
+    };
+    db.fluidRecipes = {
+      concrete: { ingredients: true, products: false },
+      "sulfuric-acid": { ingredients: true, products: true },
+    };
+
+    const am2: EntityRenderDef = {
+      ...db.entities["assembling-machine-1"]!,
+      kind: "assembler",
+      protoType: "assembling-machine",
+      data: {
+        fluidBoxesRequireFluidRecipe: true,
+        fluidConnections: {
+          "0": [
+            [0, -2],
+            [0, 2],
+          ],
+        },
+        fluidConnectionRoles: { "0": ["input", "output"] },
+        fluidConnectionFlows: { "0": ["input", "output"] },
+        fluidConnectionFacings: { "0": [0, 8] },
+        fluidConnectionHideInfo: { "0": [false, false] },
+      },
+    };
+
+    const none = planAltModeCommands(
+      {
+        entity_number: 1,
+        name: "assembling-machine-2",
+        position: { x: 0.5, y: 0.5 },
+      },
+      am2,
+      db,
+    ).filter((c) => c.frame === 5 || c.frame === 6);
+    expect(none).toHaveLength(0);
+
+    const concrete = planAltModeCommands(
+      {
+        entity_number: 1,
+        name: "assembling-machine-2",
+        position: { x: 0.5, y: 0.5 },
+        recipe: "concrete",
+      },
+      am2,
+      db,
+    ).filter((c) => c.frame === 5 || c.frame === 6);
+    expect(concrete).toHaveLength(1);
+    expect(concrete[0]!.frame).toBe(5);
+    // Connection at [0,-1], then 1.25×size outward (north).
+    expect(concrete[0]!.x).toBeCloseTo(0.5);
+    expect(concrete[0]!.y).toBeCloseTo(-1.125);
+    // Input facing north → arrow points into machine (180°)
+    expect(concrete[0]!.rotation).toBe(180);
+    expect(concrete[0]!.size).toBe(0.5);
+
+    const acid = planAltModeCommands(
+      {
+        entity_number: 1,
+        name: "assembling-machine-2",
+        position: { x: 0.5, y: 0.5 },
+        recipe: "sulfuric-acid",
+      },
+      am2,
+      db,
+    ).filter((c) => c.frame === 5 || c.frame === 6);
+    expect(acid).toHaveLength(2);
+    expect(acid.map((c) => c.rotation).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([180, 180]);
+    // Output facing south (8): 8*22.5 = 180°, points outward south
+    const output = acid.find((c) => c.y > 0.5)!;
+    expect(output.x).toBeCloseTo(0.5);
+    expect(output.y).toBeCloseTo(2.125);
+    expect(output.rotation).toBe(180);
+  });
+
+  it("skips hidden fluid openings and uses both-ways sprite for input-output", () => {
+    const { db } = fixture();
+    Object.assign(db.icons, {
+      "utility/fluid-indication-arrow": 5,
+      "utility/fluid-indication-arrow-both-ways": 6,
+    });
+    db.iconScales = {
+      ...db.iconScales,
+      "utility/fluid-indication-arrow": 0.5,
+      "utility/fluid-indication-arrow-both-ways": 0.5,
+    };
+
+    const pump: EntityRenderDef = {
+      ...db.entities["assembling-machine-1"]!,
+      kind: "simple",
+      protoType: "pump",
+      data: {
+        fluidConnections: {
+          "0": [
+            [0, -1.5],
+            [0, 1.5],
+          ],
+        },
+        fluidConnectionRoles: { "0": ["input", "input"] },
+        fluidConnectionFlows: { "0": ["output", "input"] },
+        fluidConnectionFacings: { "0": [0, 8] },
+        fluidConnectionHideInfo: { "0": [false, true] },
+      },
+    };
+    const pumpArrows = planAltModeCommands(
+      { entity_number: 1, name: "pump", position: { x: 0.5, y: 0.5 } },
+      pump,
+      db,
+    ).filter((c) => c.frame === 5 || c.frame === 6);
+    expect(pumpArrows).toHaveLength(1);
+    expect(pumpArrows[0]!.frame).toBe(5);
+    expect(pumpArrows[0]!.rotation).toBe(0);
+    expect(pumpArrows[0]!.y).toBeCloseTo(-0.625);
+
+    const boiler: EntityRenderDef = {
+      ...db.entities["assembling-machine-1"]!,
+      kind: "simple",
+      protoType: "boiler",
+      data: {
+        fluidConnections: {
+          "0": [
+            [-2, 0.5],
+            [2, 0.5],
+            [0, -1.5],
+          ],
+        },
+        fluidConnectionRoles: { "0": ["input", "input", "output"] },
+        fluidConnectionFlows: { "0": ["input-output", "input-output", "output"] },
+        fluidConnectionFacings: { "0": [12, 4, 0] },
+        fluidConnectionHideInfo: { "0": [false, false, false] },
+      },
+    };
+    const boilerArrows = planAltModeCommands(
+      { entity_number: 2, name: "boiler", position: { x: 0, y: 0 } },
+      boiler,
+      db,
+    ).filter((c) => c.frame === 5 || c.frame === 6);
+    expect(boilerArrows).toHaveLength(3);
+    const bothWays = boilerArrows.filter((c) => c.frame === 6);
+    expect(bothWays).toHaveLength(2);
+    expect(bothWays.map((c) => c.rotation).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([90, 270]);
+  });
+
+  it("does not draw fluid arrows on pipes or storage tanks", () => {
+    const { db } = fixture();
+    Object.assign(db.icons, {
+      "utility/fluid-indication-arrow": 5,
+      "utility/fluid-indication-arrow-both-ways": 6,
+    });
+    db.iconScales = {
+      ...db.iconScales,
+      "utility/fluid-indication-arrow": 0.5,
+      "utility/fluid-indication-arrow-both-ways": 0.5,
+    };
+    const fluidData = {
+      fluidConnections: { "0": [[0, -1]] as [number, number][] },
+      fluidConnectionFlows: { "0": ["input-output" as const] },
+      fluidConnectionFacings: { "0": [0] },
+      fluidConnectionHideInfo: { "0": [false] },
+    };
+    for (const [kind, protoType] of [
+      ["pipe", "pipe"],
+      ["simple", "pipe-to-ground"],
+      ["simple", "storage-tank"],
+    ] as const) {
+      const def: EntityRenderDef = {
+        ...db.entities["assembling-machine-1"]!,
+        kind,
+        protoType,
+        data: fluidData,
+      };
+      const arrows = planAltModeCommands(
+        { entity_number: 1, name: protoType, position: { x: 0, y: 0 } },
+        def,
+        db,
+      ).filter((c) => c.frame === 5 || c.frame === 6);
+      expect(arrows).toHaveLength(0);
+    }
+  });
 });

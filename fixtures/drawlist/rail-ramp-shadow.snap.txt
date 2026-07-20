@@ -2,10 +2,10 @@
 "schema": 1,
 "bounds": {"maxX":6.625,"maxY":8.2344,"minX":-2.5156,"minY":-11.5468},
 "commands": [
-{"entity":1,"frame":5070,"h":19.0313,"kind":"sprite","layer":23,"sortX":0,"sortY":0,"sub":1,"w":16.1875,"x":-8.0937,"y":-10.9062},
-{"entity":1,"frame":5072,"h":18.5313,"kind":"sprite","layer":36,"sortX":0,"sortY":7.8,"sub":5,"w":16,"x":-8,"y":-11.5468},
-{"entity":1,"frame":5076,"h":16.3438,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":0,"w":21.4688,"x":-8.0313,"y":-8.0156},
-{"entity":1,"frame":6535,"h":1.6563,"kind":"sprite","layer":39,"sortX":0,"sortY":7.8,"sub":2,"w":5.0313,"x":-2.5156,"y":-2.2187},
-{"entity":1,"frame":5071,"h":18.5313,"kind":"sprite","layer":39,"sortX":0,"sortY":7.8,"sub":4,"w":16,"x":-8,"y":-11.5468}
+{"entity":1,"frame":5107,"h":19.0313,"kind":"sprite","layer":23,"sortX":0,"sortY":0,"sub":1,"w":16.1875,"x":-8.0937,"y":-10.9062},
+{"entity":1,"frame":5109,"h":18.5313,"kind":"sprite","layer":36,"sortX":0,"sortY":7.8,"sub":5,"w":16,"x":-8,"y":-11.5468},
+{"entity":1,"frame":5113,"h":16.3438,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":0,"w":21.4688,"x":-8.0313,"y":-8.0156},
+{"entity":1,"frame":6572,"h":1.6563,"kind":"sprite","layer":39,"sortX":0,"sortY":7.8,"sub":2,"w":5.0313,"x":-2.5156,"y":-2.2187},
+{"entity":1,"frame":5108,"h":18.5313,"kind":"sprite","layer":39,"sortX":0,"sortY":7.8,"sub":4,"w":16,"x":-8,"y":-11.5468}
 ]
 }

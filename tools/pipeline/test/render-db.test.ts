@@ -245,6 +245,8 @@ describe("render-db contract", () => {
       "utility/missing-icon",
       "utility/filter-blacklist",
       "utility/indication-arrow",
+      "utility/fluid-indication-arrow",
+      "utility/fluid-indication-arrow-both-ways",
       "utility/blueprint-snap-full",
       "utility/blueprint-snap-corner-sm",
       "utility/blueprint-snap-corner-lg",
@@ -265,6 +267,20 @@ describe("render-db contract", () => {
       "input",
       "output",
     ]);
+    expect(db.entities["assembling-machine-2"]?.data?.fluidConnectionFlows?.["0"]).toEqual([
+      "input",
+      "output",
+    ]);
+    expect(db.entities["assembling-machine-2"]?.data?.fluidConnectionFacings?.["0"]).toEqual([
+      0, 8,
+    ]);
+    expect(db.entities["assembling-machine-2"]?.data?.fluidConnectionHideInfo?.["0"]).toEqual([
+      false,
+      false,
+    ]);
+    expect(db.entities["pump"]?.data?.fluidConnectionFlows?.["0"]).toEqual(["output", "input"]);
+    expect(db.entities["pump"]?.data?.fluidConnectionHideInfo?.["0"]).toEqual([false, true]);
+    expect(db.entities["boiler"]?.data?.fluidConnectionFlows?.["0"]?.[0]).toBe("input-output");
     expect(db.entities["chemical-plant"]?.data?.fluidBoxesRequireFluidRecipe).toBeUndefined();
     expect(db.fluidRecipes?.concrete).toEqual({ ingredients: true, products: false });
     expect(db.fluidRecipes?.["iron-gear-wheel"]).toBeUndefined();
@@ -277,6 +293,8 @@ describe("render-db contract", () => {
       )?.symbols?.["*"],
     ).toHaveLength(4);
     expect(db.iconScales?.["utility/indication-arrow"]).toBe(0.5);
+    expect(db.iconScales?.["utility/fluid-indication-arrow"]).toBe(0.5);
+    expect(db.iconScales?.["utility/fluid-indication-arrow-both-ways"]).toBe(0.5);
     expect(db.iconScales?.["utility/filter-blacklist"]).toBe(0.3);
     expect(db.icons["item/water-barrel"]).not.toBe(db.icons["item/empty-barrel"]);
     expect(db.icons["item/water-barrel"]).not.toBe(db.icons["item/sulfuric-acid-barrel"]);

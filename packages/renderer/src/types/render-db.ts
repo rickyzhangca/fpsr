@@ -370,6 +370,9 @@ export interface CargoBayConnections {
 /** Stable, additive payload shared by the offline pipeline and runtime planner. */
 export type FluidConnectionRole = "input" | "output";
 
+/** Pipe-connection `flow_direction` for alt-mode fluid indication arrows. */
+export type FluidConnectionFlow = "input" | "output" | "input-output";
+
 /** Recipe uses fluid ingredients and/or products (for assembler fluid-box gating). */
 export interface FluidRecipeFlags {
   ingredients: boolean;
@@ -384,6 +387,21 @@ export interface EntityRenderData {
    * (`input` / `output`) used when `fluidBoxesRequireFluidRecipe` is set.
    */
   fluidConnectionRoles?: Record<string, FluidConnectionRole[]>;
+  /**
+   * Parallel to `fluidConnections[dir]`: pipe-connection `flow_direction`
+   * for alt-mode blue indication arrows.
+   */
+  fluidConnectionFlows?: Record<string, FluidConnectionFlow[]>;
+  /**
+   * Parallel to `fluidConnections[dir]`: absolute cardinal facing
+   * (`0|4|8|12`) of each opening when the entity faces that direction key.
+   */
+  fluidConnectionFacings?: Record<string, number[]>;
+  /**
+   * Parallel to `fluidConnections[dir]`: `hide_connection_info` — skip alt-mode
+   * arrows for that opening when true.
+   */
+  fluidConnectionHideInfo?: Record<string, boolean[]>;
   heatConnections?: DirectionalConnectionMap;
   heatConnectionPatchGroupIndices?: number[];
   fluidBoxesRequireFluidRecipe?: boolean;

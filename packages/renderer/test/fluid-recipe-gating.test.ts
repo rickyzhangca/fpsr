@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
 import { planDrawList } from "../src/plan/index.js";
 import { resolve } from "../src/resolve.js";
-import { activeFluidOffsets } from "../src/resolve/fluid-ports.js";
+import { activeFluidOffsets, activeFluidPorts } from "../src/resolve/fluid-ports.js";
 import type { Blueprint, BlueprintEntity } from "../src/types/blueprint.js";
 import type { RenderDb } from "../src/types/render-db.js";
 
@@ -14,7 +14,7 @@ const db = JSON.parse(
 ) as RenderDb;
 
 function bp(entities: BlueprintEntity[]): Blueprint {
-  return { entities };
+  return { item: "blueprint", version: 2 * 2 ** 48, entities };
 }
 
 function coverFrames(entityNumber: number, list: ReturnType<typeof planDrawList>): number[] {
@@ -32,7 +32,40 @@ describe("assembler fluid-box recipe gating", () => {
     const am2 = db.entities["assembling-machine-2"]!;
     expect(am2.data?.fluidBoxesRequireFluidRecipe).toBe(true);
     expect(am2.data?.fluidConnectionRoles?.["0"]).toEqual(["input", "output"]);
+    expect(am2.data?.fluidConnectionFlows?.["0"]).toEqual(["input", "output"]);
+    expect(am2.data?.fluidConnectionFacings?.["0"]).toEqual([0, 8]);
     expect(db.entities["chemical-plant"]?.data?.fluidBoxesRequireFluidRecipe).toBeUndefined();
+  });
+
+  it("activeFluidPorts: recipe gate + hide_connection_info", () => {
+    const am2 = db.entities["assembling-machine-2"]!;
+    const base: BlueprintEntity = {
+      entity_number: 1,
+      name: "assembling-machine-2",
+      position: { x: 0.5, y: 0.5 },
+      direction: 0,
+    };
+    expect(activeFluidPorts(base, am2, db)).toEqual([]);
+    expect(activeFluidPorts({ ...base, recipe: "concrete" }, am2, db)).toEqual([
+      { offset: [0, -2], flow: "input", facing: 0 },
+    ]);
+
+    const pump = db.entities["pump"]!;
+    const pumpPorts = activeFluidPorts(
+      { entity_number: 1, name: "pump", position: { x: 0.5, y: 0.5 } },
+      pump,
+      db,
+    );
+    expect(pumpPorts).toHaveLength(1);
+    expect(pumpPorts[0]?.flow).toBe("output");
+    // Covers still see both openings (hide only affects indication arrows).
+    expect(
+      activeFluidOffsets(
+        { entity_number: 1, name: "pump", position: { x: 0.5, y: 0.5 } },
+        pump,
+        db,
+      ),
+    ).toHaveLength(2);
   });
 
   it("activeFluidOffsets: no recipe / non-fluid recipe → none; concrete → input only", () => {

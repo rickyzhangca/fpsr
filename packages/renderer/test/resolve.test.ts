@@ -761,11 +761,10 @@ describe("resolve (fixture render-db)", () => {
       (g) =>
         g.layer === "object" && g.variants.default?.[0] != null && g.variants.default?.[1] != null,
     );
+    // East/west-only structure patch (north/south slots are null).
     const patchIdx = graphics.findIndex(
       (g) =>
-        g.layer === "object-under" &&
-        g.variants.default?.[0] == null &&
-        g.variants.default?.[1] != null,
+        g.layer === "object" && g.variants.default?.[0] == null && g.variants.default?.[1] != null,
     );
 
     const northSel = out[0]?.selections.find((s) => s.group === structureIdx);

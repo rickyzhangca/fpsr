@@ -34,15 +34,15 @@ describe("fluid recipe / connection roles distill", () => {
   });
 
   it("computeFluidConnections tags input/output roles from production_type", () => {
-    const { connections, roles } = computeFluidConnections({
+    const { connections, roles, flows, facings, hideInfo } = computeFluidConnections({
       fluid_boxes: [
         {
           production_type: "input",
-          pipe_connections: [{ position: [0, -1], direction: 0 }],
+          pipe_connections: [{ position: [0, -1], direction: 0, flow_direction: "input" }],
         },
         {
           production_type: "output",
-          pipe_connections: [{ position: [0, 1], direction: 8 }],
+          pipe_connections: [{ position: [0, 1], direction: 8, flow_direction: "output" }],
         },
       ],
     });
@@ -51,5 +51,50 @@ describe("fluid recipe / connection roles distill", () => {
       [0, 2],
     ]);
     expect(roles["0"]).toEqual(["input", "output"]);
+    expect(flows["0"]).toEqual(["input", "output"]);
+    expect(facings["0"]).toEqual([0, 8]);
+    expect(hideInfo["0"]).toEqual([false, false]);
+  });
+
+  it("computeFluidConnections records flow_direction, facing, and hide_connection_info", () => {
+    const { connections, roles, flows, facings, hideInfo } = computeFluidConnections({
+      fluid_box: {
+        production_type: "input",
+        pipe_connections: [
+          {
+            position: [0, -0.5],
+            direction: 0,
+            flow_direction: "output",
+          },
+          {
+            position: [0, 0.5],
+            direction: 8,
+            flow_direction: "input",
+            hide_connection_info: true,
+          },
+        ],
+      },
+    });
+    expect(connections["0"]).toEqual([
+      [0, -1.5],
+      [0, 1.5],
+    ]);
+    // Box production_type is input for both; flow differs per connection.
+    expect(roles["0"]).toEqual(["input", "input"]);
+    expect(flows["0"]).toEqual(["output", "input"]);
+    expect(facings["0"]).toEqual([0, 8]);
+    expect(hideInfo["0"]).toEqual([false, true]);
+  });
+
+  it("computeFluidConnections defaults omitted flow_direction to input-output", () => {
+    const { flows } = computeFluidConnections({
+      fluid_box: {
+        pipe_connections: [
+          { position: [-1, 0.5], direction: 12 },
+          { position: [1, 0.5], direction: 4, flow_direction: "input-output" },
+        ],
+      },
+    });
+    expect(flows["0"]).toEqual(["input-output", "input-output"]);
   });
 });

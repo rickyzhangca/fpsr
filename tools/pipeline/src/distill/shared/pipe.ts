@@ -72,18 +72,29 @@ export interface RawPipeConnection {
   position?: [number, number];
   direction?: number;
   connection_type?: string;
+  flow_direction?: string;
+  hide_connection_info?: boolean;
 }
 
 export type FluidConnectionRole = "input" | "output";
+export type FluidConnectionFlow = "input" | "output" | "input-output";
 
 interface RawFluidConn extends RawPipeConnection {
   role: FluidConnectionRole;
+  flow: FluidConnectionFlow;
+  hideInfo: boolean;
 }
 
 export interface FluidConnectionsResult {
   connections: Record<string, [number, number][]>;
   /** Parallel to `connections[dir]` — fluid-box production_type per offset. */
   roles: Record<string, FluidConnectionRole[]>;
+  /** Parallel — pipe-connection `flow_direction` for alt-mode arrows. */
+  flows: Record<string, FluidConnectionFlow[]>;
+  /** Parallel — absolute cardinal facing (`0|4|8|12`) per offset. */
+  facings: Record<string, number[]>;
+  /** Parallel — `hide_connection_info` (skip alt-mode arrows when true). */
+  hideInfo: Record<string, boolean[]>;
 }
 
 function collectFluidBoxes(p: Record<string, unknown>): Record<string, unknown>[] {
@@ -108,11 +119,18 @@ function boxProductionRole(box: Record<string, unknown>): FluidConnectionRole {
   return box.production_type === "output" ? "output" : "input";
 }
 
+function connectionFlow(c: RawPipeConnection): FluidConnectionFlow {
+  // Factorio default is "input-output" when omitted (pipeline entities omit it).
+  if (c.flow_direction === "input" || c.flow_direction === "output") return c.flow_direction;
+  return "input-output";
+}
+
 /**
  * Compute fluidConnections: entityDir → list of pipe-tile offsets (relative to
  * entity center) where a connecting pipe sits. Derived from prototype
  * pipe_connections by rotating position+direction. Also returns parallel
- * production_type roles for recipe-gated assemblers.
+ * production_type roles for recipe-gated assemblers, plus flow/facing/hide
+ * metadata for alt-mode fluid indication arrows.
  */
 export function computeFluidConnections(p: Record<string, unknown>): FluidConnectionsResult {
   const boxes = collectFluidBoxes(p);
@@ -126,17 +144,30 @@ export function computeFluidConnections(p: Record<string, unknown>): FluidConnec
       // Skip underground-only links (pipe-to-ground far side).
       if (c.connection_type === "underground") continue;
       if (!c.position || c.direction == null) continue;
-      rawConns.push({ ...c, role });
+      rawConns.push({
+        ...c,
+        role,
+        flow: connectionFlow(c),
+        hideInfo: c.hide_connection_info === true,
+      });
     }
   }
-  if (rawConns.length === 0) return { connections: {}, roles: {} };
+  if (rawConns.length === 0) {
+    return { connections: {}, roles: {}, flows: {}, facings: {}, hideInfo: {} };
+  }
 
   const connections: Record<string, [number, number][]> = {};
   const roles: Record<string, FluidConnectionRole[]> = {};
+  const flows: Record<string, FluidConnectionFlow[]> = {};
+  const facings: Record<string, number[]> = {};
+  const hideInfo: Record<string, boolean[]> = {};
   for (const ed of CARDINAL_DIRS) {
     const seen = new Set<string>();
     const list: [number, number][] = [];
     const roleList: FluidConnectionRole[] = [];
+    const flowList: FluidConnectionFlow[] = [];
+    const facingList: number[] = [];
+    const hideList: boolean[] = [];
     for (const c of rawConns) {
       const [px, py] = c.position as [number, number];
       const [rx, ry] = rotateOffset(px, py, ed);
@@ -153,11 +184,17 @@ export function computeFluidConnections(p: Record<string, unknown>): FluidConnec
       seen.add(key);
       list.push([ox, oy]);
       roleList.push(c.role);
+      flowList.push(c.flow);
+      facingList.push(card);
+      hideList.push(c.hideInfo);
     }
     connections[String(ed)] = list;
     roles[String(ed)] = roleList;
+    flows[String(ed)] = flowList;
+    facings[String(ed)] = facingList;
+    hideInfo[String(ed)] = hideList;
   }
-  return { connections, roles };
+  return { connections, roles, flows, facings, hideInfo };
 }
 
 /** Heat connection pipe-tile offsets from heat_buffer / energy_source.connections. */
@@ -202,12 +239,21 @@ export function withFluidData(
   p: Record<string, unknown>,
   extra?: EntityRenderData,
 ): EntityRenderDef {
-  const { connections: fluidConnections, roles: fluidConnectionRoles } = computeFluidConnections(p);
+  const {
+    connections: fluidConnections,
+    roles: fluidConnectionRoles,
+    flows: fluidConnectionFlows,
+    facings: fluidConnectionFacings,
+    hideInfo: fluidConnectionHideInfo,
+  } = computeFluidConnections(p);
   const heatConnections = computeHeatConnections(p);
   const data: EntityRenderData = { ...def.data, ...extra };
   if (Object.keys(fluidConnections).length > 0) {
     data.fluidConnections = fluidConnections;
     data.fluidConnectionRoles = fluidConnectionRoles;
+    data.fluidConnectionFlows = fluidConnectionFlows;
+    data.fluidConnectionFacings = fluidConnectionFacings;
+    data.fluidConnectionHideInfo = fluidConnectionHideInfo;
   }
   if (Object.keys(heatConnections).length > 0) data.heatConnections = heatConnections;
   if (p.fluid_boxes_off_when_no_fluid_recipe === true) {

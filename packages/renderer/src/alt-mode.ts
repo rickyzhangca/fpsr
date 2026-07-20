@@ -8,7 +8,8 @@ import {
   splitterLaneFilter,
   type ResolvedAltSignal,
 } from "./alt-mode-signals.js";
-import { cardinalDirection } from "./resolve.js";
+import { activeFluidPorts } from "./resolve/fluid-ports.js";
+import { cardinalDirection, DIR_DELTA } from "./resolve/shared.js";
 import type { BlueprintEntity } from "./types/blueprint.js";
 import { RENDER_LAYERS, type IconCmd } from "./types/draw-list.js";
 import type { EntityRenderDef, RenderDb } from "./types/render-db.js";
@@ -229,6 +230,66 @@ function combinatorFlowCommands(
   }));
 }
 
+function skipsFluidIndication(def: EntityRenderDef): boolean {
+  return (
+    def.kind === "pipe" || def.protoType === "pipe-to-ground" || def.protoType === "storage-tank"
+  );
+}
+
+/**
+ * Blue fluid-indication arrows at each active machine fluid opening (Factorio
+ * `utility/fluid-indication-arrow`). Anchored at `pipe_connections.position`,
+ * then nudged outward along the opening facing so the marker sits clear of the
+ * machine body (similar prominence to yellow indication arrows).
+ */
+function fluidPortIndicationCommands(
+  entity: BlueprintEntity,
+  def: EntityRenderDef,
+  db: RenderDb,
+  startSub: number,
+): IconCmd[] {
+  if (skipsFluidIndication(def) || !def.data?.fluidConnections) return [];
+  const oneWayFrame = db.icons["utility/fluid-indication-arrow"];
+  const bothWaysFrame = db.icons["utility/fluid-indication-arrow-both-ways"];
+  const oneWayScale = db.iconScales?.["utility/fluid-indication-arrow"];
+  const bothWaysScale = db.iconScales?.["utility/fluid-indication-arrow-both-ways"];
+  if (oneWayFrame === undefined || oneWayScale === undefined) return [];
+
+  const ports = activeFluidPorts(entity, def, db);
+  const commands: IconCmd[] = [];
+  for (let i = 0; i < ports.length; i++) {
+    const port = ports[i]!;
+    const bothWays = port.flow === "input-output";
+    const frame = bothWays ? (bothWaysFrame ?? oneWayFrame) : oneWayFrame;
+    // Same IconCmd.size as yellow splitter arrows (`utility/indication-arrow`
+    // scale 0.5). Fluid sprites are 48×48 vs yellow's 64×64, so the visible
+    // triangle ends up slightly larger in the same tile box — close to Factorio.
+    const size = bothWays ? (bothWaysScale ?? oneWayScale) : oneWayScale;
+    const [dx, dy] = DIR_DELTA[port.facing];
+    // Connection point, then push outward 1.25× arrow size so markers sit
+    // just clear of the machine face.
+    const outward = size * 1.25;
+    const x = entity.position.x + port.offset[0] - dx + dx * outward;
+    const y = entity.position.y + port.offset[1] - dy + dy * outward;
+    // Sprite faces north; output/both-ways point outward, input points inward.
+    const rotation = port.facing * 22.5 + (port.flow === "input" ? 180 : 0);
+    commands.push({
+      kind: "icon",
+      layer: RENDER_LAYERS["entity-info-icon-above"],
+      sortY: 0,
+      sortX: 0,
+      entity: entity.entity_number,
+      sub: startSub + i,
+      frame,
+      x,
+      y,
+      size,
+      rotation,
+    });
+  }
+  return commands;
+}
+
 /** A filter-enabled inserter with no selected filter shows Factorio's prohibition marker. */
 function emptyInserterFilterCommand(
   entity: BlueprintEntity,
@@ -342,6 +403,7 @@ export function planAltModeCommands(
 
   commands.push(...splitterPriorityCommands(entity, def, db, 100));
   commands.push(...combinatorFlowCommands(entity, def, db));
+  commands.push(...fluidPortIndicationCommands(entity, def, db, 120));
   const emptyFilter = emptyInserterFilterCommand(entity, def, db);
   if (emptyFilter) commands.push(emptyFilter);
   return commands;

@@ -486,6 +486,8 @@ export async function distillAndPack(options: DistillAndPackOptions = {}): Promi
     ["utility/missing-icon", "missing_icon"],
     ["utility/filter-blacklist", "filter_blacklist"],
     ["utility/indication-arrow", "indication_arrow"],
+    ["utility/fluid-indication-arrow", "fluid_indication_arrow"],
+    ["utility/fluid-indication-arrow-both-ways", "fluid_indication_arrow_both_ways"],
   ] as const) {
     const sprite = utility?.[field];
     if (!sprite) continue;

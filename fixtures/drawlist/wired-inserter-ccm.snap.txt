@@ -2,16 +2,16 @@
 "schema": 1,
 "bounds": {"maxX":5.8282,"maxY":1.1484,"minX":-0.1797,"minY":-2.375},
 "commands": [
-{"entity":1,"frame":4395,"h":1.2344,"kind":"sprite","layer":26,"sortX":0,"sortY":0,"sub":0,"w":1.6406,"x":-0.2734,"y":0.0859},
-{"entity":1,"frame":6482,"h":0.5625,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":100,"w":0.875,"x":0.2656,"y":0.4376},
-{"entity":1,"frame":6502,"h":0.7188,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":102,"w":1,"x":0.375,"y":0.3125},
-{"entity":2,"frame":5272,"h":0.8125,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":1,"w":4,"x":2.0938,"y":0.1876},
-{"entity":2,"frame":5275,"h":3.4375,"kind":"sprite","layer":39,"sortX":2.5,"sortY":0.65,"sub":0,"w":1.125,"x":1.9844,"y":-2.5468},
-{"entity":1,"frame":4394,"h":0.5592,"kind":"sprite","layer":41,"rotation":45,"sortX":0.5,"sortY":0.65,"sub":1,"w":0.25,"x":0.5427,"y":0.0527},
-{"entity":1,"frame":4393,"h":0.5125,"kind":"sprite","layer":41,"rotation":135,"sortX":0.5,"sortY":0.65,"sub":2,"w":0.5625,"x":0.725,"y":0.0999},
-{"entity":1,"frame":6479,"h":0.625,"kind":"sprite","layer":42,"sortX":0.5,"sortY":0.65,"sub":101,"w":0.8125,"x":0.1251,"y":0.2656},
-{"entity":1,"frame":6507,"h":0.7188,"kind":"sprite","layer":42,"sortX":0.5,"sortY":0.65,"sub":103,"w":0.9688,"x":0.1094,"y":0.1094},
-{"entity":1,"frame":6531,"h":0.4063,"kind":"sprite","layer":42,"sortX":0.5,"sortY":0.65,"sub":104,"w":0.7188,"x":0.125,"y":0.4219},
+{"entity":1,"frame":4432,"h":1.2344,"kind":"sprite","layer":26,"sortX":0,"sortY":0,"sub":0,"w":1.6406,"x":-0.2734,"y":0.0859},
+{"entity":1,"frame":6519,"h":0.5625,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":100,"w":0.875,"x":0.2656,"y":0.4376},
+{"entity":1,"frame":6539,"h":0.7188,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":102,"w":1,"x":0.375,"y":0.3125},
+{"entity":2,"frame":5309,"h":0.8125,"kind":"sprite","layer":37,"shadow":true,"sortX":0,"sortY":0,"sub":1,"w":4,"x":2.0938,"y":0.1876},
+{"entity":2,"frame":5311,"h":3.4375,"kind":"sprite","layer":39,"sortX":2.5,"sortY":0.65,"sub":0,"w":1.125,"x":1.9844,"y":-2.5468},
+{"entity":1,"frame":4431,"h":0.5592,"kind":"sprite","layer":41,"rotation":45,"sortX":0.5,"sortY":0.65,"sub":1,"w":0.25,"x":0.5427,"y":0.0527},
+{"entity":1,"frame":4430,"h":0.5125,"kind":"sprite","layer":41,"rotation":135,"sortX":0.5,"sortY":0.65,"sub":2,"w":0.5625,"x":0.725,"y":0.0999},
+{"entity":1,"frame":6516,"h":0.625,"kind":"sprite","layer":42,"sortX":0.5,"sortY":0.65,"sub":101,"w":0.8125,"x":0.1251,"y":0.2656},
+{"entity":1,"frame":6545,"h":0.7188,"kind":"sprite","layer":42,"sortX":0.5,"sortY":0.65,"sub":103,"w":0.9688,"x":0.1094,"y":0.1094},
+{"entity":1,"frame":6568,"h":0.4063,"kind":"sprite","layer":42,"sortX":0.5,"sortY":0.65,"sub":104,"w":0.7188,"x":0.125,"y":0.4219},
 {"entity":1,"kind":"wire","layer":46,"sortX":0,"sortY":0,"sub":0,"wire":"red","x1":0.3281,"x2":2.625,"y1":0.1719,"y2":-1.7187}
 ]
 }
