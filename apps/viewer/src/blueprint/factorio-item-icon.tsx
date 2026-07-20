@@ -1,5 +1,10 @@
 import { cn } from "@/lib/utils";
-import { viewerAssets as assets } from "@/shell/viewer-assets";
+import type { AssetOrigin } from "@/shell/asset-config";
+import {
+  viewerAssets as assets,
+  getViewerAssetOrigin,
+  subscribeViewerAssetOrigin,
+} from "@/shell/viewer-assets";
 import { resolveIconFrameId, type FrameMeta, type RenderDb } from "@rickyzhangca/fpsr";
 import { bakeEntityInfoSilhouette, entityInfoSilhouettePadPx } from "@rickyzhangca/fpsr/canvas";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -72,6 +77,14 @@ const resolveSilhouette = (config: SilhouetteConfig | true): ResolvedSilhouette 
 const silhouetteCacheKey = (iconKey: string, config: ResolvedSilhouette): string => {
   return `${iconKey}\0silhouette\0${config.dilateRadius}\0${config.blurRadius}\0${config.intensity}`;
 };
+const iconCacheKey = (
+  origin: AssetOrigin,
+  iconKey: string,
+  resolved: ResolvedSilhouette | null,
+): string => {
+  const base = resolved ? silhouetteCacheKey(iconKey, resolved) : iconKey;
+  return `${origin}\0${base}`;
+};
 const compositeWithSilhouette = (
   iconCanvas: HTMLCanvasElement,
   config: ResolvedSilhouette,
@@ -98,15 +111,17 @@ const compositeWithSilhouette = (
   ctx.drawImage(iconCanvas, pad, pad);
   return out.toDataURL("image/png") || null;
 };
-const loadIcon = async (
+/** @internal Exported for unit tests. */
+export const loadIcon = async (
   iconKey: string,
   silhouette: SilhouetteConfig | true | undefined,
 ): Promise<LoadedIcon | null> => {
   const resolved = silhouette ? resolveSilhouette(silhouette) : null;
-  const cacheKey = resolved ? silhouetteCacheKey(iconKey, resolved) : iconKey;
+  const origin = getViewerAssetOrigin();
+  const cacheKey = iconCacheKey(origin, iconKey, resolved);
   const cached = urlCache.get(cacheKey);
   if (cached) return cached;
-  const promise = (async () => {
+  const promise = (async (): Promise<LoadedIcon | null> => {
     try {
       const db: RenderDb = await assets.loadRenderDb();
       const frameId = resolveIconFrameId(db, iconKey);
@@ -136,6 +151,12 @@ const loadIcon = async (
     }
   })();
   urlCache.set(cacheKey, promise);
+  // Failed loads must not poison the cache — CDN race / transient 404s need retries.
+  void promise.then((result) => {
+    if (!result && urlCache.get(cacheKey) === promise) {
+      urlCache.delete(cacheKey);
+    }
+  });
   return promise;
 };
 const loadFirstIcon = async (
@@ -199,8 +220,10 @@ export const FactorioItemIcon = ({
 }) => {
   const [loaded, setLoaded] = useState<LoadedIcon | null>(null);
   const [qualityBadge, setQualityBadge] = useState<LoadedIcon | null>(null);
+  const [assetOrigin, setAssetOrigin] = useState(getViewerAssetOrigin);
   const silhouetteKey = silhouette ? JSON.stringify(resolveSilhouette(silhouette)) : "";
   const showQuality = Boolean(quality && quality !== "normal");
+  useEffect(() => subscribeViewerAssetOrigin(setAssetOrigin), []);
   useEffect(() => {
     const keys = Array.isArray(iconKey) ? iconKey : [iconKey];
     let cancelled = false;
@@ -210,7 +233,7 @@ export const FactorioItemIcon = ({
     return () => {
       cancelled = true;
     };
-  }, [iconKey, silhouetteKey, silhouette]);
+  }, [iconKey, silhouetteKey, silhouette, assetOrigin]);
   useEffect(() => {
     if (!showQuality || !quality) {
       setQualityBadge(null);
@@ -223,7 +246,7 @@ export const FactorioItemIcon = ({
     return () => {
       cancelled = true;
     };
-  }, [quality, showQuality]);
+  }, [quality, showQuality, assetOrigin]);
   const pad = silhouette ? (loaded?.pad ?? 0) : 0;
   const displaySize = iconSize ?? (Math.max(loaded?.frameW ?? 0, loaded?.frameH ?? 0) || 16);
   // `block` (not inline-block): absolute blueprint slots use normal flow; inline-block
