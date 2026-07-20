@@ -10,6 +10,17 @@ export default defineConfig({
   deployment: {
     site: "https://fpsr-docs.fprints.xyz",
   },
+  content: {
+    sources: [
+      { type: "filesystem", root: "docs" },
+      {
+        type: "github-releases",
+        prefix: "changelog",
+        owner: "rickyzhangca",
+        repo: "fpsr",
+      },
+    ],
+  },
   navigation: {
     tabs: [
       { label: "Guide", path: "/guide", icon: "book-open" },
@@ -17,6 +28,11 @@ export default defineConfig({
       { label: "Project", path: "/project", icon: "layers" },
     ],
     featured: [
+      {
+        label: "Changelog",
+        href: "/changelog",
+        icon: "scroll-text",
+      },
       {
         label: "Open demo",
         href: "https://fpsr.fprints.xyz",
