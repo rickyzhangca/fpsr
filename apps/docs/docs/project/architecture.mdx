@@ -59,7 +59,7 @@ Stable sort by `(layer, sortY, sortX, entityNumber, sub)`:
 
 Shadows are ordinary commands on the fpsr `shadow` layer with `drawAsShadow: true`. The Canvas2D backend flattens overlapping shadows in reusable scratch tiles, then composites at 50% opacity.
 
-`PlanOptions.altMode` emits only blueprint-derived entity info (recipes, filters/requests, display-panel icons, splitter priorities, quality badges) — not live inventories or fluids. Background is a renderer concern, not a plan option.
+`PlanOptions.altMode` emits only blueprint-derived entity info (recipes, filters, display-panel icons, splitter priorities, quality badges) — not live inventories, fluids, or logistic `request_filters`. Insert plans (`items`) are always drawn as request pins, independent of alt mode. Background is a renderer concern, not a plan option.
 
 ## AssetSource
 

@@ -146,7 +146,9 @@ export function entitySignals(entity: BlueprintEntity, def: EntityRenderDef): Al
   ]) {
     signals.push(...filterSignals(inventory?.filters));
   }
-  signals.push(...collectSignals(entity.request_filters));
+  // Logistic `request_filters` are not Factorio entity-info overlays (alt mode
+  // shows live chest contents, not request config). Insert plans use `items` →
+  // request pins instead.
   // Combinator / display-panel control_behavior drives built-in graphics (or
   // conditional messages); Factorio does not dump those as entity-info icons.
   // Display panels only expose a static single entity.icon in alt mode.

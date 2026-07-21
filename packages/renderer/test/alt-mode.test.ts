@@ -84,7 +84,7 @@ describe("alt-mode planner", () => {
     expect(altSignalFrame(db, { type: "entity", name: "not-an-item" })).toBeUndefined();
   });
 
-  it("collects requests and inventories without exposing combinator internals", () => {
+  it("collects inventories without exposing request_filters or combinator internals", () => {
     const { db, def } = fixture();
     const entity: BlueprintEntity = {
       entity_number: 9,
@@ -102,9 +102,10 @@ describe("alt-mode planner", () => {
     const pins = planRequestPinCommands(entity, def, db);
     const commands = planAltModeCommands(entity, def, db, { insertCommands: pins });
     const primary = commands.filter((c) => c.sub < 20);
-    expect(primary).toHaveLength(2);
-    expect(primary.every((c) => c.size === 0.4)).toBe(true);
-    expect(primary.every((c) => c.layer === RENDER_LAYERS["entity-info-icon-above"])).toBe(true);
+    // Inventory filters only — logistic request_filters are not entity-info icons.
+    expect(primary).toHaveLength(1);
+    expect(primary[0]!.size).toBe(0.8);
+    expect(primary[0]!.layer).toBe(RENDER_LAYERS["entity-info-icon-above"]);
     expect(pins).toHaveLength(1);
     expect(pins[0]!.size).toBe(36 / 64);
     expect(commands.some((c) => c.sub === 60 && c.size === (36 / 64) * 0.5)).toBe(true);
