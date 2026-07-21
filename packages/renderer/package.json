@@ -1,6 +1,6 @@
 {
   "name": "@rickyzhangca/fpsr",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Headless Factorio 2.1.11 blueprint string renderer for browser and Node.js",
   "keywords": [
     "blueprint",

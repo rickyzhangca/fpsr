@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.3
+
+- Alt mode: stop drawing logistic `request_filters` as entity-info icons (matches Factorio; fixes shadowed icons spilling onto nearby inserters)
+
 ## 0.0.2
 
 - Fluid connections: recipe-gated working visualisation (fixes foundry clipped pipes), blue fluid-port arrows in alt mode
