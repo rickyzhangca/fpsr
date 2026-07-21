@@ -29,6 +29,19 @@ import {
   TEST_SOURCES,
   tryDecode,
 } from "@/shell/built-in-sources";
+import { ensureEmbedMessageCapture, subscribeEmbedMessages } from "@/shell/embed-bridge";
+import { readEmbedParam } from "@/shell/embed-mode";
+import {
+  createErrorMessage,
+  createLoadedMessage,
+  createReadyMessage,
+  docKindFromDocument,
+  EMBED_SOURCE_ID,
+  type EmbedOutboundMessage,
+  parseEmbedMessage,
+  postToEmbedParent,
+  replyToEmbedSource,
+} from "@/shell/embed-protocol";
 import { readLastView, writeLastView } from "@/shell/last-view";
 import { PaneMessage } from "@/shell/pane-message";
 import { fetchBlueprintViaProxy, readSourceParam, stripSourceParam } from "@/shell/source-proxy";
@@ -44,8 +57,10 @@ import { UpgradePlannerSummary } from "@/sidebar/upgrade-planner-summary";
 import { BlueprintDecodeError, type DecodeStats, decodeWithStats } from "@rickyzhangca/fpsr";
 import { useAtom } from "jotai";
 import { InfoIcon } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
+ensureEmbedMessageCapture();
 
 const PerformancePane = lazy(() =>
   import("@/performance/performance-pane").then(({ PerformancePane }) => ({
@@ -77,13 +92,21 @@ const LazyPaneFallback = () => {
 };
 
 export const App = () => {
+  const [embed] = useState(() => readEmbedParam());
   const selectionRevisionRef = useRef(0);
-  const [initial] = useState(initialSelection);
-  const [selectedSourceId, setSelectedSourceId] = useState(initial.sourceId);
-  const [selectedPath, setSelectedPath] = useState<number[] | null>(initial.path);
-  const [selectedKind, setSelectedKind] = useState<SidebarSelectableKind>(initial.kind);
-  const [selectionReady, setSelectionReady] = useState(false);
+  const [initial] = useState(() => (embed ? null : initialSelection()));
+  const [selectedSourceId, setSelectedSourceId] = useState(() =>
+    embed ? EMBED_SOURCE_ID : (initial?.sourceId ?? DEFAULT_SAMPLE.id),
+  );
+  const [selectedPath, setSelectedPath] = useState<number[] | null>(() =>
+    embed ? null : (initial?.path ?? null),
+  );
+  const [selectedKind, setSelectedKind] = useState<SidebarSelectableKind>(() =>
+    embed ? "blueprint" : (initial?.kind ?? "blueprint"),
+  );
+  const [selectionReady, setSelectionReady] = useState(embed);
   const [customSources, setCustomSources] = useState<SidebarSource[]>([]);
+  const [embedSource, setEmbedSource] = useState<SidebarSource | null>(null);
   const [decodeStatsBySource, setDecodeStatsBySource] = useState<Record<string, DecodeStats>>(
     () => ({
       ...BUILT_IN_DECODE_STATS,
@@ -97,7 +120,9 @@ export const App = () => {
   const [perfReport, setPerfReport] = useState<PerfReport | null>(null);
   const [renderProgress, setRenderProgress] = useState<ActiveRenderProgress | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+
   useEffect(() => {
+    if (embed) return;
     let cancelled = false;
     const initialSelectionRevision = selectionRevisionRef.current;
     void listCustoms()
@@ -141,12 +166,18 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [embed]);
+
   useEffect(() => {
-    if (!selectionReady) return;
+    if (embed || !selectionReady) return;
     writeLastView({ sourceId: selectedSourceId, path: selectedPath, kind: selectedKind });
-  }, [selectionReady, selectedSourceId, selectedPath, selectedKind]);
-  const allSources = [...SAMPLE_SOURCES, ...TEST_SOURCES, ...customSources];
+  }, [embed, selectionReady, selectedSourceId, selectedPath, selectedKind]);
+
+  const allSources = embed
+    ? embedSource
+      ? [embedSource]
+      : []
+    : [...SAMPLE_SOURCES, ...TEST_SOURCES, ...customSources];
   const sourceById = new Map(allSources.map((source) => [source.id, source]));
   const activeSource = sourceById.get(selectedSourceId) ?? null;
   const activeDoc = activeSource?.doc ?? null;
@@ -168,6 +199,62 @@ export const App = () => {
     setRenderError(null);
   }, [selectedBlueprint, selectedUpgradePlanner, selectedDeconstructionPlanner]);
   const activeDecodeStats = decodeStatsBySource[selectedSourceId] ?? null;
+
+  const applyEmbedBlueprint = useCallback((raw: string): EmbedOutboundMessage => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return createErrorMessage("Missing blueprint string.");
+    }
+    try {
+      const { doc: decoded, stats } = decodeWithStats(trimmed);
+      const label = sourceLabel(decoded, "Untitled");
+      const next: SidebarSource = {
+        id: EMBED_SOURCE_ID,
+        label,
+        doc: decoded,
+        raw: trimmed,
+      };
+      setEmbedSource(next);
+      setDecodeStatsBySource((prev) => ({ ...prev, [EMBED_SOURCE_ID]: stats }));
+      selectionRevisionRef.current += 1;
+      const selection = selectionForDoc(decoded);
+      setSelectedSourceId(EMBED_SOURCE_ID);
+      setSelectedPath(selection.path);
+      setSelectedKind(selection.kind);
+      const kind = docKindFromDocument(decoded);
+      trackEvent("embed_load", { kind });
+      return createLoadedMessage(kind);
+    } catch (e) {
+      return createErrorMessage(decodeErrorMessage(e));
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!embed) return;
+
+    const handleEvent = (event: MessageEvent) => {
+      const parsed = parseEmbedMessage(event.data);
+      if (!parsed.ok) {
+        if (
+          typeof event.data === "object" &&
+          event.data !== null &&
+          !Array.isArray(event.data) &&
+          (event.data as { type?: unknown }).type === "fpsr:load" &&
+          parsed.reason
+        ) {
+          replyToEmbedSource(event.source, event.origin, createErrorMessage(parsed.reason));
+        }
+        return;
+      }
+      const result = applyEmbedBlueprint(parsed.message.blueprint);
+      replyToEmbedSource(event.source, event.origin, result);
+    };
+
+    const unsubscribe = subscribeEmbedMessages(handleEvent);
+    postToEmbedParent(createReadyMessage());
+    return unsubscribe;
+  }, [embed, applyEmbedBlueprint]);
+
   const addCustomFromString = useCallback(async (source: string) => {
     const trimmed = source.trim();
     if (!trimmed) {
@@ -207,7 +294,9 @@ export const App = () => {
       return false;
     }
   }, []);
+
   useEffect(() => {
+    if (embed) return;
     const source = readSourceParam();
     if (!source) return;
     let cancelled = false;
@@ -230,7 +319,8 @@ export const App = () => {
       cancelled = true;
       toast.dismiss(toastId);
     };
-  }, [addCustomFromString]);
+  }, [embed, addCustomFromString]);
+
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -310,6 +400,38 @@ export const App = () => {
     onManualOpen: () => setManualOpen(true),
     onClearAllCustoms: () => void clearAllCustoms(),
   };
+
+  const hasEmbedPreview =
+    Boolean(selectedBlueprint) ||
+    Boolean(selectedUpgradePlanner) ||
+    Boolean(selectedDeconstructionPlanner);
+
+  if (embed) {
+    return (
+      <div className="flex h-svh min-h-0 w-full flex-col overflow-hidden bg-background">
+        {hasEmbedPreview ? (
+          <PreviewPane
+            embed
+            doc={activeDoc}
+            blueprint={selectedBlueprint}
+            upgradePlanner={selectedUpgradePlanner}
+            deconstructionPlanner={selectedDeconstructionPlanner}
+            blueprintPath={selectedPath}
+            decodeStats={activeDecodeStats}
+            onTileSizeChange={setTileSize}
+            onPerfReport={setPerfReport}
+            onRenderProgress={onRenderProgress}
+            onRenderError={setRenderError}
+          />
+        ) : (
+          <PaneMessage className="flex flex-1 items-center justify-center">
+            Waiting for blueprint…
+          </PaneMessage>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="grid h-svh overflow-hidden grid-rows-[auto_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)]">
       <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden">

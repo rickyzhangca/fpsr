@@ -19,3 +19,50 @@ pnpm dev
 ```
 
 Docs for the library live under [Guide](/guide); this site is [fpsr-docs.fprints.xyz](https://fpsr-docs.fprints.xyz).
+
+## Embed
+
+Third-party sites can iframe a chrome-stripped preview and pass a blueprint string with `postMessage` (do not put large blueprint strings in the URL).
+
+<FpsrEmbedDemo />
+
+```html
+<iframe
+  id="fpsr"
+  src="https://fpsr.fprints.xyz/?embed=1"
+  title="FPSR blueprint preview"
+  style="width:100%;height:480px;border:0"
+></iframe>
+```
+
+```js
+const iframe = document.getElementById("fpsr");
+
+window.addEventListener("message", (event) => {
+  if (event.source !== iframe.contentWindow) return;
+  const data = event.data;
+  if (!data || typeof data !== "object") return;
+
+  if (data.type === "fpsr:ready") {
+    iframe.contentWindow.postMessage(
+      { type: "fpsr:load", version: 1, blueprint: "0eN..." },
+      "https://fpsr.fprints.xyz",
+    );
+  }
+  if (data.type === "fpsr:loaded") {
+    console.log("loaded", data.kind);
+  }
+  if (data.type === "fpsr:error") {
+    console.error(data.message);
+  }
+});
+```
+
+| Direction       | Type          | Payload                             |
+| --------------- | ------------- | ----------------------------------- |
+| iframe → parent | `fpsr:ready`  | `{ version: 1 }`                    |
+| parent → iframe | `fpsr:load`   | `{ version: 1, blueprint: string }` |
+| iframe → parent | `fpsr:loaded` | `{ version: 1, kind }`              |
+| iframe → parent | `fpsr:error`  | `{ version: 1, message: string }`   |
+
+Game sprites still load from BunnyCDN under the viewer origin. Hashed atlases cache in the browser and at the edge; each iframe still boots its own app shell and render worker (in-memory atlas cache is not shared across iframes).

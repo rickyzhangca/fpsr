@@ -96,6 +96,7 @@ export const PreviewPane = ({
   deconstructionPlanner = null,
   blueprintPath,
   decodeStats,
+  embed = false,
   onTileSizeChange,
   onPerfReport,
   onRenderProgress,
@@ -109,6 +110,8 @@ export const PreviewPane = ({
   deconstructionPlanner?: Record<string, unknown> | null;
   blueprintPath: number[] | null;
   decodeStats?: DecodeStats | null;
+  /** Chrome-stripped canvas for `?embed=1` (hide export / settings toolbar). */
+  embed?: boolean;
   onTileSizeChange?: (tileSize: string) => void;
   onPerfReport?: (report: PerfReport | null) => void;
   onRenderProgress?: (progress: PreviewRenderProgress | null) => void;
@@ -663,203 +666,205 @@ export const PreviewPane = ({
   const frameDimensions = !limitTo4k && fullMeasurement ? fullMeasurement : dimensions;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-2 pb-3">
-        <div className="flex items-center gap-2">
-          <Switch
-            size="sm"
-            id="limit-to-4k"
-            checked={limitTo4k}
-            disabled={controlsDisabled}
-            onCheckedChange={setLimitTo4k}
-          />
-          <Label htmlFor="limit-to-4k" className="gap-1.5">
-            Limit to 4K
-            <span className="text-muted-foreground">
-              {!limitTo4k && fullMeasurement
-                ? `${fullMeasurement.width}×${fullMeasurement.height}px`
-                : dimensions && `${dimensions.width}×${dimensions.height}px`}
-            </span>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    aria-label="About resolution limits"
-                  />
-                }
-              >
-                <InfoIcon className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm text-pretty">
-                When enabled, preview and export are capped to 4K resolution. When disabled, the
-                full image is shown as a tiled preview. Visible tiles load as you zoom or pan like
-                Google Maps.
-              </TooltipContent>
-            </Tooltip>
-          </Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="export-format"
-            aria-label="Use WebP image format"
-            size="sm"
-            checked={effectiveExportFormat === "webp"}
-            disabled={controlsDisabled || !limitTo4k}
-            onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
-          />
-          <Label htmlFor="export-format" className="gap-1.5">
-            WebP
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    aria-label="About WebP format"
-                  />
-                }
-              >
-                <InfoIcon className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm text-pretty">
-                WebP provides smaller file size, but takes longer to encode. Can be enabled when
-                Limit to 4K is enabled.
-              </TooltipContent>
-            </Tooltip>
-          </Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            size="sm"
-            id="cdn-assets"
-            checked={effectiveUseCdnAssets}
-            disabled={!localAssetsAvailable || loading || measuringFull || exportPending}
-            onCheckedChange={(checked) => {
-              setLoading(true);
-              setUseCdnAssets(checked);
-            }}
-          />
-          <Label htmlFor="cdn-assets" className="gap-1.5">
-            CDN
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    aria-label="About CDN assets"
-                  />
-                }
-              >
-                <InfoIcon className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm text-pretty">
-                {localAssetsAvailable
-                  ? "When enabled, atlases and the render database load from the BunnyCDN."
-                  : "Deployed builds always load atlases and the render database from the BunnyCDN."}
-              </TooltipContent>
-            </Tooltip>
-          </Label>
-        </div>
-        {!isPlanner && (
+      {!embed && (
+        <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 pt-2 pb-3">
           <div className="flex items-center gap-2">
             <Switch
               size="sm"
-              id="alt-mode"
-              checked={altMode}
+              id="limit-to-4k"
+              checked={limitTo4k}
+              disabled={controlsDisabled}
+              onCheckedChange={setLimitTo4k}
+            />
+            <Label htmlFor="limit-to-4k" className="gap-1.5">
+              Limit to 4K
+              <span className="text-muted-foreground">
+                {!limitTo4k && fullMeasurement
+                  ? `${fullMeasurement.width}×${fullMeasurement.height}px`
+                  : dimensions && `${dimensions.width}×${dimensions.height}px`}
+              </span>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      aria-label="About resolution limits"
+                    />
+                  }
+                >
+                  <InfoIcon className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-sm text-pretty">
+                  When enabled, preview and export are capped to 4K resolution. When disabled, the
+                  full image is shown as a tiled preview. Visible tiles load as you zoom or pan like
+                  Google Maps.
+                </TooltipContent>
+              </Tooltip>
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="export-format"
+              aria-label="Use WebP image format"
+              size="sm"
+              checked={effectiveExportFormat === "webp"}
+              disabled={controlsDisabled || !limitTo4k}
+              onCheckedChange={(checked) => setExportFormat(checked ? "webp" : "png")}
+            />
+            <Label htmlFor="export-format" className="gap-1.5">
+              WebP
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      aria-label="About WebP format"
+                    />
+                  }
+                >
+                  <InfoIcon className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-sm text-pretty">
+                  WebP provides smaller file size, but takes longer to encode. Can be enabled when
+                  Limit to 4K is enabled.
+                </TooltipContent>
+              </Tooltip>
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              size="sm"
+              id="cdn-assets"
+              checked={effectiveUseCdnAssets}
+              disabled={!localAssetsAvailable || loading || measuringFull || exportPending}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setUseCdnAssets(checked);
+              }}
+            />
+            <Label htmlFor="cdn-assets" className="gap-1.5">
+              CDN
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      aria-label="About CDN assets"
+                    />
+                  }
+                >
+                  <InfoIcon className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-sm text-pretty">
+                  {localAssetsAvailable
+                    ? "When enabled, atlases and the render database load from the BunnyCDN."
+                    : "Deployed builds always load atlases and the render database from the BunnyCDN."}
+                </TooltipContent>
+              </Tooltip>
+            </Label>
+          </div>
+          {!isPlanner && (
+            <div className="flex items-center gap-2">
+              <Switch
+                size="sm"
+                id="alt-mode"
+                checked={altMode}
+                disabled={controlsDisabled}
+                onCheckedChange={(checked) => {
+                  setLoading(true);
+                  setAltMode(checked);
+                }}
+              />
+              <Label htmlFor="alt-mode">Alt mode</Label>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Switch
+              size="sm"
+              id="coords"
+              checked={showCoords}
               disabled={controlsDisabled}
               onCheckedChange={(checked) => {
                 setLoading(true);
-                setAltMode(checked);
+                setShowCoords(checked);
               }}
             />
-            <Label htmlFor="alt-mode">Alt mode</Label>
+            <Label htmlFor="coords">Coords</Label>
           </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Switch
-            size="sm"
-            id="coords"
-            checked={showCoords}
-            disabled={controlsDisabled}
-            onCheckedChange={(checked) => {
-              setLoading(true);
-              setShowCoords(checked);
-            }}
-          />
-          <Label htmlFor="coords">Coords</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            size="sm"
-            id="background"
-            checked={showBackground}
-            disabled={controlsDisabled}
-            onCheckedChange={(checked) => {
-              setLoading(true);
-              setShowBackground(checked);
-            }}
-          />
-          <Label htmlFor="background">Background</Label>
-          <Select
-            value={backgroundSelectValue}
-            onValueChange={(value) => {
-              if (value == null) return;
-              const selectedOrbitPlanet = parseOrbitSelectValue(value);
-              if (selectedOrbitPlanet != null) {
-                if (backgroundMode === "orbit" && selectedOrbitPlanet === orbitPlanet) return;
-                setLoading(true);
-                setBackgroundSelection("orbit", selectedOrbitPlanet);
-                return;
-              }
-              if (
-                value !== "auto" &&
-                value !== "checkerboard" &&
-                value !== "space" &&
-                !isTerrainBackgroundMode(value)
-              ) {
-                return;
-              }
-              // Same selection still fires onValueChange; skip so we don't
-              // set loading without a render effect to clear it.
-              if (value === backgroundMode) return;
-              setLoading(true);
-              setBackgroundSelection(value);
-            }}
-            disabled={controlsDisabled || !showBackground}
-            items={backgroundSelectItems}
-          >
-            <SelectTrigger
-              id="background-mode"
+          <div className="flex items-center gap-2">
+            <Switch
               size="sm"
-              aria-label="Background style"
-              className="h-auto min-h-0 gap-1 border-transparent p-0 text-sm leading-none data-[size=sm]:h-auto [&_svg]:size-3.5 dark:bg-transparent dark:hover:bg-transparent"
+              id="background"
+              checked={showBackground}
+              disabled={controlsDisabled}
+              onCheckedChange={(checked) => {
+                setLoading(true);
+                setShowBackground(checked);
+              }}
+            />
+            <Label htmlFor="background">Background</Label>
+            <Select
+              value={backgroundSelectValue}
+              onValueChange={(value) => {
+                if (value == null) return;
+                const selectedOrbitPlanet = parseOrbitSelectValue(value);
+                if (selectedOrbitPlanet != null) {
+                  if (backgroundMode === "orbit" && selectedOrbitPlanet === orbitPlanet) return;
+                  setLoading(true);
+                  setBackgroundSelection("orbit", selectedOrbitPlanet);
+                  return;
+                }
+                if (
+                  value !== "auto" &&
+                  value !== "checkerboard" &&
+                  value !== "space" &&
+                  !isTerrainBackgroundMode(value)
+                ) {
+                  return;
+                }
+                // Same selection still fires onValueChange; skip so we don't
+                // set loading without a render effect to clear it.
+                if (value === backgroundMode) return;
+                setLoading(true);
+                setBackgroundSelection(value);
+              }}
+              disabled={controlsDisabled || !showBackground}
+              items={backgroundSelectItems}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false}>
-              <SelectGroup>
-                <SelectItem value="auto">{staticBackgroundOptionLabel("auto")}</SelectItem>
-                <SelectItem value="checkerboard">
-                  {staticBackgroundOptionLabel("checkerboard")}
-                </SelectItem>
-                {terrainModeOptions.map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {staticBackgroundOptionLabel(mode)}
+              <SelectTrigger
+                id="background-mode"
+                size="sm"
+                aria-label="Background style"
+                className="h-auto min-h-0 gap-1 border-transparent p-0 text-sm leading-none data-[size=sm]:h-auto [&_svg]:size-3.5 dark:bg-transparent dark:hover:bg-transparent"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false}>
+                <SelectGroup>
+                  <SelectItem value="auto">{staticBackgroundOptionLabel("auto")}</SelectItem>
+                  <SelectItem value="checkerboard">
+                    {staticBackgroundOptionLabel("checkerboard")}
                   </SelectItem>
-                ))}
-                <SelectItem value="space">{staticBackgroundOptionLabel("space")}</SelectItem>
-                {orbitPlanetOptions.map((planet) => (
-                  <SelectItem key={planet} value={orbitSelectValue(planet)}>
-                    {orbitBackgroundOptionLabel(planet)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+                  {terrainModeOptions.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {staticBackgroundOptionLabel(mode)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="space">{staticBackgroundOptionLabel("space")}</SelectItem>
+                  {orbitPlanetOptions.map((planet) => (
+                    <SelectItem key={planet} value={orbitSelectValue(planet)}>
+                      {orbitBackgroundOptionLabel(planet)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      )}
 
       {assetsMissing && (
         <Alert className="mx-4 w-fit shrink-0 self-start">
@@ -892,16 +897,18 @@ export const PreviewPane = ({
           ) : null
         }
         actions={
-          <PreviewExportControls
-            blueprint={blueprint}
-            exportFormat={effectiveExportFormat}
-            exportBlob={exportBlob}
-            exportError={currentExport?.error}
-            controlsDisabled={controlsDisabled}
-            downloadPendingLabel={downloadPendingLabel}
-            fullResolution={!limitTo4k}
-            prepareExport={prepareCurrentExport}
-          />
+          embed ? undefined : (
+            <PreviewExportControls
+              blueprint={blueprint}
+              exportFormat={effectiveExportFormat}
+              exportBlob={exportBlob}
+              exportError={currentExport?.error}
+              controlsDisabled={controlsDisabled}
+              downloadPendingLabel={downloadPendingLabel}
+              fullResolution={!limitTo4k}
+              prepareExport={prepareCurrentExport}
+            />
+          )
         }
       >
         <canvas
