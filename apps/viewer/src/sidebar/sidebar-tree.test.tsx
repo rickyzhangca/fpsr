@@ -121,4 +121,62 @@ describe("SidebarTree render progress", () => {
     expect(onSelect).toHaveBeenCalledWith("decon", [], "deconstruction_planner");
     act(() => root.unmount());
   });
+
+  it("scrolls the selected item into view when selection changes", () => {
+    const doc: BlueprintDocument = {
+      blueprint: { item: "blueprint", version: 0, label: "Bottom", entities: [] },
+    };
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        <SidebarTree
+          sectionId="custom"
+          sources={[
+            {
+              id: "top",
+              label: "Top",
+              doc: { blueprint: { item: "blueprint", version: 0, label: "Top", entities: [] } },
+            },
+            { id: "bottom", label: "Bottom", doc },
+          ]}
+          selectedSourceId="top"
+          selectedPath={null}
+          selectedKind="blueprint"
+          onSelect={vi.fn<
+            (sourceId: string, path: number[], kind: SidebarSelectableKind) => void
+          >()}
+        />,
+      );
+    });
+    scrollIntoView.mockClear();
+
+    act(() => {
+      root.render(
+        <SidebarTree
+          sectionId="custom"
+          sources={[
+            {
+              id: "top",
+              label: "Top",
+              doc: { blueprint: { item: "blueprint", version: 0, label: "Top", entities: [] } },
+            },
+            { id: "bottom", label: "Bottom", doc },
+          ]}
+          selectedSourceId="bottom"
+          selectedPath={null}
+          selectedKind="blueprint"
+          onSelect={vi.fn<
+            (sourceId: string, path: number[], kind: SidebarSelectableKind) => void
+          >()}
+        />,
+      );
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+    scrollIntoView.mockRestore();
+    act(() => root.unmount());
+  });
 });

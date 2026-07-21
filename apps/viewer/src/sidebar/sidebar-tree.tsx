@@ -322,74 +322,89 @@ export const SidebarTree = ({
   });
   const treeRef = useRef(tree);
   treeRef.current = tree;
+  const containerRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     treeRef.current.rebuildTree();
   }, [items]);
+  useLayoutEffect(() => {
+    if (!items[selectedItemId]) return;
+    const nodes = containerRef.current?.querySelectorAll<HTMLElement>("[data-sidebar-item-id]");
+    if (!nodes) return;
+    for (const node of nodes) {
+      if (node.getAttribute("data-sidebar-item-id") === selectedItemId) {
+        node.scrollIntoView({ block: "nearest", inline: "nearest" });
+        return;
+      }
+    }
+  }, [selectedItemId, items, safeExpandedItems]);
   return (
-    <Tree {...tree.getContainerProps("Blueprints")} className="w-max min-w-full">
-      {tree.getItems().map((item) => {
-        const id = item.getId();
-        if (id === ROOT_ID) return null;
-        const data = items[id];
-        if (!data) return null;
-        const isFolder = item.isFolder();
-        const progress = id === progressItemId ? renderProgress : null;
-        const renderedDuration =
-          progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
-        return (
-          <TreeItem key={id} className="w-max min-w-full">
-            <TreeItemButton
-              {...item.getProps()}
-              indent={item.getItemMeta().level * INDENT_PX}
-              data-selected={item.isSelected() || undefined}
-              data-focused={item.isFocused() || undefined}
-              className="w-max min-w-full"
-            >
-              <TreeItemIconSlot>
-                {isFolder ? (
-                  <TreeExpandIcon expanded={item.isExpanded()} />
-                ) : (
-                  <span className="size-3.5" />
-                )}
-              </TreeItemIconSlot>
-              <TreeItemIconSlot className="size-9">
-                <TreeItemKindIcon
-                  kind={data.kind}
-                  icons={data.icons}
-                  iconBackgroundKey={data.iconBackgroundKey}
-                />
-              </TreeItemIconSlot>
-              <span className="flex shrink-0 flex-col gap-0.5 pl-1.5">
-                <span className="whitespace-nowrap">
-                  <FactorioRichText
-                    text={item.getItemName()}
-                    fallback={data.kind === "book" ? "<Unnamed book>" : "<Unnamed blueprint>"}
-                    size="sm"
+    <div ref={containerRef}>
+      <Tree {...tree.getContainerProps("Blueprints")} className="w-max min-w-full">
+        {tree.getItems().map((item) => {
+          const id = item.getId();
+          if (id === ROOT_ID) return null;
+          const data = items[id];
+          if (!data) return null;
+          const isFolder = item.isFolder();
+          const progress = id === progressItemId ? renderProgress : null;
+          const renderedDuration =
+            progress?.durationMs == null ? null : formatRenderDuration(progress.durationMs);
+          return (
+            <TreeItem key={id} className="w-max min-w-full">
+              <TreeItemButton
+                {...item.getProps()}
+                indent={item.getItemMeta().level * INDENT_PX}
+                data-selected={item.isSelected() || undefined}
+                data-focused={item.isFocused() || undefined}
+                data-sidebar-item-id={id}
+                className="w-max min-w-full scroll-my-12"
+              >
+                <TreeItemIconSlot>
+                  {isFolder ? (
+                    <TreeExpandIcon expanded={item.isExpanded()} />
+                  ) : (
+                    <span className="size-3.5" />
+                  )}
+                </TreeItemIconSlot>
+                <TreeItemIconSlot className="size-9">
+                  <TreeItemKindIcon
+                    kind={data.kind}
+                    icons={data.icons}
+                    iconBackgroundKey={data.iconBackgroundKey}
                   />
-                </span>
-                {progress && (
-                  <span data-slot="tree-item-status" className="flex h-3 w-full items-center">
-                    {progress.durationMs == null ? (
-                      <Progress
-                        value={progress.value}
-                        aria-label={`${item.getItemName()}: ${progress.label}`}
-                        className="w-full gap-0"
-                      />
-                    ) : (
-                      <span
-                        className="text-xs leading-none tabular-nums text-muted-foreground"
-                        aria-label={`${item.getItemName()} rendered in ${renderedDuration}`}
-                      >
-                        {renderedDuration}
-                      </span>
-                    )}
+                </TreeItemIconSlot>
+                <span className="flex shrink-0 flex-col gap-0.5 pl-1.5">
+                  <span className="whitespace-nowrap">
+                    <FactorioRichText
+                      text={item.getItemName()}
+                      fallback={data.kind === "book" ? "<Unnamed book>" : "<Unnamed blueprint>"}
+                      size="sm"
+                    />
                   </span>
-                )}
-              </span>
-            </TreeItemButton>
-          </TreeItem>
-        );
-      })}
-    </Tree>
+                  {progress && (
+                    <span data-slot="tree-item-status" className="flex h-3 w-full items-center">
+                      {progress.durationMs == null ? (
+                        <Progress
+                          value={progress.value}
+                          aria-label={`${item.getItemName()}: ${progress.label}`}
+                          className="w-full gap-0"
+                        />
+                      ) : (
+                        <span
+                          className="text-xs leading-none tabular-nums text-muted-foreground"
+                          aria-label={`${item.getItemName()} rendered in ${renderedDuration}`}
+                        >
+                          {renderedDuration}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </span>
+              </TreeItemButton>
+            </TreeItem>
+          );
+        })}
+      </Tree>
+    </div>
   );
 };
