@@ -30,13 +30,14 @@ import {
   tryDecode,
 } from "@/shell/built-in-sources";
 import { ensureEmbedMessageCapture, subscribeEmbedMessages } from "@/shell/embed-bridge";
-import { readEmbedParam } from "@/shell/embed-mode";
+import { readEmbedParam, readImportParam, stripImportParam } from "@/shell/embed-mode";
 import {
   createErrorMessage,
   createLoadedMessage,
   createReadyMessage,
   docKindFromDocument,
   EMBED_SOURCE_ID,
+  type EmbedDocKind,
   type EmbedOutboundMessage,
   parseEmbedMessage,
   postToEmbedParent,
@@ -255,7 +256,7 @@ export const App = () => {
     return unsubscribe;
   }, [embed, applyEmbedBlueprint]);
 
-  const addCustomFromString = useCallback(async (source: string) => {
+  const addCustomFromString = useCallback(async (source: string): Promise<EmbedDocKind | false> => {
     const trimmed = source.trim();
     if (!trimmed) {
       toast.error("Paste a blueprint string first.");
@@ -278,22 +279,55 @@ export const App = () => {
       setSelectedSourceId(record.id);
       setSelectedPath(selection.path);
       setSelectedKind(selection.kind);
-      trackEvent("blueprint_load", {
-        kind: decoded.blueprint_book
-          ? "book"
-          : decoded.upgrade_planner
-            ? "upgrade_planner"
-            : decoded.deconstruction_planner
-              ? "deconstruction_planner"
-              : "blueprint",
-      });
+      const kind = docKindFromDocument(decoded);
+      trackEvent("blueprint_load", { kind });
       toast.success("Blueprint added", { description: label });
-      return true;
+      return kind;
     } catch (e) {
       toast.error(decodeErrorMessage(e));
       return false;
     }
   }, []);
+
+  useEffect(() => {
+    if (embed || !readImportParam()) return;
+    if (!window.opener) {
+      stripImportParam();
+      return;
+    }
+
+    window.opener.postMessage(createReadyMessage(), window.location.origin);
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window.opener) return;
+      const parsed = parseEmbedMessage(event.data);
+      if (!parsed.ok) {
+        if (
+          typeof event.data === "object" &&
+          event.data !== null &&
+          !Array.isArray(event.data) &&
+          (event.data as { type?: unknown }).type === "fpsr:load" &&
+          parsed.reason
+        ) {
+          replyToEmbedSource(event.source, event.origin, createErrorMessage(parsed.reason));
+        }
+        return;
+      }
+      stripImportParam();
+      void addCustomFromString(parsed.message.blueprint).then((kind) => {
+        replyToEmbedSource(
+          event.source,
+          event.origin,
+          kind === false
+            ? createErrorMessage("Could not import blueprint.")
+            : createLoadedMessage(kind),
+        );
+      });
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [embed, addCustomFromString]);
 
   useEffect(() => {
     if (embed) return;
@@ -418,6 +452,7 @@ export const App = () => {
             deconstructionPlanner={selectedDeconstructionPlanner}
             blueprintPath={selectedPath}
             decodeStats={activeDecodeStats}
+            sourceString={activeSource?.raw ?? null}
             onTileSizeChange={setTileSize}
             onPerfReport={setPerfReport}
             onRenderProgress={onRenderProgress}
@@ -484,7 +519,7 @@ export const App = () => {
           <ManualBlueprintDialog
             open={manualOpen}
             onOpenChange={setManualOpen}
-            onSubmit={addCustomFromString}
+            onSubmit={async (source) => (await addCustomFromString(source)) !== false}
           />
         </Suspense>
       )}

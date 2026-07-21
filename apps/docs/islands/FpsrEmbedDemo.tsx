@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 
-const VIEWER_ORIGIN = "https://fpsr.fprints.xyz";
+const VIEWER_ORIGIN = "http://localhost:5173";
 const EMBED_SRC = `${VIEWER_ORIGIN}/?embed=1`;
 
 /** Sample blueprint used by the docs embed demo. */
