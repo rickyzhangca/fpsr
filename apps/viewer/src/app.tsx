@@ -233,6 +233,7 @@ export const App = () => {
   useLayoutEffect(() => {
     if (!embed) return;
 
+    let gotLoad = false;
     const handleEvent = (event: MessageEvent) => {
       const parsed = parseEmbedMessage(event.data);
       if (!parsed.ok) {
@@ -247,13 +248,27 @@ export const App = () => {
         }
         return;
       }
+      gotLoad = true;
       const result = applyEmbedBlueprint(parsed.message.blueprint);
       replyToEmbedSource(event.source, event.origin, result);
     };
 
     const unsubscribe = subscribeEmbedMessages(handleEvent);
-    postToEmbedParent(createReadyMessage());
-    return unsubscribe;
+    const announceReady = () => {
+      if (gotLoad) return;
+      postToEmbedParent(createReadyMessage());
+    };
+    // Parent pages (docs islands, third-party embeds) may attach their
+    // message listener after this iframe already booted — re-announce until load.
+    announceReady();
+    const readyInterval = window.setInterval(announceReady, 250);
+    const readyTimeout = window.setTimeout(() => window.clearInterval(readyInterval), 15_000);
+    return () => {
+      gotLoad = true;
+      window.clearInterval(readyInterval);
+      window.clearTimeout(readyTimeout);
+      unsubscribe();
+    };
   }, [embed, applyEmbedBlueprint]);
 
   const addCustomFromString = useCallback(async (source: string): Promise<EmbedDocKind | false> => {
