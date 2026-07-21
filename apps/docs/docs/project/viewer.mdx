@@ -20,6 +20,24 @@ pnpm dev
 
 Docs for the library live under [Guide](/guide); this site is [fpsr-docs.fprints.xyz](https://fpsr-docs.fprints.xyz).
 
+## Load from URL (`?source=`)
+
+Open the viewer with a `source` query parameter pointing at an HTTPS URL that returns a Factorio blueprint string (`text/plain`). The viewer fetches it through a same-origin proxy, adds it under **Custom**, selects it, and strips `source` from the address bar so a refresh does not re-import.
+
+```
+https://fpsr.fprints.xyz/?source=https://www.factorio.school/api/blueprintData/<id>/
+```
+
+Rules:
+
+- HTTPS only (no credentials in the URL)
+- Allowlisted hosts: `www.factorio.school`, `factorio.school`
+- Upstream body capped at 4 MiB; request times out after 15s
+
+The proxy is `GET /api/fetch-blueprint?url=…` (Cloudflare Pages Function in production; Vite middleware in local `pnpm dev`). It is not an open proxy — non-allowlisted hosts are rejected.
+
+For large blueprint strings in third-party pages, prefer [Embed](#embed) with `postMessage` instead of putting the string in the query.
+
 ## Embed
 
 Third-party sites can iframe a chrome-stripped preview and pass a blueprint string with `postMessage` (do not put large blueprint strings in the URL).
