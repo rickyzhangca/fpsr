@@ -31,6 +31,7 @@ import {
 } from "@/shell/built-in-sources";
 import { readLastView, writeLastView } from "@/shell/last-view";
 import { PaneMessage } from "@/shell/pane-message";
+import { fetchBlueprintViaProxy, readSourceParam, stripSourceParam } from "@/shell/source-proxy";
 import { activeTabAtom, isViewerTab } from "@/shell/viewer-preferences";
 import { BlueprintSummary } from "@/sidebar/blueprint-summary";
 import { BookSummary } from "@/sidebar/book-summary";
@@ -167,7 +168,7 @@ export const App = () => {
     setRenderError(null);
   }, [selectedBlueprint, selectedUpgradePlanner, selectedDeconstructionPlanner]);
   const activeDecodeStats = decodeStatsBySource[selectedSourceId] ?? null;
-  const addCustomFromString = async (source: string) => {
+  const addCustomFromString = useCallback(async (source: string) => {
     const trimmed = source.trim();
     if (!trimmed) {
       toast.error("Paste a blueprint string first.");
@@ -205,7 +206,31 @@ export const App = () => {
       toast.error(decodeErrorMessage(e));
       return false;
     }
-  };
+  }, []);
+  useEffect(() => {
+    const source = readSourceParam();
+    if (!source) return;
+    let cancelled = false;
+    const toastId = toast.loading("Loading blueprint from URL…");
+    void (async () => {
+      try {
+        const text = await fetchBlueprintViaProxy(source);
+        if (cancelled) return;
+        await addCustomFromString(text);
+      } catch (e) {
+        if (!cancelled) {
+          toast.error(e instanceof Error ? e.message : "Could not load blueprint from URL.");
+        }
+      } finally {
+        toast.dismiss(toastId);
+        if (!cancelled) stripSourceParam();
+      }
+    })();
+    return () => {
+      cancelled = true;
+      toast.dismiss(toastId);
+    };
+  }, [addCustomFromString]);
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();

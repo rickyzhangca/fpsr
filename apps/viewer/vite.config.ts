@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite-plus";
 import { defineConfig, lazyPlugins } from "vite-plus";
+import { handleFetchBlueprintRequest } from "./src/shell/source-proxy";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -52,12 +53,50 @@ function serveDirectory(prefix: string, rootDir: string): Plugin {
   };
 }
 
+function fetchBlueprintProxy(): Plugin {
+  return {
+    name: "fpsr-fetch-blueprint-proxy",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathOnly = req.url?.split("?")[0];
+        if (pathOnly !== "/api/fetch-blueprint") {
+          next();
+          return;
+        }
+        if (req.method !== "GET") {
+          res.statusCode = 405;
+          res.end("Method not allowed");
+          return;
+        }
+
+        void (async () => {
+          try {
+            const host = req.headers.host ?? "localhost";
+            const requestUrl = new URL(req.url ?? "/", `http://${host}`);
+            const response = await handleFetchBlueprintRequest(requestUrl);
+            const body = await response.text();
+            res.statusCode = response.status;
+            response.headers.forEach((value, key) => {
+              res.setHeader(key, value);
+            });
+            res.end(body);
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(e instanceof Error ? e.message : "Proxy failed.");
+          }
+        })();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: lazyPlugins(() => [
     tailwindcss(),
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     serveDirectory("/assets/", assetsRoot),
+    fetchBlueprintProxy(),
   ]),
   test: {
     setupFiles: ["./src/test-setup.ts"],
